@@ -202,6 +202,14 @@ export const collectionStatusEnum = pgEnum('collection_status', [
 
 export const recordStateEnum = pgEnum('record_state', ['Active', 'Closed', 'Archived']);
 
+export const financialCloseStatusEnum = pgEnum('financial_close_status', [
+  'NotReady',
+  'Ready',
+  'InReview',
+  'Closed',
+  'Reopened',
+]);
+
 export const jobs = pgTable(
   'jobs',
   {
@@ -231,8 +239,15 @@ export const jobs = pgTable(
     contractedAt: date('contracted_at').notNull(),
     operationalStatus: operationalStatusEnum('operational_status').notNull().default('Contracted'),
     collectionStatus: collectionStatusEnum('collection_status').notNull().default('Expected'),
+    financialCloseStatus: financialCloseStatusEnum('financial_close_status')
+      .notNull()
+      .default('NotReady'),
     recordState: recordStateEnum('record_state').notNull().default('Active'),
     actualCompletionDate: date('actual_completion_date'),
+    // No FK: financial_close_versions.job_id already references jobs.id, and
+    // Drizzle/Postgres don't need this pointer to be a hard FK to be useful —
+    // it's validated at the application layer, same as audit_events.job_id.
+    currentFinancialVersionId: uuid('current_financial_version_id'),
     createdBy: uuid('created_by')
       .notNull()
       .references(() => users.id),
@@ -456,4 +471,215 @@ export const jobAdjustments = pgTable('job_adjustments', {
     .notNull()
     .references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// docs/03_DATA_MODEL.md SS6 Operational completion
+
+export const completionChecklistTemplates = pgTable('completion_checklist_templates', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  organizationId: uuid('organization_id')
+    .notNull()
+    .references(() => organizations.id),
+  name: text('name').notNull(),
+  versionNumber: integer('version_number').notNull(),
+  // Array of { key: string, label: string }. A template change never rewrites
+  // a previously completed checklist (docs/03 SS6) — reviews snapshot the
+  // template version they were answered against.
+  checklistItemsJson: jsonb('checklist_items_json').notNull(),
+  active: boolean('active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const completionReviewStatusEnum = pgEnum('completion_review_status', [
+  'Draft',
+  'Submitted',
+  'Approved',
+  'Rejected',
+  'Superseded',
+]);
+
+export const jobCompletionReviews = pgTable('job_completion_reviews', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  jobId: uuid('job_id')
+    .notNull()
+    .references(() => jobs.id),
+  templateVersionId: uuid('template_version_id')
+    .notNull()
+    .references(() => completionChecklistTemplates.id),
+  status: completionReviewStatusEnum('status').notNull().default('Submitted'),
+  requestedBy: uuid('requested_by')
+    .notNull()
+    .references(() => users.id),
+  requestedAt: timestamp('requested_at', { withTimezone: true }).notNull().defaultNow(),
+  approvedBy: uuid('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  actualCompletionDate: date('actual_completion_date'),
+  rejectionReason: text('rejection_reason'),
+});
+
+export const jobCompletionAnswers = pgTable('job_completion_answers', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  reviewId: uuid('review_id')
+    .notNull()
+    .references(() => jobCompletionReviews.id),
+  itemKey: text('item_key').notNull(),
+  answer: boolean('answer').notNull(),
+  notes: text('notes'),
+  createdBy: uuid('created_by')
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// docs/03_DATA_MODEL.md SS5 "cost_category_finalizations" — distinct from
+// individual cost_transactions.approval_status: this locks an entire
+// category (labor/material/adjustments) as final for close-gate purposes.
+export const finalizationCategoryEnum = pgEnum('finalization_category', [
+  'labor',
+  'material',
+  'adjustments',
+]);
+
+export const finalizationStatusEnum = pgEnum('finalization_status', [
+  'Open',
+  'ReadyForReview',
+  'Final',
+  'Reopened',
+]);
+
+export const costCategoryFinalizations = pgTable(
+  'cost_category_finalizations',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => jobs.id),
+    category: finalizationCategoryEnum('category').notNull(),
+    status: finalizationStatusEnum('status').notNull().default('Open'),
+    finalAmount: numeric('final_amount', { precision: 12, scale: 2 }),
+    approvedBy: uuid('approved_by').references(() => users.id),
+    approvedAt: timestamp('approved_at', { withTimezone: true }),
+    reopenedBy: uuid('reopened_by').references(() => users.id),
+    reopenedAt: timestamp('reopened_at', { withTimezone: true }),
+    reopenReason: text('reopen_reason'),
+  },
+  (table) => [
+    uniqueIndex('cost_category_finalizations_job_category_unique').on(table.jobId, table.category),
+  ],
+);
+
+// docs/03_DATA_MODEL.md SS7 Financial close and versions
+
+export const closeAttemptStatusEnum = pgEnum('close_attempt_status', [
+  'Draft',
+  'Blocked',
+  'Submitted',
+  'Approved',
+  'Rejected',
+  'Superseded',
+]);
+
+export const financialCloseAttempts = pgTable('financial_close_attempts', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  jobId: uuid('job_id')
+    .notNull()
+    .references(() => jobs.id),
+  attemptNumber: integer('attempt_number').notNull(),
+  status: closeAttemptStatusEnum('status').notNull().default('Draft'),
+  // Named gates with pass/fail and blocker details, captured at submission
+  // time; approval always re-evaluates gates live rather than trusting this.
+  gateResultsJson: jsonb('gate_results_json'),
+  submittedBy: uuid('submitted_by').references(() => users.id),
+  submittedAt: timestamp('submitted_at', { withTimezone: true }),
+  approvedBy: uuid('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  rejectionReason: text('rejection_reason'),
+});
+
+export const financialCloseVersions = pgTable(
+  'financial_close_versions',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => jobs.id),
+    versionNumber: integer('version_number').notNull(),
+    priorVersionId: uuid('prior_version_id').references(
+      (): AnyPgColumn => financialCloseVersions.id,
+    ),
+    expectedRevenue: numeric('expected_revenue', { precision: 12, scale: 2 }).notNull(),
+    collectedRevenue: numeric('collected_revenue', { precision: 12, scale: 2 }).notNull(),
+    finalLaborCost: numeric('final_labor_cost', { precision: 12, scale: 2 }).notNull(),
+    finalMaterialCost: numeric('final_material_cost', { precision: 12, scale: 2 }).notNull(),
+    preCommissionAdjustments: numeric('pre_commission_adjustments', {
+      precision: 12,
+      scale: 2,
+    }).notNull(),
+    commissionableProfit: numeric('commissionable_profit', { precision: 12, scale: 2 }).notNull(),
+    // Immutable detailed inputs (full getJobFinancialSummary output plus gate
+    // results) so this version is reproducible without consulting mutable
+    // current settings (docs/02 SS6).
+    inputSnapshotJson: jsonb('input_snapshot_json').notNull(),
+    createdFromAttemptId: uuid('created_from_attempt_id')
+      .notNull()
+      .references(() => financialCloseAttempts.id),
+    approvedBy: uuid('approved_by')
+      .notNull()
+      .references(() => users.id),
+    approvedAt: timestamp('approved_at', { withTimezone: true }).notNull().defaultNow(),
+    reopenReasonFromPrior: text('reopen_reason_from_prior'),
+  },
+  (table) => [
+    uniqueIndex('financial_close_versions_job_version_unique').on(table.jobId, table.versionNumber),
+  ],
+);
+
+export const reopenReasonTypeEnum = pgEnum('reopen_reason_type', [
+  'late_cost',
+  'return',
+  'revenue_correction',
+  'accounting_error',
+  'warranty',
+  'other',
+]);
+
+export const reopenRequestStatusEnum = pgEnum('reopen_request_status', [
+  'Requested',
+  'Approved',
+  'Rejected',
+  'Completed',
+]);
+
+export const financialReopenRequests = pgTable('financial_reopen_requests', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  jobId: uuid('job_id')
+    .notNull()
+    .references(() => jobs.id),
+  currentVersionId: uuid('current_version_id')
+    .notNull()
+    .references(() => financialCloseVersions.id),
+  reasonType: reopenReasonTypeEnum('reason_type').notNull(),
+  explanation: text('explanation').notNull(),
+  estimatedFinancialImpact: numeric('estimated_financial_impact', { precision: 12, scale: 2 }),
+  status: reopenRequestStatusEnum('status').notNull().default('Requested'),
+  requestedBy: uuid('requested_by')
+    .notNull()
+    .references(() => users.id),
+  requestedAt: timestamp('requested_at', { withTimezone: true }).notNull().defaultNow(),
+  approvedBy: uuid('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
 });

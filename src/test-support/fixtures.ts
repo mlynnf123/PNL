@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
 import { testDb } from '@/db/test-client';
 import {
+  completionChecklistTemplates,
   organizations,
   permissions as permissionsTable,
   roles,
@@ -9,8 +10,17 @@ import {
   userRoles,
   users,
 } from '@/db/schema';
+import { DEFAULT_CHECKLIST_ITEMS } from '@/lib/completion-checklist';
 import { hashPassword } from '@/lib/password';
+import { postCollection } from '@/server/commands/collections';
+import { approveCostTransaction, postCostTransaction } from '@/server/commands/cost-transactions';
 import { createJob } from '@/server/commands/create-job';
+import { finalizeCostCategory } from '@/server/commands/finalize-cost-category';
+import {
+  approveOperationalCompletion,
+  requestOperationalCompletion,
+} from '@/server/commands/operational-completion';
+import { addRevenueComponent, approveRevenueComponent } from '@/server/commands/revenue-components';
 
 // organizations cascades to everything scoped to it (users, jobs, roles, ...).
 // The permissions catalog is left alone — it's a fixed, reusable global list,
@@ -24,6 +34,14 @@ export async function createOrganization() {
     .insert(organizations)
     .values({ legalName: 'Test Org', displayName: 'Test Org', timeZone: 'America/Chicago' })
     .returning();
+
+  await testDb.insert(completionChecklistTemplates).values({
+    organizationId: org.id,
+    name: 'Default',
+    versionNumber: 1,
+    checklistItemsJson: DEFAULT_CHECKLIST_ITEMS,
+  });
+
   return org;
 }
 
@@ -97,5 +115,95 @@ export async function createJobFixture(organizationId: string, actorUserId: stri
     },
     testDb,
   );
+  return { job, salesRep };
+}
+
+// A job with approved revenue matching a full collection, approved/finalized
+// labor and material costs, and an approved operational completion review —
+// every close gate passes. The actor needs FINANCIAL_ENTRY and
+// COST_FINALIZATION (Phase 2/3 tests already grant both together).
+export async function createCloseableJobFixture(organizationId: string, actorUserId: string) {
+  const { job, salesRep } = await createJobFixture(organizationId, actorUserId);
+
+  const contract = await addRevenueComponent(
+    {
+      actorUserId,
+      organizationId,
+      jobId: job.id,
+      componentType: 'original_contract',
+      amount: '10000.00',
+      effectiveDate: '2026-01-01',
+    },
+    testDb,
+  );
+  await approveRevenueComponent({ actorUserId, organizationId, componentId: contract.id }, testDb);
+
+  await postCollection(
+    {
+      actorUserId,
+      organizationId,
+      jobId: job.id,
+      collectionType: 'initial_insurance',
+      amount: '10000.00',
+      receivedDate: '2026-02-01',
+    },
+    testDb,
+  );
+
+  const labor = await postCostTransaction(
+    {
+      actorUserId,
+      organizationId,
+      jobId: job.id,
+      category: 'labor',
+      transactionType: 'charge',
+      description: 'Crew labor',
+      amount: '2000.00',
+      incurredDate: '2026-02-05',
+    },
+    testDb,
+  );
+  await approveCostTransaction({ actorUserId, organizationId, transactionId: labor.id }, testDb);
+
+  const material = await postCostTransaction(
+    {
+      actorUserId,
+      organizationId,
+      jobId: job.id,
+      category: 'material',
+      transactionType: 'purchase',
+      description: 'Shingles',
+      amount: '3000.00',
+      incurredDate: '2026-02-06',
+    },
+    testDb,
+  );
+  await approveCostTransaction({ actorUserId, organizationId, transactionId: material.id }, testDb);
+
+  const review = await requestOperationalCompletion(
+    {
+      actorUserId,
+      organizationId,
+      jobId: job.id,
+      answers: DEFAULT_CHECKLIST_ITEMS.map((item) => ({ itemKey: item.key, answer: true })),
+      actualCompletionDate: '2026-02-10',
+    },
+    testDb,
+  );
+  await approveOperationalCompletion({ actorUserId, organizationId, reviewId: review.id }, testDb);
+
+  await finalizeCostCategory(
+    { actorUserId, organizationId, jobId: job.id, category: 'labor' },
+    testDb,
+  );
+  await finalizeCostCategory(
+    { actorUserId, organizationId, jobId: job.id, category: 'material' },
+    testDb,
+  );
+  await finalizeCostCategory(
+    { actorUserId, organizationId, jobId: job.id, category: 'adjustments' },
+    testDb,
+  );
+
   return { job, salesRep };
 }

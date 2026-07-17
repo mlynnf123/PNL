@@ -5,7 +5,16 @@ import { config } from 'dotenv';
 config({ path: '.env.local' });
 
 import { and, eq } from 'drizzle-orm';
-import { organizations, permissions, roles, rolePermissions, userRoles, users } from './schema';
+import {
+  completionChecklistTemplates,
+  organizations,
+  permissions,
+  roles,
+  rolePermissions,
+  userRoles,
+  users,
+} from './schema';
+import { DEFAULT_CHECKLIST_ITEMS } from '@/lib/completion-checklist';
 import { hashPassword } from '@/lib/password';
 import { PERMISSION_CATALOG, PERMISSIONS, type PermissionKey } from '@/lib/permissions';
 
@@ -156,6 +165,27 @@ async function main() {
     .insert(userRoles)
     .values({ userId: ownerUser.id, roleId: ownerAdminRole.id })
     .onConflictDoNothing({ target: [userRoles.userId, userRoles.roleId] });
+
+  const [existingTemplate] = await db
+    .select()
+    .from(completionChecklistTemplates)
+    .where(
+      and(
+        eq(completionChecklistTemplates.organizationId, organization.id),
+        eq(completionChecklistTemplates.name, 'Default'),
+      ),
+    )
+    .limit(1);
+
+  if (!existingTemplate) {
+    await db.insert(completionChecklistTemplates).values({
+      organizationId: organization.id,
+      name: 'Default',
+      versionNumber: 1,
+      checklistItemsJson: DEFAULT_CHECKLIST_ITEMS,
+    });
+    console.log('Created default completion checklist template');
+  }
 
   console.log('Seed complete.');
 }

@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { db as defaultDb } from '@/db/client';
-import type { DbClient } from '@/db/client';
+import type { DbOrTx } from '@/db/client';
 
 export interface JobFinancialSummary {
   expectedRevenue: string;
@@ -28,7 +28,7 @@ interface SummaryRow extends Record<string, unknown> {
 // cents formatting as a populated one ("0.00").
 export async function getJobFinancialSummary(
   jobId: string,
-  db: DbClient = defaultDb,
+  db: DbOrTx = defaultDb,
 ): Promise<JobFinancialSummary> {
   const rows = await db.execute<SummaryRow>(sql`
     SELECT

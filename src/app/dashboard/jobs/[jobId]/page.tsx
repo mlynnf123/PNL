@@ -1,5 +1,6 @@
 import { revalidatePath } from 'next/cache';
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import { and, asc, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
@@ -19,6 +20,7 @@ import {
 } from '@/server/commands/cost-transactions';
 import { getJobFinancialSummary } from '@/server/queries/job-financial-summary';
 import { AppHeader } from '../../app-header';
+import { Field, RowTable, Section, SelectField, SmallButton, Stat, SubmitButton } from '../ui';
 
 export default async function JobDetailPage({ params }: { params: Promise<{ jobId: string }> }) {
   const session = await requireSession();
@@ -151,12 +153,20 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
     <div className="flex flex-1 flex-col gap-6 bg-gradient-to-b from-zinc-50 to-white p-8 dark:from-black dark:to-zinc-950">
       <AppHeader />
 
-      <div>
-        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{job.jobNumber}</h2>
-        <p className="text-sm font-normal text-zinc-600 dark:text-zinc-400">
-          {job.customerName} · {job.propertyAddressLine1}, {job.propertyCity}, {job.propertyState}{' '}
-          {job.propertyPostalCode} · {job.fundingType}
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{job.jobNumber}</h2>
+          <p className="text-sm font-normal text-zinc-600 dark:text-zinc-400">
+            {job.customerName} · {job.propertyAddressLine1}, {job.propertyCity}, {job.propertyState}{' '}
+            {job.propertyPostalCode} · {job.fundingType}
+          </p>
+        </div>
+        <Link
+          href={`/dashboard/jobs/${job.id}/close`}
+          className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-normal text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+        >
+          Close
+        </Link>
       </div>
 
       <div className="grid grid-cols-2 gap-4 rounded-lg border border-zinc-200 bg-gradient-to-b from-white to-zinc-50 p-6 sm:grid-cols-4 dark:border-zinc-800 dark:from-zinc-950 dark:to-black">
@@ -321,122 +331,5 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
         </form>
       </Section>
     </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-xs font-normal text-zinc-500 dark:text-zinc-500">{label}</p>
-      <p className="font-normal text-zinc-900 dark:text-zinc-50">${value}</p>
-    </div>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-gradient-to-b from-white to-zinc-50 p-6 dark:border-zinc-800 dark:from-zinc-950 dark:to-black">
-      <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-50">{title}</h3>
-      {children}
-    </div>
-  );
-}
-
-function RowTable({ headers, rows }: { headers: string[]; rows: React.ReactNode[][] }) {
-  if (rows.length === 0) {
-    return <p className="text-sm font-normal text-zinc-600 dark:text-zinc-400">None yet.</p>;
-  }
-
-  return (
-    <table className="w-full text-left text-sm">
-      <thead>
-        <tr className="border-b border-zinc-200 text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
-          {headers.map((h) => (
-            <th key={h} className="px-2 py-2 font-normal">
-              {h}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row, i) => (
-          <tr key={i} className="border-b border-zinc-100 last:border-0 dark:border-zinc-900">
-            {row.map((cell, j) => (
-              <td key={j} className="px-2 py-2 font-normal text-zinc-900 dark:text-zinc-50">
-                {cell}
-              </td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function Field({
-  label,
-  name,
-  type = 'text',
-  step,
-  required,
-}: {
-  label: string;
-  name: string;
-  type?: string;
-  step?: string;
-  required?: boolean;
-}) {
-  return (
-    <label className="flex flex-col gap-1 text-xs text-zinc-700 dark:text-zinc-300">
-      {label}
-      <input
-        name={name}
-        type={type}
-        step={step}
-        required={required}
-        className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm font-normal text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-      />
-    </label>
-  );
-}
-
-function SelectField({ label, name, options }: { label: string; name: string; options: string[] }) {
-  return (
-    <label className="flex flex-col gap-1 text-xs text-zinc-700 dark:text-zinc-300">
-      {label}
-      <select
-        name={name}
-        required
-        className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm font-normal text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-      >
-        {options.map((o) => (
-          <option key={o} value={o}>
-            {o}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-function SubmitButton({ children }: { children: React.ReactNode }) {
-  return (
-    <button
-      type="submit"
-      className="rounded-md bg-gradient-to-b from-zinc-800 to-zinc-950 px-3 py-1.5 text-sm font-medium text-white hover:from-zinc-700 hover:to-zinc-900 dark:from-zinc-100 dark:to-zinc-300 dark:text-zinc-900"
-    >
-      {children}
-    </button>
-  );
-}
-
-function SmallButton({ children }: { children: React.ReactNode }) {
-  return (
-    <button
-      type="submit"
-      className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-normal text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
-    >
-      {children}
-    </button>
   );
 }
