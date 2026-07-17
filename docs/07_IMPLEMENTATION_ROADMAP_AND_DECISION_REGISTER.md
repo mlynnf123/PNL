@@ -19,6 +19,13 @@ Build the financial core in vertical, testable increments. Do not begin with das
 | 8. Optional rep portal            | Read-only own jobs, approved/estimated commission policy, transactions, balance                                                          | Rep isolation and privacy tests pass; owners approve visible fields                                      |
 | Future CRM                        | Leads, pipeline, estimates, communications, scheduling, production                                                                       | Separate approved scope; must reuse financial core rather than duplicate it                              |
 
+## 2a. Phase status
+
+| Phase                       | Status                          | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| --------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0. Repository and decisions | **Done** (2026-07-16)           | ADR-001 (stack) recorded; format/lint/typecheck/test/build verified; CI baseline passing.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 1. Platform foundation      | **Partially done** (2026-07-17) | organizations, users, roles, permissions, user_roles, role_permissions, and an append-only (trigger-enforced) audit_events table exist with migrations. Auth.js Credentials provider with JWT sessions and session-version revocation is implemented (ADR-002) but has no sign-in UI yet — only the API route handler. One protected mutation (`deactivateUser`) proves the permission-check-plus-audit-event-in-one-transaction pattern, with a passing integration test against real Postgres covering the positive case, an authorization-denial case, and the append-only trigger. Not yet done: sign-in/sign-out UI, settings screens, object storage abstraction, observability/structured logging. Exit criteria ("Owner can sign in") requires the UI piece before this phase can be marked fully complete. |
+
 ## 3. First vertical slice
 
 The first demonstrable slice should use a single test job and prove the architecture end to end:
@@ -127,6 +134,68 @@ Rollback or supersession path
   Superseding this ADR requires a new ADR referencing this ID, an updated
   D-020 entry, and confirmation that no production data depends on the
   prior stack's specific migration format.
+```
+
+```text
+ADR-002: Session strategy correction — JWT with session-version revocation
+Status: Accepted
+Date: 2026-07-17
+Decision owner: Claude Code (technical correction), reviewed with project owner
+
+Context
+  ADR-001 recorded "Auth.js (NextAuth v5), credentials provider with
+  database-backed sessions." While implementing Phase 1 authentication,
+  current Auth.js documentation (verified via Context7, authjs.dev) confirms
+  this is not supported: Auth.js throws an UnsupportedStrategy error if a
+  Credentials provider is configured with `strategy: "database"`. The
+  Credentials provider requires the JWT session strategy.
+
+  This matters because docs/02 SS8 requires "Secure cookies/tokens,
+  rotation/expiration, and logout invalidation where supported." Pure JWT
+  sessions cannot be revoked before their expiration without additional
+  server-side state.
+
+Options considered
+  1. Switch providers (e.g. email magic link) to keep database sessions —
+     rejected; the product is a small internal owner/staff/rep team with
+     passwords, not passwordless email delivery.
+  2. Accept JWT sessions with no revocation mechanism before expiry —
+     rejected; does not satisfy docs/02 SS8 logout invalidation.
+  3. JWT sessions plus a per-user `session_version` counter, embedded in
+     the JWT and checked on every request against the current database
+     value — chosen.
+
+Decision
+  Use Auth.js Credentials provider with `strategy: "jwt"`. Add
+  `users.session_version` (integer, default 0). The JWT payload carries
+  the session_version value at issuance. The `session`/`jwt` callback
+  re-reads the user's current session_version on each request; a mismatch
+  invalidates the session (forces sign-out). Incrementing session_version
+  (on explicit logout-everywhere, password change, or admin-forced
+  deactivation) invalidates all of that user's previously issued tokens
+  immediately, without a database-backed session table.
+
+Consequences and tradeoffs
+  - Satisfies docs/02 SS8 logout invalidation without contradicting
+    Auth.js's Credentials-provider constraint.
+  - Requires a database read on every authenticated request to check
+    session_version (acceptable; the same request will need DB access for
+    authorization checks regardless).
+  - No DrizzleAdapter accounts/sessions/verification_tokens tables are
+    needed, since there is no OAuth linking or magic-link flow in Phase 1.
+    Those tables can be added later if a future phase adds OAuth sign-in.
+
+Affected requirements/tests/migrations
+  Affects docs/02 SS8 (security requirements), the users table in
+  docs/03 SS2 (adds session_version and password_hash, both implementation
+  details for Credentials auth not present in the base spec), and Phase 1
+  authentication tests.
+
+Rollback or supersession path
+  Superseding this ADR requires a new ADR, migration to add back an
+  adapter-backed sessions table if a future provider requires it, and a
+  migration path for existing session_version-based tokens to expire
+  naturally (max JWT maxAge) before cutover.
 ```
 
 ## 6. Architecture options if the repository is empty

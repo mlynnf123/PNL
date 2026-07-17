@@ -93,44 +93,67 @@ For each vertical feature:
 
 Prefer concise production-ready error handling. Do not add verbose error-message frameworks that obscure domain behavior.
 
+Never mention Claude, Anthropic, or any AI tooling in a commit message. Write commits and code comments the way a developer would leave notes for the next developer — short, plain, natural. No AI-sounding phrasing anywhere in this repo.
+
 ## Stack decision
 
 ADR-001 in `docs/07_IMPLEMENTATION_ROADMAP_AND_DECISION_REGISTER.md` records the chosen stack: Next.js (TypeScript, App Router) for web client and backend, PostgreSQL, Drizzle ORM, Auth.js (credentials/sessions), Fly.io or Railway hosting with a separate worker process, S3-compatible object storage.
 
 ## Commands and repository layout
 
-All commands below were run successfully in this repository on 2026-07-16 (Phase 0 scaffold).
+All commands below were run successfully in this repository as of 2026-07-17 (Phase 1: platform foundation).
 
-| Purpose | Command |
-|---|---|
-| Install | `npm install` |
-| Dev server | `npm run dev` |
-| Build | `npm run build` |
-| Start (production) | `npm run start` |
-| Lint | `npm run lint` |
-| Type check | `npm run typecheck` |
-| Format (write) | `npm run format` |
-| Format (check only) | `npm run format:check` |
-| Unit tests | `npm run test` |
-| Generate Drizzle migration | `npm run db:generate` |
-| Apply Drizzle migration | `npm run db:migrate` |
-| Drizzle Studio | `npm run db:studio` |
+| Purpose                           | Command                    |
+| --------------------------------- | -------------------------- |
+| Install                           | `npm install`              |
+| Start local Postgres (Docker)     | `docker-compose up -d`     |
+| Dev server                        | `npm run dev`              |
+| Build                             | `npm run build`            |
+| Start (production)                | `npm run start`            |
+| Lint                              | `npm run lint`             |
+| Type check                        | `npm run typecheck`        |
+| Format (write)                    | `npm run format`           |
+| Format (check only)               | `npm run format:check`     |
+| Unit tests                        | `npm run test`             |
+| Integration tests (real Postgres) | `npm run test:integration` |
+| Seed dev database                 | `npm run db:seed`          |
+| Generate Drizzle migration        | `npm run db:generate`      |
+| Apply Drizzle migration           | `npm run db:migrate`       |
+| Drizzle Studio                    | `npm run db:studio`        |
 
-No integration, API, or end-to-end test commands exist yet — those are added starting Phase 1 alongside the first real domain modules. `npm run build` currently succeeds against the default scaffolded page only; no database connection is required until `src/db/schema.ts` gains real tables in Phase 1.
+No API or end-to-end (browser-driven) test commands exist yet — those are added as Phase 2+ introduces real screens. `npm run build` succeeds without a database connection (no route performs data access at build/static-generation time yet).
+
+Local Postgres requires Docker. This machine uses Colima (`brew install colima docker docker-compose`, `colima start --mount /path/to/repo:w`) rather than Docker Desktop — the Colima VM must have the repository's path mounted, or bind-mounted files (e.g. `docker/init-test-db.sql`) will silently appear as empty directories inside the container. `docker-compose up -d` creates both `jj_roofing_dev` and `jj_roofing_test` databases in one Postgres 16 instance.
 
 ### Repository layout
 
 ```text
-src/app/          Next.js App Router routes (currently the default scaffold page)
-src/db/schema.ts  Drizzle schema (empty placeholder; Phase 1 adds real tables)
-src/db/client.ts  Drizzle/postgres-js client factory, reads DATABASE_URL
-drizzle.config.ts Drizzle Kit config (schema path, migrations output, dialect)
-docs/             Specification documents (source of truth)
-reference/        Prior reports, lifecycle diagram, migration diagnostics, original workbook
-.claude/rules/    Persistent financial/security/database/testing guardrails
-.github/workflows/ci.yml  CI: format check, lint, typecheck, test, build
+src/app/                Next.js App Router routes and API route handlers
+src/app/api/auth/[...nextauth]/route.ts  Auth.js route handler
+src/auth.ts             Auth.js config: Credentials provider, JWT strategy (see ADR-002)
+src/db/schema.ts        Drizzle schema (organizations, users, roles, permissions, audit_events)
+src/db/client.ts        Drizzle/postgres-js client factory, reads DATABASE_URL
+src/db/test-client.ts   Same, reads TEST_DATABASE_URL (integration tests only)
+src/db/seed.ts          Idempotent dev seed: org, roles/permissions, bootstrap owner user
+src/lib/password.ts     Password hashing (scrypt) for the Credentials provider
+src/lib/permissions.ts  Permission catalog and requirePermission() authorization check
+src/lib/audit.ts        recordAuditEvent() — always call inside the mutation's transaction
+src/server/commands/    Protected mutation commands (permission check + mutation + audit, atomic)
+drizzle/                Generated SQL migrations, including the audit_events append-only trigger
+drizzle.config.ts       Drizzle Kit config (schema path, migrations output, dialect)
+docker-compose.yml      Local Postgres 16 (dev + test databases)
+docs/                   Specification documents (source of truth)
+reference/              Prior reports, lifecycle diagram, migration diagnostics, original workbook
+.claude/rules/          Persistent financial/security/database/testing guardrails
+.github/workflows/ci.yml  CI: format check, lint, typecheck, unit tests, integration tests (with a Postgres service container), build
 ```
 
-`.env.example` documents the required environment variables (`DATABASE_URL`, `AUTH_SECRET`). No `.env` file is committed; copy `.env.example` to `.env.local` and fill in real values for local development.
+`.env.example` documents the required environment variables (`DATABASE_URL`, `TEST_DATABASE_URL`, `AUTH_SECRET`). No `.env` file is committed; copy `.env.example` to `.env.local` and fill in real values for local development.
 
-CI (`.github/workflows/ci.yml`) runs `format:check`, `lint`, `typecheck`, `test`, and `build` on every push/PR to `main`.
+CI (`.github/workflows/ci.yml`) runs `format:check`, `lint`, `typecheck`, `test`, `test:integration` (against a Postgres service container), and `build` on every push/PR to `main`.
+
+## Phase 1 status
+
+Platform foundation (docs/07 roadmap Phase 1) is implemented: organizations, users, roles, permissions, user_roles, role_permissions, and an append-only audit_events table (database-trigger enforced). Auth.js Credentials provider with JWT sessions and session-version-based revocation (ADR-002) is wired up but has no sign-in UI yet — only the API route handler exists. One protected mutation command (`deactivateUser`) demonstrates the required pattern: permission check, mutation, and audit event creation inside one atomic transaction, proven by an integration test against real Postgres (positive case, authorization-denial case, and append-only trigger verification).
+
+Not yet built: sign-in/sign-out UI, settings screens for managing users/roles, object storage abstraction, and observability/structured logging. Jobs, revenue, costs, financial close, and commission (Phases 2-4) have no schema or code yet.
