@@ -1,0 +1,50 @@
+flowchart TD
+    A[Job Created] --> B[Active Production]
+    B --> C{Operational Completion Checklist Passed?}
+    C -- No --> B
+    C -- Yes --> D[Operationally Complete]
+
+    D --> E[Final Cost Reconciliation]
+    D --> F[Final Collection Tracking]
+    D --> G[Document and Exception Review]
+
+    E --> E1{Labor, Materials, Returns, and Fees Final?}
+    F --> F1{All Expected Funds Collected?}
+    G --> G1{Required Documents Complete or Exception Approved?}
+
+    E1 -- No --> E
+    F1 -- No --> F
+    G1 -- No --> G
+
+    E1 -- Yes --> H[Financial Close Review]
+    F1 -- Yes --> H
+    G1 -- Yes --> H
+
+    H --> I{Owner Approves Financial Snapshot?}
+    I -- No --> E
+    I -- Yes --> J[Financially Closed and Locked]
+
+    J --> K[Generate Commission Allocations from Effective Rules]
+    K --> L{Owner Approves Commission?}
+    L -- No --> K
+    L -- Yes --> M[Commission Payable]
+
+    M --> N[Draws and Payment Transactions]
+    N --> O{Commission Balance Zero?}
+    O -- No --> P[Partially Paid / Carry-Forward Balance]
+    P --> N
+    O -- Yes --> Q[Commission Settled]
+
+    Q --> R[Closed Job]
+    R --> S[Closed Jobs View — Searchable and Read-Only]
+    S --> T[Archived View After Retention Threshold]
+
+    J --> U{Financial Change Required Later?}
+    R --> U
+    U -- No --> J
+    U -- Yes --> V[Owner Reopen Request with Reason]
+    V --> W[Create New Financial Version and Hold Commission Changes]
+    W --> E
+
+    X[Closed with Exception] -. owner-approved unresolved item .-> H
+    X -. remains on exception dashboard .-> R

@@ -1,0 +1,191 @@
+SUMMARY
+{
+  "jobs": 86,
+  "profit_states": {
+    "negative": 4,
+    "positive": 70,
+    "zero": 8,
+    "blank_or_text": 4
+  },
+  "payment_states": {
+    "blank": 29,
+    "formula_full_commission": 5,
+    "number": 21,
+    "text": 31
+  },
+  "date_states": {
+    "blank": 65,
+    "date": 20,
+    "text": 1
+  },
+  "job_profit_reconciliation_issue_count": 0,
+  "rep_commission_reconciliation_issue_count": 23,
+  "jj_profit_reconciliation_issue_count": 28,
+  "commission_owed_reconciliation_issue_count": 9,
+  "negative_profit_count": 4,
+  "identity_gap_count": 28,
+  "duplicate_name_groups": 3,
+  "duplicate_address_groups": 2
+}
+
+WORKBOOK PROPERTIES
+{
+  "creator": "openpyxl",
+  "last_modified_by": null,
+  "created": "2026-07-16 22:00:16.938288",
+  "modified": "2026-07-16 22:00:16.938288",
+  "calc_mode": null
+}
+
+JOB_PROFIT RECONCILIATION ISSUES (0)
+
+REP_COMMISSION RECONCILIATION ISSUES (23)
+{"row": 2, "job": "Charlie Dao", "status": "not_numeric", "expected": -6340.42, "actual": null, "formula": null}
+{"row": 3, "job": "Donald Lyon", "status": "not_numeric", "expected": -6563.14, "actual": null, "formula": null}
+{"row": 4, "job": "Landon Tourne", "status": "not_numeric", "expected": -5812.73, "actual": null, "formula": null}
+{"row": 13, "job": "John Delaney ", "status": "not_numeric", "expected": 1938.8, "actual": "#REF!", "formula": "=(G13-Q13)*I13"}
+{"row": 18, "job": "Julie Wiley", "status": "not_numeric", "expected": 38317.18, "actual": "Ian Paid: 11,359.89 on 12/11. Justin paid 11,360 on 12/11. Meranda Paid 1,893.3. Total paid 24,612.00 12/11. Ian Paid 7k", "formula": "Ian Paid: 11,359.89 on 12/11. Justin paid 11,360 on 12/11. Meranda Paid 1,893.3. Total paid 24,612.00 12/11. Ian Paid 7k"}
+{"row": 22, "job": "Tam", "status": "mismatch", "expected": 13782.82, "actual": 10457.65, "difference": -3325.17, "formula": 10457.65, "rate": 0.7}
+{"row": 24, "job": "Allison Peterson", "status": "not_numeric", "expected": 0.0, "actual": null, "formula": null}
+{"row": 26, "job": "Michael Van Luven", "status": "not_numeric", "expected": 1389.68, "actual": "#REF!", "formula": "=(G26-Q26)*I26"}
+{"row": 31, "job": "Matt Gonzalez", "status": "mismatch", "expected": 3686.52, "actual": 3686.54, "difference": 0.02, "formula": 3686.54, "rate": 0.7}
+{"row": 33, "job": "Elton Fite ", "status": "mismatch", "expected": 3092.59, "actual": 2783.33, "difference": -309.26, "formula": 2783.33, "rate": 0.4}
+{"row": 35, "job": "Arjurn Thippeswamy ", "status": "mismatch", "expected": 6124.15, "actual": 1714.15, "difference": -4410.0, "formula": 1714.15, "rate": 0.7}
+{"row": 36, "job": "Theresa Koehler", "status": "not_numeric", "expected": 3266.03, "actual": null, "formula": null}
+{"row": 37, "job": "Victor Lapinskii", "status": "mismatch", "expected": 3677.78, "actual": 3310.0, "difference": -367.78, "formula": 3310.0, "rate": 0.5}
+{"row": 44, "job": "Irmina Helmer ", "status": "mismatch", "expected": 2777.07, "actual": 2777.0, "difference": -0.07, "formula": 2777.0, "rate": 0.5}
+{"row": 45, "job": "Gloria Rush", "status": "mismatch", "expected": 9269.73, "actual": 9270.0, "difference": 0.27, "formula": 9270.0, "rate": 0.6}
+{"row": 57, "job": "Brad Wright ", "status": "not_numeric", "expected": 442611.0, "actual": null, "formula": null}
+{"row": 61, "job": "Rebecca Ballesteros", "status": "mismatch", "expected": 411485.4, "actual": 4114.85, "difference": -407370.55, "formula": 4114.85, "rate": 60.0}
+{"row": 62, "job": "Rena Moore ", "status": "not_numeric", "expected": 1680.04, "actual": null, "formula": null}
+{"row": 65, "job": "Irene Mellinger ", "status": "mismatch", "expected": 5627.51, "actual": 5064.76, "difference": -562.75, "formula": "=(G65*0.9)*I65", "rate": 0.5}
+{"row": 72, "job": "Alex Williams", "status": "mismatch", "expected": 425551.8, "actual": 4255.02, "difference": -421296.78, "formula": 4255.02, "rate": 60.0}
+{"row": 73, "job": "Herald Toles ", "status": "mismatch", "expected": 285870.0, "actual": 2858.7, "difference": -283011.3, "formula": 2858.7, "rate": 60.0}
+{"row": 81, "job": "Eric Fisher", "status": "mismatch", "expected": 6009.92, "actual": 5408.92, "difference": -601.0, "formula": 5408.92, "rate": 0.5}
+{"row": 84, "job": "Brandt Kemper - Roof", "status": "mismatch", "expected": 5521.9, "actual": 5521.21, "difference": -0.69, "formula": 5521.21, "rate": 0.6}
+
+JJ_PROFIT RECONCILIATION ISSUES (28)
+{"row": 22, "job": "Tam", "status": "mismatch", "expected": 9232.1, "actual": 4481.85, "difference": -4750.25, "formula": 4481.85}
+{"row": 29, "job": "Alex Do", "status": "missing_or_text", "expected": 2781.58, "actual": "2781.58-500", "formula": "2781.58-500"}
+{"row": 31, "job": "Matt Gonzalez", "status": "mismatch", "expected": 1579.92, "actual": 1579.95, "difference": 0.03, "formula": 1579.95}
+{"row": 32, "job": "Josh Canas", "status": "mismatch", "expected": 6387.82, "actual": 4790.86, "difference": -1596.96, "formula": 4790.86}
+{"row": 35, "job": "Arjurn Thippeswamy ", "status": "mismatch", "expected": 7034.64, "actual": 734.64, "difference": -6300.0, "formula": 734.64}
+{"row": 42, "job": "Stephen Weber", "status": "missing_or_text", "expected": 4104.1, "actual": null, "formula": null}
+{"row": 44, "job": "Irmina Helmer ", "status": "mismatch", "expected": 2777.15, "actual": 2777.0, "difference": -0.15, "formula": 2777.0}
+{"row": 45, "job": "Gloria Rush", "status": "mismatch", "expected": 6179.55, "actual": 6180.0, "difference": 0.45, "formula": 6180.0}
+{"row": 46, "job": "Iris Albizu", "status": "missing_or_text", "expected": 13668.21, "actual": null, "formula": null}
+{"row": 51, "job": "Mark Hess", "status": "missing_or_text", "expected": 509.22, "actual": null, "formula": null}
+{"row": 54, "job": "Julio Espinoza", "status": "missing_or_text", "expected": 2145.32, "actual": null, "formula": null}
+{"row": 55, "job": "Kunel V", "status": "missing_or_text", "expected": 4187.28, "actual": null, "formula": null}
+{"row": 61, "job": "Rebecca Ballesteros", "status": "missing_or_text", "expected": 2743.24, "actual": null, "formula": null}
+{"row": 63, "job": "myrna", "status": "mismatch", "expected": 3515.67, "actual": 1506.72, "difference": -2008.96, "formula": "=G63*0.3"}
+{"row": 64, "job": "connor grady", "status": "missing_or_text", "expected": 6099.82, "actual": null, "formula": null}
+{"row": 65, "job": "Irene Mellinger ", "status": "missing_or_text", "expected": 6190.26, "actual": null, "formula": null}
+{"row": 66, "job": "Alfred Bradford", "status": "missing_or_text", "expected": 3399.22, "actual": null, "formula": null}
+{"row": 67, "job": "Victoria Clayton", "status": "missing_or_text", "expected": 4058.02, "actual": null, "formula": null}
+{"row": 68, "job": "Elvis - 4103 Rockford", "status": "missing_or_text", "expected": 1960.1, "actual": null, "formula": null}
+{"row": 72, "job": "Alex Williams", "status": "missing_or_text", "expected": 2837.51, "actual": null, "formula": null}
+{"row": 73, "job": "Herald Toles ", "status": "mismatch", "expected": 1905.8, "actual": 1429.35, "difference": -476.45, "formula": 1429.35}
+{"row": 75, "job": "Alicia", "status": "missing_or_text", "expected": 4804.15, "actual": null, "formula": null}
+{"row": 78, "job": "Sharon Waits", "status": "missing_or_text", "expected": 7727.67, "actual": null, "formula": null}
+{"row": 80, "job": "Julie Wiley - rental ", "status": "missing_or_text", "expected": 11244.33, "actual": null, "formula": null}
+{"row": 81, "job": "Eric Fisher", "status": "missing_or_text", "expected": 6610.92, "actual": null, "formula": null}
+{"row": 82, "job": "Alan Walker", "status": "missing_or_text", "expected": 4611.16, "actual": null, "formula": null}
+{"row": 83, "job": "Terri McDowell ", "status": "missing_or_text", "expected": 1720.48, "actual": null, "formula": null}
+{"row": 84, "job": "Brandt Kemper - Roof", "status": "missing_or_text", "expected": 3681.95, "actual": null, "formula": null}
+
+COMMISSION_OWED RECONCILIATION ISSUES (9)
+{"row": 5, "job": "Maria Hernandez", "status": "missing_or_text", "expected": 0.0, "actual": null, "formula": null}
+{"row": 6, "job": "David Bagacina", "status": "missing_or_text", "expected": 0.0, "actual": null, "formula": null}
+{"row": 8, "job": "Frank S", "status": "missing_or_text", "expected": 0.0, "actual": null, "formula": null}
+{"row": 12, "job": "Rod Fluker", "status": "missing_or_text", "expected": 1957.2, "actual": null, "formula": null}
+{"row": 30, "job": "Nathan Powell", "status": "mismatch", "expected": 4590.56, "actual": 0.0, "difference": -4590.56, "formula": 0.0}
+{"row": 44, "job": "Irmina Helmer ", "status": "missing_or_text", "expected": 0.0, "actual": null, "formula": null}
+{"row": 45, "job": "Gloria Rush", "status": "missing_or_text", "expected": 0.0, "actual": null, "formula": null}
+{"row": 70, "job": "Atlas ", "status": "missing_or_text", "expected": 2000.0, "actual": null, "formula": null}
+{"row": 73, "job": "Herald Toles ", "status": "missing_or_text", "expected": 0.0, "actual": null, "formula": null}
+
+NEGATIVE PROFIT JOBS (4)
+{"row": 2, "job": "Charlie Dao", "profit": -9057.75, "payout": null, "labor": 1500.0, "material": 7557.75}
+{"row": 3, "job": "Donald Lyon", "profit": -9375.92, "payout": null, "labor": 3925.0, "material": 5450.92}
+{"row": 4, "job": "Landon Tourne", "profit": -8303.9, "payout": null, "labor": 2000.0, "material": 6303.9}
+{"row": 14, "job": "Jose Vega ", "profit": -5214.72, "payout": null, "labor": 1995.0, "material": 3219.72}
+
+DATE ENTRIES (21)
+{"row": 5, "job": "Maria Hernandez", "kind": "date", "value": "2025-08-26 00:00:00"}
+{"row": 7, "job": "Luther Oliver", "kind": "date", "value": "2025-09-08 00:00:00"}
+{"row": 8, "job": "Frank S", "kind": "date", "value": "2025-09-03 00:00:00"}
+{"row": 9, "job": "Jae Lee", "kind": "date", "value": "2025-09-16 00:00:00"}
+{"row": 12, "job": "Rod Fluker", "kind": "date", "value": "2025-08-27 00:00:00"}
+{"row": 13, "job": "John Delaney ", "kind": "date", "value": "2025-09-10 00:00:00"}
+{"row": 15, "job": "John Allen", "kind": "date", "value": "2025-10-04 00:00:00"}
+{"row": 17, "job": "Tim Bulgrin", "kind": "date", "value": "2025-12-15 00:00:00"}
+{"row": 19, "job": "Annissa", "kind": "date", "value": "2025-12-09 00:00:00"}
+{"row": 21, "job": "Mohit", "kind": "date", "value": "2025-10-18 00:00:00"}
+{"row": 22, "job": "Tam", "kind": "date", "value": "2025-11-05 00:00:00"}
+{"row": 25, "job": "Michael Hu", "kind": "date", "value": "2025-10-04 00:00:00"}
+{"row": 26, "job": "Michael Van Luven", "kind": "date", "value": "2025-09-12 00:00:00"}
+{"row": 28, "job": "Doug Eckel", "kind": "date", "value": "2025-11-05 00:00:00"}
+{"row": 30, "job": "Nathan Powell", "kind": "date", "value": "2025-10-02 00:00:00"}
+{"row": 35, "job": "Arjurn Thippeswamy ", "kind": "date", "value": "2025-11-17 00:00:00"}
+{"row": 37, "job": "Victor Lapinskii", "kind": "date", "value": "2025-11-24 00:00:00"}
+{"row": 59, "job": "David Boucher", "kind": "text", "value": "Ian&Will paid 3/28/25"}
+{"row": 63, "job": "myrna", "kind": "date", "value": "2026-04-10 00:00:00"}
+{"row": 69, "job": "Tad Tate", "kind": "date", "value": "2026-05-09 00:00:00"}
+{"row": 70, "job": "Atlas ", "kind": "date", "value": "2026-05-09 00:00:00"}
+
+IDENTITY GAPS (28)
+{"row": 16, "job": "Dion Edge", "missing": ["B"], "address": null, "sales_rep": "Ian/Justin"}
+{"row": 18, "job": "Julie Wiley", "missing": ["B"], "address": null, "sales_rep": "Ian"}
+{"row": 19, "job": "Annissa", "missing": ["B"], "address": null, "sales_rep": "Ian/Justin"}
+{"row": 20, "job": "Amy", "missing": ["B"], "address": null, "sales_rep": "Ian/Justin"}
+{"row": 21, "job": "Mohit", "missing": ["B"], "address": null, "sales_rep": "Ian"}
+{"row": 23, "job": "Sagar", "missing": ["B"], "address": null, "sales_rep": "Ian"}
+{"row": 24, "job": "Allison Peterson", "missing": ["B"], "address": null, "sales_rep": "Ian"}
+{"row": 25, "job": "Michael Hu", "missing": ["B"], "address": null, "sales_rep": "Ian"}
+{"row": 27, "job": "Ozumba- home", "missing": ["B"], "address": null, "sales_rep": "Ian/Collier "}
+{"row": 46, "job": "Iris Albizu", "missing": ["B"], "address": null, "sales_rep": "Ian"}
+{"row": 49, "job": "Travis Reid", "missing": ["B"], "address": null, "sales_rep": "Ian/ Meranda"}
+{"row": 50, "job": "Dr Satish", "missing": ["B"], "address": null, "sales_rep": "Ian/ Justin"}
+{"row": 51, "job": "Mark Hess", "missing": ["B"], "address": null, "sales_rep": "Ian"}
+{"row": 52, "job": "Lado Jurkin", "missing": ["B"], "address": null, "sales_rep": "Ian"}
+{"row": 53, "job": "Dion Edge", "missing": ["B"], "address": null, "sales_rep": "Ian"}
+{"row": 54, "job": "Julio Espinoza", "missing": ["B"], "address": null, "sales_rep": "Ian"}
+{"row": 56, "job": "Sergio Davila ", "missing": ["B"], "address": null, "sales_rep": "Ian"}
+{"row": 60, "job": "Marci Shafto - Siding and Deck", "missing": ["H"], "address": "4612 Spicewood Springs", "sales_rep": null}
+{"row": 64, "job": "connor grady", "missing": ["B"], "address": null, "sales_rep": "Ian"}
+{"row": 66, "job": "Alfred Bradford", "missing": ["B"], "address": null, "sales_rep": "Ian/Will"}
+{"row": 67, "job": "Victoria Clayton", "missing": ["B"], "address": null, "sales_rep": "Ian"}
+{"row": 68, "job": "Elvis - 4103 Rockford", "missing": ["B"], "address": null, "sales_rep": "ian"}
+{"row": 80, "job": "Julie Wiley - rental ", "missing": ["B"], "address": null, "sales_rep": "Ian/Justin"}
+{"row": 85, "job": "Julie Wiley - carport", "missing": ["B"], "address": null, "sales_rep": "Ian/Justin"}
+{"row": 86, "job": "Curtis Rettenmaier", "missing": ["H"], "address": "2304 Sorret Ct", "sales_rep": null}
+{"row": 87, "job": "Marie / Bonnie Arnold", "missing": ["B"], "address": null, "sales_rep": "Ian/Eric/Justin"}
+{"row": 88, "job": "Ian Debt", "missing": ["B"], "address": null, "sales_rep": "-"}
+{"row": 89, "job": "Elvis - 4103 Rockford", "missing": ["B"], "address": null, "sales_rep": "Ian/Justin"}
+
+DUPLICATE NAMES {
+  "dion edge": [
+    16,
+    53
+  ],
+  "elvis - 4103 rockford": [
+    68,
+    89
+  ],
+  "atlas": [
+    70,
+    71
+  ]
+}
+
+DUPLICATE ADDRESSES {
+  "2036 foothills": [
+    39,
+    40
+  ],
+  "4612 spicewood springs": [
+    58,
+    60
+  ]
+}

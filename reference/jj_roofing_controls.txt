@@ -1,0 +1,380 @@
+HEADERS
+A: "Job Profit will also depend on the columns before that, between the material cost and labor cost, which will never be in the scope. So, in this scope, the only thing you're ever going to see is the total payout. That'd be Job Profit. "
+B: 'Address'
+C: 'Labor cost'
+D: 'Material Cost'
+E: 'Payout/Contract '
+F: 'Supp X Fee'
+G: 'Job Profit'
+H: 'Sales Rep'
+I: 'Commission Percentage'
+J: 'Rep Comission'
+K: 'JJ Profit'
+L: 'Commission Paid '
+M: 'Date'
+N: 'Commission Owed'
+O: 'Referral Fee/Comission'
+P: 'Ovveride'
+Q: 'Sales Rep Fee'
+R: None
+S: None
+T: None
+U: None
+V: None
+W: None
+
+CALCULATED COLUMN COVERAGE
+G Job Profit: {'formula': 78, 'manual_number': 4, 'blank': 3, 'manual_text': 1}
+  {"row": 82, "job": "Alan Walker", "kind": "manual_number", "entry": 9222.32, "cached": 9222.32}
+  {"row": 83, "job": "Terri McDowell ", "kind": "manual_number", "entry": 4301.2, "cached": 4301.2}
+  {"row": 84, "job": "Brandt Kemper - Roof", "kind": "manual_number", "entry": 9203.16, "cached": 9203.16}
+  {"row": 85, "job": "Julie Wiley - carport", "kind": "manual_number", "entry": 12296.0, "cached": 12296.0}
+  {"row": 86, "job": "Curtis Rettenmaier", "kind": "blank", "entry": null, "cached": null}
+  {"row": 87, "job": "Marie / Bonnie Arnold", "kind": "blank", "entry": null, "cached": null}
+  {"row": 88, "job": "Ian Debt", "kind": "manual_text", "entry": "9600 (7/16)", "cached": "9600 (7/16)"}
+  {"row": 89, "job": "Elvis - 4103 Rockford", "kind": "blank", "entry": null, "cached": null}
+J Rep Commission: {'blank': 21, 'formula': 30, 'manual_text': 16, 'manual_number': 19}
+  {"row": 2, "job": "Charlie Dao", "kind": "blank", "entry": null, "cached": null}
+  {"row": 3, "job": "Donald Lyon", "kind": "blank", "entry": null, "cached": null}
+  {"row": 4, "job": "Landon Tourne", "kind": "blank", "entry": null, "cached": null}
+  {"row": 14, "job": "Jose Vega ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 16, "job": "Dion Edge", "kind": "blank", "entry": null, "cached": null}
+  {"row": 18, "job": "Julie Wiley", "kind": "manual_text", "entry": "Ian Paid: 11,359.89 on 12/11. Justin paid 11,360 on 12/11. Meranda Paid 1,893.3. Total paid 24,612.00 12/11. Ian Paid 7k", "cached": "Ian Paid: 11,359.89 on 12/11. Justin paid 11,360 on 12/11. Meranda Paid 1,893.3. Total paid 24,612.00 12/11. Ian Paid 7k"}
+  {"row": 19, "job": "Annissa", "kind": "manual_text", "entry": "Ian Paid: 4078 Justin: 3056", "cached": "Ian Paid: 4078 Justin: 3056"}
+  {"row": 20, "job": "Amy", "kind": "manual_text", "entry": "$7,902.45/$2437.61", "cached": "$7,902.45/$2437.61"}
+  {"row": 22, "job": "Tam", "kind": "manual_number", "entry": 10457.65, "cached": 10457.65}
+  {"row": 24, "job": "Allison Peterson", "kind": "blank", "entry": null, "cached": null}
+  {"row": 27, "job": "Ozumba- home", "kind": "manual_text", "entry": "1825.56 Ian, 801.46 to collies (20% of 90% of total)", "cached": "1825.56 Ian, 801.46 to collies (20% of 90% of total)"}
+  {"row": 29, "job": "Alex Do", "kind": "manual_number", "entry": 6490.34, "cached": 6490.34}
+  {"row": 30, "job": "Nathan Powell", "kind": "manual_number", "entry": 12790.56, "cached": 12790.56}
+  {"row": 31, "job": "Matt Gonzalez", "kind": "manual_number", "entry": 3686.54, "cached": 3686.54}
+  {"row": 32, "job": "Josh Canas", "kind": "manual_number", "entry": 9581.73, "cached": 9581.73}
+  {"row": 33, "job": "Elton Fite ", "kind": "manual_number", "entry": 2783.33, "cached": 2783.33}
+  {"row": 34, "job": "Mark Holder ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 35, "job": "Arjurn Thippeswamy ", "kind": "manual_number", "entry": 1714.15, "cached": 1714.15}
+  {"row": 36, "job": "Theresa Koehler", "kind": "blank", "entry": null, "cached": null}
+  {"row": 37, "job": "Victor Lapinskii", "kind": "manual_number", "entry": 3310.0, "cached": 3310.0}
+  {"row": 38, "job": "Uzomba- Commercial", "kind": "manual_text", "entry": "2438.4/1219.2", "cached": "2438.4/1219.2"}
+  {"row": 39, "job": "Barbara Smith", "kind": "manual_text", "entry": "$4024.64/3,018.48", "cached": "$4024.64/3,018.48"}
+  {"row": 40, "job": "Barbara Smith/Siding", "kind": "manual_text", "entry": "$2,027.2/2,027.2", "cached": "$2,027.2/2,027.2"}
+  {"row": 41, "job": "Kevin Collins", "kind": "manual_text", "entry": "$3,975.4/$1084.2", "cached": "$3,975.4/$1084.2"}
+  {"row": 43, "job": "Basil Girjis ", "kind": "manual_text", "entry": "6267.87,  $1880.36 charlie ", "cached": "6267.87,  $1880.36 charlie "}
+  {"row": 44, "job": "Irmina Helmer ", "kind": "manual_number", "entry": 2777.0, "cached": 2777.0}
+  {"row": 45, "job": "Gloria Rush", "kind": "manual_number", "entry": 9270.0, "cached": 9270.0}
+  {"row": 49, "job": "Travis Reid", "kind": "blank", "entry": null, "cached": null}
+  {"row": 50, "job": "Dr Satish", "kind": "blank", "entry": null, "cached": null}
+  {"row": 52, "job": "Lado Jurkin", "kind": "manual_text", "entry": "Ian / Will", "cached": "Ian / Will"}
+  {"row": 53, "job": "Dion Edge", "kind": "blank", "entry": null, "cached": null}
+  {"row": 56, "job": "Sergio Davila ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 57, "job": "Brad Wright ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 59, "job": "David Boucher", "kind": "manual_text", "entry": "Ian- $2652.9 Will- $2,387.61", "cached": "Ian- $2652.9 Will- $2,387.61"}
+  {"row": 60, "job": "Marci Shafto - Siding and Deck", "kind": "manual_text", "entry": "Ian - 3k paid 3/24", "cached": "Ian - 3k paid 3/24"}
+  {"row": 61, "job": "Rebecca Ballesteros", "kind": "manual_number", "entry": 4114.85, "cached": 4114.85}
+  {"row": 62, "job": "Rena Moore ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 69, "job": "Tad Tate", "kind": "manual_text", "entry": "693.00/693.00", "cached": "693.00/693.00"}
+  {"row": 70, "job": "Atlas ", "kind": "manual_number", "entry": 3000.0, "cached": 3000.0}
+  {"row": 71, "job": "Atlas ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 72, "job": "Alex Williams", "kind": "manual_number", "entry": 4255.02, "cached": 4255.02}
+  {"row": 73, "job": "Herald Toles ", "kind": "manual_number", "entry": 2858.7, "cached": 2858.7}
+  {"row": 74, "job": "John Davis", "kind": "blank", "entry": null, "cached": null}
+  {"row": 76, "job": "Justin Eaton", "kind": "manual_text", "entry": "JMI Each = $576", "cached": "JMI Each = $576"}
+  {"row": 77, "job": "Elizabeth Rosales ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 78, "job": "Sharon Waits", "kind": "manual_number", "entry": -1783.0, "cached": -1783.0}
+  {"row": 79, "job": "Mark Norman", "kind": "manual_text", "entry": "$7,314.87/$2,438.29", "cached": "$7,314.87/$2,438.29"}
+  {"row": 81, "job": "Eric Fisher", "kind": "manual_number", "entry": 5408.92, "cached": 5408.92}
+  {"row": 82, "job": "Alan Walker", "kind": "manual_number", "entry": 4611.16, "cached": 4611.16}
+  {"row": 83, "job": "Terri McDowell ", "kind": "manual_number", "entry": 2580.72, "cached": 2580.72}
+  {"row": 84, "job": "Brandt Kemper - Roof", "kind": "manual_number", "entry": 5521.21, "cached": 5521.21}
+  {"row": 85, "job": "Julie Wiley - carport", "kind": "blank", "entry": null, "cached": null}
+  {"row": 86, "job": "Curtis Rettenmaier", "kind": "blank", "entry": null, "cached": null}
+  {"row": 87, "job": "Marie / Bonnie Arnold", "kind": "blank", "entry": null, "cached": null}
+  {"row": 88, "job": "Ian Debt", "kind": "manual_text", "entry": "-", "cached": "-"}
+  {"row": 89, "job": "Elvis - 4103 Rockford", "kind": "blank", "entry": null, "cached": null}
+K JJ Profit: {'blank': 48, 'formula': 21, 'manual_number': 15, 'manual_text': 2}
+  {"row": 2, "job": "Charlie Dao", "kind": "blank", "entry": null, "cached": null}
+  {"row": 3, "job": "Donald Lyon", "kind": "blank", "entry": null, "cached": null}
+  {"row": 4, "job": "Landon Tourne", "kind": "blank", "entry": null, "cached": null}
+  {"row": 14, "job": "Jose Vega ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 16, "job": "Dion Edge", "kind": "blank", "entry": null, "cached": null}
+  {"row": 18, "job": "Julie Wiley", "kind": "blank", "entry": null, "cached": null}
+  {"row": 19, "job": "Annissa", "kind": "blank", "entry": null, "cached": null}
+  {"row": 20, "job": "Amy", "kind": "manual_number", "entry": 2437.61, "cached": 2437.61}
+  {"row": 22, "job": "Tam", "kind": "manual_number", "entry": 4481.85, "cached": 4481.85}
+  {"row": 24, "job": "Allison Peterson", "kind": "blank", "entry": null, "cached": null}
+  {"row": 27, "job": "Ozumba- home", "kind": "blank", "entry": null, "cached": null}
+  {"row": 29, "job": "Alex Do", "kind": "manual_text", "entry": "2781.58-500", "cached": "2781.58-500"}
+  {"row": 30, "job": "Nathan Powell", "kind": "manual_number", "entry": 5481.67, "cached": 5481.67}
+  {"row": 31, "job": "Matt Gonzalez", "kind": "manual_number", "entry": 1579.95, "cached": 1579.95}
+  {"row": 32, "job": "Josh Canas", "kind": "manual_number", "entry": 4790.86, "cached": 4790.86}
+  {"row": 33, "job": "Elton Fite ", "kind": "manual_number", "entry": 4948.15, "cached": 4948.15}
+  {"row": 35, "job": "Arjurn Thippeswamy ", "kind": "manual_number", "entry": 734.64, "cached": 734.64}
+  {"row": 36, "job": "Theresa Koehler", "kind": "blank", "entry": null, "cached": null}
+  {"row": 37, "job": "Victor Lapinskii", "kind": "manual_number", "entry": 4045.55, "cached": 4045.55}
+  {"row": 38, "job": "Uzomba- Commercial", "kind": "blank", "entry": null, "cached": null}
+  {"row": 41, "job": "Kevin Collins", "kind": "blank", "entry": null, "cached": null}
+  {"row": 42, "job": "Stephen Weber", "kind": "blank", "entry": null, "cached": null}
+  {"row": 43, "job": "Basil Girjis ", "kind": "manual_number", "entry": 3133.935, "cached": 3133.935}
+  {"row": 44, "job": "Irmina Helmer ", "kind": "manual_number", "entry": 2777.0, "cached": 2777.0}
+  {"row": 45, "job": "Gloria Rush", "kind": "manual_number", "entry": 6180.0, "cached": 6180.0}
+  {"row": 46, "job": "Iris Albizu", "kind": "blank", "entry": null, "cached": null}
+  {"row": 49, "job": "Travis Reid", "kind": "blank", "entry": null, "cached": null}
+  {"row": 50, "job": "Dr Satish", "kind": "blank", "entry": null, "cached": null}
+  {"row": 51, "job": "Mark Hess", "kind": "blank", "entry": null, "cached": null}
+  {"row": 52, "job": "Lado Jurkin", "kind": "blank", "entry": null, "cached": null}
+  {"row": 53, "job": "Dion Edge", "kind": "blank", "entry": null, "cached": null}
+  {"row": 54, "job": "Julio Espinoza", "kind": "blank", "entry": null, "cached": null}
+  {"row": 55, "job": "Kunel V", "kind": "blank", "entry": null, "cached": null}
+  {"row": 56, "job": "Sergio Davila ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 57, "job": "Brad Wright ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 59, "job": "David Boucher", "kind": "blank", "entry": null, "cached": null}
+  {"row": 60, "job": "Marci Shafto - Siding and Deck", "kind": "blank", "entry": null, "cached": null}
+  {"row": 61, "job": "Rebecca Ballesteros", "kind": "blank", "entry": null, "cached": null}
+  {"row": 62, "job": "Rena Moore ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 64, "job": "connor grady", "kind": "blank", "entry": null, "cached": null}
+  {"row": 65, "job": "Irene Mellinger ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 66, "job": "Alfred Bradford", "kind": "blank", "entry": null, "cached": null}
+  {"row": 67, "job": "Victoria Clayton", "kind": "blank", "entry": null, "cached": null}
+  {"row": 68, "job": "Elvis - 4103 Rockford", "kind": "blank", "entry": null, "cached": null}
+  {"row": 69, "job": "Tad Tate", "kind": "manual_number", "entry": 594.0, "cached": 594.0}
+  {"row": 70, "job": "Atlas ", "kind": "manual_number", "entry": 2000.0, "cached": 2000.0}
+  {"row": 71, "job": "Atlas ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 72, "job": "Alex Williams", "kind": "blank", "entry": null, "cached": null}
+  {"row": 73, "job": "Herald Toles ", "kind": "manual_number", "entry": 1429.35, "cached": 1429.35}
+  {"row": 74, "job": "John Davis", "kind": "blank", "entry": null, "cached": null}
+  {"row": 75, "job": "Alicia", "kind": "blank", "entry": null, "cached": null}
+  {"row": 76, "job": "Justin Eaton", "kind": "blank", "entry": null, "cached": null}
+  {"row": 77, "job": "Elizabeth Rosales ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 78, "job": "Sharon Waits", "kind": "blank", "entry": null, "cached": null}
+  {"row": 79, "job": "Mark Norman", "kind": "manual_number", "entry": 6502.11, "cached": 6502.11}
+  {"row": 80, "job": "Julie Wiley - rental ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 81, "job": "Eric Fisher", "kind": "blank", "entry": null, "cached": null}
+  {"row": 82, "job": "Alan Walker", "kind": "blank", "entry": null, "cached": null}
+  {"row": 83, "job": "Terri McDowell ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 84, "job": "Brandt Kemper - Roof", "kind": "blank", "entry": null, "cached": null}
+  {"row": 85, "job": "Julie Wiley - carport", "kind": "blank", "entry": null, "cached": null}
+  {"row": 86, "job": "Curtis Rettenmaier", "kind": "blank", "entry": null, "cached": null}
+  {"row": 87, "job": "Marie / Bonnie Arnold", "kind": "blank", "entry": null, "cached": null}
+  {"row": 88, "job": "Ian Debt", "kind": "manual_text", "entry": "-", "cached": "-"}
+  {"row": 89, "job": "Elvis - 4103 Rockford", "kind": "blank", "entry": null, "cached": null}
+N Commission Owed: {'blank': 63, 'formula': 16, 'manual_number': 7}
+  {"row": 2, "job": "Charlie Dao", "kind": "blank", "entry": null, "cached": null}
+  {"row": 3, "job": "Donald Lyon", "kind": "blank", "entry": null, "cached": null}
+  {"row": 4, "job": "Landon Tourne", "kind": "blank", "entry": null, "cached": null}
+  {"row": 5, "job": "Maria Hernandez", "kind": "blank", "entry": null, "cached": null}
+  {"row": 6, "job": "David Bagacina", "kind": "blank", "entry": null, "cached": null}
+  {"row": 8, "job": "Frank S", "kind": "blank", "entry": null, "cached": null}
+  {"row": 11, "job": "Robert & Elsa Garza", "kind": "manual_number", "entry": 0.0, "cached": 0.0}
+  {"row": 12, "job": "Rod Fluker", "kind": "blank", "entry": null, "cached": null}
+  {"row": 13, "job": "John Delaney ", "kind": "manual_number", "entry": 0.0, "cached": 0.0}
+  {"row": 14, "job": "Jose Vega ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 27, "job": "Ozumba- home", "kind": "blank", "entry": null, "cached": null}
+  {"row": 29, "job": "Alex Do", "kind": "blank", "entry": null, "cached": null}
+  {"row": 30, "job": "Nathan Powell", "kind": "manual_number", "entry": 0.0, "cached": 0.0}
+  {"row": 31, "job": "Matt Gonzalez", "kind": "manual_number", "entry": 2686.54, "cached": 2686.54}
+  {"row": 32, "job": "Josh Canas", "kind": "manual_number", "entry": 7581.73, "cached": 7581.73}
+  {"row": 33, "job": "Elton Fite ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 34, "job": "Mark Holder ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 35, "job": "Arjurn Thippeswamy ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 36, "job": "Theresa Koehler", "kind": "blank", "entry": null, "cached": null}
+  {"row": 37, "job": "Victor Lapinskii", "kind": "manual_number", "entry": 0.0, "cached": 0.0}
+  {"row": 38, "job": "Uzomba- Commercial", "kind": "blank", "entry": null, "cached": null}
+  {"row": 39, "job": "Barbara Smith", "kind": "blank", "entry": null, "cached": null}
+  {"row": 40, "job": "Barbara Smith/Siding", "kind": "blank", "entry": null, "cached": null}
+  {"row": 41, "job": "Kevin Collins", "kind": "blank", "entry": null, "cached": null}
+  {"row": 42, "job": "Stephen Weber", "kind": "blank", "entry": null, "cached": null}
+  {"row": 43, "job": "Basil Girjis ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 44, "job": "Irmina Helmer ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 45, "job": "Gloria Rush", "kind": "blank", "entry": null, "cached": null}
+  {"row": 46, "job": "Iris Albizu", "kind": "blank", "entry": null, "cached": null}
+  {"row": 49, "job": "Travis Reid", "kind": "blank", "entry": null, "cached": null}
+  {"row": 50, "job": "Dr Satish", "kind": "blank", "entry": null, "cached": null}
+  {"row": 51, "job": "Mark Hess", "kind": "blank", "entry": null, "cached": null}
+  {"row": 52, "job": "Lado Jurkin", "kind": "blank", "entry": null, "cached": null}
+  {"row": 53, "job": "Dion Edge", "kind": "blank", "entry": null, "cached": null}
+  {"row": 54, "job": "Julio Espinoza", "kind": "blank", "entry": null, "cached": null}
+  {"row": 55, "job": "Kunel V", "kind": "blank", "entry": null, "cached": null}
+  {"row": 56, "job": "Sergio Davila ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 57, "job": "Brad Wright ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 58, "job": "Marci Shafto - Roof", "kind": "blank", "entry": null, "cached": null}
+  {"row": 59, "job": "David Boucher", "kind": "blank", "entry": null, "cached": null}
+  {"row": 60, "job": "Marci Shafto - Siding and Deck", "kind": "blank", "entry": null, "cached": null}
+  {"row": 61, "job": "Rebecca Ballesteros", "kind": "blank", "entry": null, "cached": null}
+  {"row": 62, "job": "Rena Moore ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 63, "job": "myrna", "kind": "blank", "entry": null, "cached": null}
+  {"row": 64, "job": "connor grady", "kind": "blank", "entry": null, "cached": null}
+  {"row": 65, "job": "Irene Mellinger ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 66, "job": "Alfred Bradford", "kind": "blank", "entry": null, "cached": null}
+  {"row": 67, "job": "Victoria Clayton", "kind": "blank", "entry": null, "cached": null}
+  {"row": 68, "job": "Elvis - 4103 Rockford", "kind": "blank", "entry": null, "cached": null}
+  {"row": 69, "job": "Tad Tate", "kind": "blank", "entry": null, "cached": null}
+  {"row": 70, "job": "Atlas ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 71, "job": "Atlas ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 72, "job": "Alex Williams", "kind": "blank", "entry": null, "cached": null}
+  {"row": 73, "job": "Herald Toles ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 74, "job": "John Davis", "kind": "blank", "entry": null, "cached": null}
+  {"row": 75, "job": "Alicia", "kind": "blank", "entry": null, "cached": null}
+  {"row": 76, "job": "Justin Eaton", "kind": "blank", "entry": null, "cached": null}
+  {"row": 77, "job": "Elizabeth Rosales ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 78, "job": "Sharon Waits", "kind": "blank", "entry": null, "cached": null}
+  {"row": 79, "job": "Mark Norman", "kind": "blank", "entry": null, "cached": null}
+  {"row": 80, "job": "Julie Wiley - rental ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 81, "job": "Eric Fisher", "kind": "manual_number", "entry": 2408.92, "cached": 2408.92}
+  {"row": 82, "job": "Alan Walker", "kind": "blank", "entry": null, "cached": null}
+  {"row": 83, "job": "Terri McDowell ", "kind": "blank", "entry": null, "cached": null}
+  {"row": 84, "job": "Brandt Kemper - Roof", "kind": "blank", "entry": null, "cached": null}
+  {"row": 85, "job": "Julie Wiley - carport", "kind": "blank", "entry": null, "cached": null}
+  {"row": 86, "job": "Curtis Rettenmaier", "kind": "blank", "entry": null, "cached": null}
+  {"row": 87, "job": "Marie / Bonnie Arnold", "kind": "blank", "entry": null, "cached": null}
+  {"row": 88, "job": "Ian Debt", "kind": "blank", "entry": null, "cached": null}
+  {"row": 89, "job": "Elvis - 4103 Rockford", "kind": "blank", "entry": null, "cached": null}
+
+BROKEN REFERENCES IN FORMULAS
+{"cell": "P13", "formula": "=(G13-Q13)*#REF!", "cached": "#REF!", "job": "John Delaney "}
+{"cell": "Q13", "formula": "=#REF!*G13", "cached": "#REF!", "job": "John Delaney "}
+{"cell": "Q26", "formula": "=G26*#REF!", "cached": "#REF!", "job": "Michael Van Luven"}
+
+CACHED ERRORS
+{"cell": "J13", "value": "#REF!", "formula": "=(G13-Q13)*I13", "job": "John Delaney "}
+{"cell": "K13", "value": "#REF!", "formula": "=G13-J13", "job": "John Delaney "}
+{"cell": "L13", "value": "#REF!", "formula": "=J13", "job": "John Delaney "}
+{"cell": "P13", "value": "#REF!", "formula": "=(G13-Q13)*#REF!", "job": "John Delaney "}
+{"cell": "Q13", "value": "#REF!", "formula": "=#REF!*G13", "job": "John Delaney "}
+{"cell": "N18", "value": "#VALUE!", "formula": "=J18-L18", "job": "Julie Wiley"}
+{"cell": "N19", "value": "#VALUE!", "formula": "=J19-L19", "job": "Annissa"}
+{"cell": "N20", "value": "#VALUE!", "formula": "=J20-L20", "job": "Amy"}
+{"cell": "N23", "value": "#VALUE!", "formula": "=J23-L23", "job": "Sagar"}
+{"cell": "J26", "value": "#REF!", "formula": "=(G26-Q26)*I26", "job": "Michael Van Luven"}
+{"cell": "K26", "value": "#REF!", "formula": "=G26-J26", "job": "Michael Van Luven"}
+{"cell": "L26", "value": "#REF!", "formula": "=J26", "job": "Michael Van Luven"}
+{"cell": "N26", "value": "#REF!", "formula": "=J26-L26", "job": "Michael Van Luven"}
+{"cell": "P26", "value": "#REF!", "formula": "=(G26-Q26)*0.3", "job": "Michael Van Luven"}
+{"cell": "Q26", "value": "#REF!", "formula": "=G26*#REF!", "job": "Michael Van Luven"}
+{"cell": "K34", "value": "#REF!", "formula": "=SUM(K2:K29)", "job": "Mark Holder "}
+
+FINANCIAL FIELD QUALITY
+C 'Labor cost': {'number': 71, 'blank': 14, 'text': 1}
+  {"row": 88, "job": "Ian Debt", "value": "-"}
+D 'Material Cost': {'number': 68, 'blank': 16, 'text': 2}
+  {"row": 85, "job": "Julie Wiley - carport", "value": "-"}
+  {"row": 88, "job": "Ian Debt", "value": "-"}
+E 'Payout/Contract ': {'blank': 14, 'number': 71, 'text': 1}
+  {"row": 88, "job": "Ian Debt", "value": "-"}
+F 'Supp X Fee': {'blank': 78, 'number': 6, 'text': 2}
+  {"row": 83, "job": "Terri McDowell ", "value": "1500 (appraisal)"}
+  {"row": 88, "job": "Ian Debt", "value": "Original: $10,900"}
+G 'Job Profit': {'formula': 78, 'number': 4, 'blank': 3, 'text': 1}
+  {"row": 88, "job": "Ian Debt", "value": "9600 (7/16)"}
+I 'Commission Percentage': {'number': 57, 'blank': 14, 'text': 15}
+  {"row": 20, "job": "Amy", "value": "                            40%/30%"}
+  {"row": 34, "job": "Mark Holder ", "value": "                               25/25%"}
+  {"row": 39, "job": "Barbara Smith", "value": "                           40%/30%"}
+  {"row": 40, "job": "Barbara Smith/Siding", "value": "                            35%/35%"}
+  {"row": 41, "job": "Kevin Collins", "value": "55/10"}
+  {"row": 43, "job": "Basil Girjis ", "value": "40/20"}
+  {"row": 63, "job": "myrna", "value": "30 Ian / 30 Jov = 1206 "}
+  {"row": 66, "job": "Alfred Bradford", "value": "Ian 40%/Will 20%(of 90%)"}
+  {"row": 69, "job": "Tad Tate", "value": "35/35%"}
+  {"row": 74, "job": "John Davis", "value": "50 / 10"}
+  {"row": 78, "job": "Sharon Waits", "value": "40/30"}
+  {"row": 79, "job": "Mark Norman", "value": "45/15"}
+  {"row": 80, "job": "Julie Wiley - rental ", "value": "35 / 35"}
+  {"row": 85, "job": "Julie Wiley - carport", "value": "55/15"}
+  {"row": 88, "job": "Ian Debt", "value": "-"}
+J 'Rep Comission': {'blank': 21, 'formula': 30, 'text': 16, 'number': 19}
+  {"row": 18, "job": "Julie Wiley", "value": "Ian Paid: 11,359.89 on 12/11. Justin paid 11,360 on 12/11. Meranda Paid 1,893.3. Total paid 24,612.00 12/11. Ian Paid 7k"}
+  {"row": 19, "job": "Annissa", "value": "Ian Paid: 4078 Justin: 3056"}
+  {"row": 20, "job": "Amy", "value": "$7,902.45/$2437.61"}
+  {"row": 27, "job": "Ozumba- home", "value": "1825.56 Ian, 801.46 to collies (20% of 90% of total)"}
+  {"row": 38, "job": "Uzomba- Commercial", "value": "2438.4/1219.2"}
+  {"row": 39, "job": "Barbara Smith", "value": "$4024.64/3,018.48"}
+  {"row": 40, "job": "Barbara Smith/Siding", "value": "$2,027.2/2,027.2"}
+  {"row": 41, "job": "Kevin Collins", "value": "$3,975.4/$1084.2"}
+  {"row": 43, "job": "Basil Girjis ", "value": "6267.87,  $1880.36 charlie "}
+  {"row": 52, "job": "Lado Jurkin", "value": "Ian / Will"}
+  {"row": 59, "job": "David Boucher", "value": "Ian- $2652.9 Will- $2,387.61"}
+  {"row": 60, "job": "Marci Shafto - Siding and Deck", "value": "Ian - 3k paid 3/24"}
+  {"row": 69, "job": "Tad Tate", "value": "693.00/693.00"}
+  {"row": 76, "job": "Justin Eaton", "value": "JMI Each = $576"}
+  {"row": 79, "job": "Mark Norman", "value": "$7,314.87/$2,438.29"}
+  {"row": 88, "job": "Ian Debt", "value": "-"}
+K 'JJ Profit': {'blank': 48, 'formula': 21, 'number': 15, 'text': 2}
+  {"row": 29, "job": "Alex Do", "value": "2781.58-500"}
+  {"row": 88, "job": "Ian Debt", "value": "-"}
+L 'Commission Paid ': {'blank': 29, 'formula': 5, 'number': 21, 'text': 31}
+  {"row": 23, "job": "Sagar", "value": "1/16 Ian paid 2900"}
+  {"row": 35, "job": "Arjurn Thippeswamy ", "value": "full"}
+  {"row": 38, "job": "Uzomba- Commercial", "value": "Ian Paid 1k 12/21"}
+  {"row": 39, "job": "Barbara Smith", "value": "Ian Paid 3800 12/22"}
+  {"row": 40, "job": "Barbara Smith/Siding", "value": "Ian Paid 2000 12/23"}
+  {"row": 42, "job": "Stephen Weber", "value": "ian - 2300 draw 7/1, 3880 7/4, mf 7/15"}
+  {"row": 46, "job": "Iris Albizu", "value": "7k paid 3/14. 5k Paid 4/23, 5/2 $500, 4/29 $500, 5/26 paid 2k total commission paid 15k. "}
+  {"row": 51, "job": "Mark Hess", "value": "1500 Paid "}
+  {"row": 54, "job": "Julio Espinoza", "value": "Ian 2k draw "}
+  {"row": 55, "job": "Kunel V", "value": "ian paid 4/8/26. MF 6/1"}
+  {"row": 58, "job": "Marci Shafto - Roof", "value": "ian - "}
+  {"row": 59, "job": "David Boucher", "value": "$900 Draw to Will on 2/25/26 $125 Ian on 3/14/26, $330 Ian on 3/16/26 $200 from Justin for hotel* total commission owed: $862.61"}
+  {"row": 63, "job": "myrna", "value": "Jovanny paid full commission"}
+  {"row": 64, "job": "connor grady", "value": "Ian paid 8k of commission 5/18, ian paid 1k 5/27 closed out. MF paid 6/1"}
+  {"row": 65, "job": "Irene Mellinger ", "value": "Rep Fully paid"}
+  {"row": 66, "job": "Alfred Bradford", "value": "$500 Draw to Will Will advance 500, Will left $270 out of $1,019.77"}
+  {"row": 67, "job": "Victoria Clayton", "value": "Paid 5/27. MF paid 6/1"}
+  {"row": 68, "job": "Elvis - 4103 Rockford", "value": "Paid 5/27. MF paid 6/1"}
+  {"row": 69, "job": "Tad Tate", "value": "693.00/693.00"}
+  {"row": 72, "job": "Alex Williams", "value": "1k draw 5/20"}
+  {"row": 74, "job": "John Davis", "value": "2 K Draw - Justin, mf 7/15"}
+  {"row": 75, "job": "Alicia", "value": "2k paid 6/1 2800 paid 6/11 paid 3600"}
+  {"row": 76, "job": "Justin Eaton", "value": "J - Paid "}
+  {"row": 78, "job": "Sharon Waits", "value": "Ian 1800$ draw "}
+  {"row": 79, "job": "Mark Norman", "value": "J paid $6,433, MF 7/15"}
+  {"row": 80, "job": "Julie Wiley - rental ", "value": "Ian Draw 1.5k Ian paid 2.5k 7/14"}
+  {"row": 81, "job": "Eric Fisher", "value": "Charlie draw 3k "}
+  {"row": 82, "job": "Alan Walker", "value": "Charlie 1.5k draw/ paid 3111.11 (fully paid) - MF 7/8"}
+  {"row": 83, "job": "Terri McDowell ", "value": "2k paid to Justin "}
+  {"row": 84, "job": "Brandt Kemper - Roof", "value": "Fully paid ,MF 7/8"}
+  {"row": 88, "job": "Ian Debt", "value": "-$1300 7/16 John Davis "}
+N 'Commission Owed': {'blank': 63, 'formula': 16, 'number': 7}
+O 'Referral Fee/Comission': {'blank': 83, 'number': 2, 'text': 1}
+  {"row": 28, "job": "Doug Eckel", "value": "Updaed Payout from 30,000 to 41,719.42 1/15/26 after recipt of IKO warranty claim confirmation "}
+P 'Ovveride': {'blank': 83, 'formula': 3}
+Q 'Sales Rep Fee': {'blank': 84, 'formula': 2}
+
+MULTI-REP / AMBIGUOUS ROWS
+{"row": 16, "job": "Dion Edge", "rep": "Ian/Justin", "pct": 0.7, "commission": null, "paid": null, "owed": "=J16-L16"}
+{"row": 18, "job": "Julie Wiley", "rep": "Ian", "pct": 0.6, "commission": "Ian Paid: 11,359.89 on 12/11. Justin paid 11,360 on 12/11. Meranda Paid 1,893.3. Total paid 24,612.00 12/11. Ian Paid 7k", "paid": 31613.19, "owed": "=J18-L18"}
+{"row": 19, "job": "Annissa", "rep": "Ian/Justin", "pct": 0.7, "commission": "Ian Paid: 4078 Justin: 3056", "paid": null, "owed": "=J19-L19"}
+{"row": 20, "job": "Amy", "rep": "Ian/Justin", "pct": "                            40%/30%", "commission": "$7,902.45/$2437.61", "paid": 0.0, "owed": "=J20-L20"}
+{"row": 23, "job": "Sagar", "rep": "Ian", "pct": 0.6, "commission": "=G23*I23", "paid": "1/16 Ian paid 2900", "owed": "=J23-L23"}
+{"row": 27, "job": "Ozumba- home", "rep": "Ian/Collier ", "pct": null, "commission": "1825.56 Ian, 801.46 to collies (20% of 90% of total)", "paid": null, "owed": null}
+{"row": 34, "job": "Mark Holder ", "rep": "Seth/Justin", "pct": "                               25/25%", "commission": null, "paid": null, "owed": null}
+{"row": 38, "job": "Uzomba- Commercial", "rep": "Meranda/Ian", "pct": 0.6, "commission": "2438.4/1219.2", "paid": "Ian Paid 1k 12/21", "owed": null}
+{"row": 39, "job": "Barbara Smith", "rep": "Justin/Ian ", "pct": "                           40%/30%", "commission": "$4024.64/3,018.48", "paid": "Ian Paid 3800 12/22", "owed": null}
+{"row": 40, "job": "Barbara Smith/Siding", "rep": "Justin/Ian ", "pct": "                            35%/35%", "commission": "$2,027.2/2,027.2", "paid": "Ian Paid 2000 12/23", "owed": null}
+{"row": 41, "job": "Kevin Collins", "rep": "Ian/Nick", "pct": "55/10", "commission": "$3,975.4/$1084.2", "paid": null, "owed": null}
+{"row": 42, "job": "Stephen Weber", "rep": "Ian", "pct": 0.6, "commission": "=G42*I42", "paid": "ian - 2300 draw 7/1, 3880 7/4, mf 7/15", "owed": null}
+{"row": 43, "job": "Basil Girjis ", "rep": "Justin/Charlie", "pct": "40/20", "commission": "6267.87,  $1880.36 charlie ", "paid": 4178.58, "owed": null}
+{"row": 46, "job": "Iris Albizu", "rep": "Ian", "pct": 0.55, "commission": "=G46*I46", "paid": "7k paid 3/14. 5k Paid 4/23, 5/2 $500, 4/29 $500, 5/26 paid 2k total commission paid 15k. ", "owed": null}
+{"row": 49, "job": "Travis Reid", "rep": "Ian/ Meranda", "pct": null, "commission": null, "paid": null, "owed": null}
+{"row": 50, "job": "Dr Satish", "rep": "Ian/ Justin", "pct": null, "commission": null, "paid": null, "owed": null}
+{"row": 52, "job": "Lado Jurkin", "rep": "Ian", "pct": null, "commission": "Ian / Will", "paid": null, "owed": null}
+{"row": 55, "job": "Kunel V", "rep": "Ian", "pct": 0.6, "commission": "=I55*G55", "paid": "ian paid 4/8/26. MF 6/1", "owed": null}
+{"row": 58, "job": "Marci Shafto - Roof", "rep": "Ian/Justin", "pct": 0.7, "commission": "=G58*I58", "paid": "ian - ", "owed": null}
+{"row": 59, "job": "David Boucher", "rep": "Ian/Will", "pct": 0.6, "commission": "Ian- $2652.9 Will- $2,387.61", "paid": "$900 Draw to Will on 2/25/26 $125 Ian on 3/14/26, $330 Ian on 3/16/26 $200 from Justin for hotel* total commission owed: $862.61", "owed": null}
+{"row": 60, "job": "Marci Shafto - Siding and Deck", "rep": null, "pct": null, "commission": "Ian - 3k paid 3/24", "paid": null, "owed": null}
+{"row": 63, "job": "myrna", "rep": "Ian/Jovanny", "pct": "30 Ian / 30 Jov = 1206 ", "commission": "=G63*0.3", "paid": "Jovanny paid full commission", "owed": null}
+{"row": 64, "job": "connor grady", "rep": "Ian", "pct": 0.6, "commission": "=G64*I64", "paid": "Ian paid 8k of commission 5/18, ian paid 1k 5/27 closed out. MF paid 6/1", "owed": null}
+{"row": 66, "job": "Alfred Bradford", "rep": "Ian/Will", "pct": "Ian 40%/Will 20%(of 90%)", "commission": "=G66*0.4", "paid": "$500 Draw to Will Will advance 500, Will left $270 out of $1,019.77", "owed": null}
+{"row": 67, "job": "Victoria Clayton", "rep": "Ian", "pct": 0.5, "commission": "=G67*I67", "paid": "Paid 5/27. MF paid 6/1", "owed": null}
+{"row": 68, "job": "Elvis - 4103 Rockford", "rep": "ian", "pct": 0.5, "commission": "=G68*I68", "paid": "Paid 5/27. MF paid 6/1", "owed": null}
+{"row": 69, "job": "Tad Tate", "rep": "Charlie/Justin", "pct": "35/35%", "commission": "693.00/693.00", "paid": "693.00/693.00", "owed": null}
+{"row": 72, "job": "Alex Williams", "rep": "Justin ", "pct": 60.0, "commission": 4255.02, "paid": "1k draw 5/20", "owed": null}
+{"row": 74, "job": "John Davis", "rep": "Justin / Ian ", "pct": "50 / 10", "commission": null, "paid": "2 K Draw - Justin, mf 7/15", "owed": null}
+{"row": 75, "job": "Alicia", "rep": "Ian", "pct": 0.6, "commission": "=G75*I75", "paid": "2k paid 6/1 2800 paid 6/11 paid 3600", "owed": null}
+{"row": 78, "job": "Sharon Waits", "rep": "Justin/Ian", "pct": "40/30", "commission": -1783.0, "paid": "Ian 1800$ draw ", "owed": null}
+{"row": 79, "job": "Mark Norman", "rep": "Justin/Eric", "pct": "45/15", "commission": "$7,314.87/$2,438.29", "paid": "J paid $6,433, MF 7/15", "owed": null}
+{"row": 80, "job": "Julie Wiley - rental ", "rep": "Ian/Justin", "pct": "35 / 35", "commission": "=G80*0.3", "paid": "Ian Draw 1.5k Ian paid 2.5k 7/14", "owed": null}
+{"row": 82, "job": "Alan Walker", "rep": "Charlie", "pct": 0.5, "commission": 4611.16, "paid": "Charlie 1.5k draw/ paid 3111.11 (fully paid) - MF 7/8", "owed": null}
+{"row": 84, "job": "Brandt Kemper - Roof", "rep": "Justin ", "pct": 0.6, "commission": 5521.21, "paid": "Fully paid ,MF 7/8", "owed": null}
+{"row": 85, "job": "Julie Wiley - carport", "rep": "Ian/Justin", "pct": "55/15", "commission": null, "paid": null, "owed": null}
+{"row": 87, "job": "Marie / Bonnie Arnold", "rep": "Ian/Eric/Justin", "pct": null, "commission": null, "paid": null, "owed": null}
+{"row": 88, "job": "Ian Debt", "rep": "-", "pct": "-", "commission": "-", "paid": "-$1300 7/16 John Davis ", "owed": null}
+{"row": 89, "job": "Elvis - 4103 Rockford", "rep": "Ian/Justin", "pct": null, "commission": null, "paid": null, "owed": null}

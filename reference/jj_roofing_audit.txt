@@ -1,0 +1,213 @@
+Sheet: Job Profit; dimensions A1:W994; named job rows: 86; nonempty rows: 87
+Formulas: 156; formula errors: 0; validations: 0; tables: 0
+
+COLUMN COMPLETENESS AMONG NAMED JOB ROWS
+name: {'filled': 86, 'missing': 0, 'pct': 100.0}
+address: {'filled': 60, 'missing': 26, 'pct': 69.8}
+labor: {'filled': 72, 'missing': 14, 'pct': 83.7}
+material: {'filled': 70, 'missing': 16, 'pct': 81.4}
+payout: {'filled': 72, 'missing': 14, 'pct': 83.7}
+supp_fee: {'filled': 8, 'missing': 78, 'pct': 9.3}
+job_profit: {'filled': 83, 'missing': 3, 'pct': 96.5}
+sales_rep: {'filled': 84, 'missing': 2, 'pct': 97.7}
+commission_pct: {'filled': 72, 'missing': 14, 'pct': 83.7}
+rep_commission: {'filled': 65, 'missing': 21, 'pct': 75.6}
+jj_profit: {'filled': 38, 'missing': 48, 'pct': 44.2}
+commission_paid: {'filled': 57, 'missing': 29, 'pct': 66.3}
+date: {'filled': 21, 'missing': 65, 'pct': 24.4}
+commission_owed: {'filled': 23, 'missing': 63, 'pct': 26.7}
+referral: {'filled': 3, 'missing': 83, 'pct': 3.5}
+override: {'filled': 3, 'missing': 83, 'pct': 3.5}
+sales_rep_fee: {'filled': 2, 'missing': 84, 'pct': 2.3}
+extra: {'filled': 3, 'missing': 83, 'pct': 3.5}
+
+SALES REP VARIANTS
+30	Ian
+13	Justin
+7	Ian/Justin
+6	Kyle
+3	justin
+3	Justin/Ian
+3	Charlie
+2	Ian/Will
+2	JMI
+1	Ian/Collier
+1	Seth/Justin
+1	kyle
+1	Meranda/Ian
+1	Ian/Nick
+1	Justin/Charlie
+1	Ian/ Meranda
+1	Ian/ Justin
+1	Ian/Jovanny
+1	ian
+1	Charlie/Justin
+1	Justin / Ian
+1	Justin/Eric
+1	Ian/Eric/Justin
+1	-
+
+COMMISSION PERCENT VARIANTS
+25	0.7
+14	0.6
+9	0.5
+4	60.0
+3	0.4
+2	40%/30%
+1	25/25%
+1	35%/35%
+1	55/10
+1	40/20
+1	0.55
+1	0.8
+1	30 Ian / 30 Jov = 1206
+1	Ian 40%/Will 20%(of 90%)
+1	35/35%
+1	50 / 10
+1	40/30
+1	45/15
+1	35 / 35
+1	55/15
+1	-
+
+FORMULA PATTERNS
+79	=E{row}-(D{row}+C{row}+F{row})
+23	=G{row}*I{row}
+17	=G{row}-J{row}
+16	=J{row}-L{row}
+5	=J{row}
+4	=G{row}*{row}.{row}
+2	=(G{row}-Q{row})*I{row}
+2	=G{row}-{row}
+1	=(G{row}-Q{row})*#REF!
+1	=#REF!*G{row}
+1	=(G{row}-Q{row})*{row}.{row}
+1	=G{row}*#REF!
+1	=SUM(K{row}:K{row})
+1	=I{row}*G{row}
+1	=(G{row}*{row}.{row})*I{row}
+1	=(G{row}*{row}.{row})-J{row}
+
+ERRORS
+
+MIXED TEXT SAMPLES
+{'cell': 'H2', 'header': 'Sales Rep', 'value': 'Justin'}
+{'cell': 'H3', 'header': 'Sales Rep', 'value': 'Justin'}
+{'cell': 'H4', 'header': 'Sales Rep', 'value': 'Justin'}
+{'cell': 'H5', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'H6', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'H7', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'H8', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'H9', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'H10', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'H11', 'header': 'Sales Rep', 'value': 'Justin'}
+{'cell': 'H12', 'header': 'Sales Rep', 'value': 'Justin'}
+{'cell': 'H13', 'header': 'Sales Rep', 'value': 'Kyle'}
+{'cell': 'H14', 'header': 'Sales Rep', 'value': 'Kyle'}
+{'cell': 'H15', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'H16', 'header': 'Sales Rep', 'value': 'Ian/Justin'}
+{'cell': 'H17', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'H18', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'J18', 'header': 'Rep Comission', 'value': 'Ian Paid: 11,359.89 on 12/11. Justin paid 11,360 on 12/11. Meranda Paid 1,893.3. Total paid 24,612.00 12/11. Ian Paid 7k'}
+{'cell': 'H19', 'header': 'Sales Rep', 'value': 'Ian/Justin'}
+{'cell': 'J19', 'header': 'Rep Comission', 'value': 'Ian Paid: 4078 Justin: 3056'}
+{'cell': 'H20', 'header': 'Sales Rep', 'value': 'Ian/Justin'}
+{'cell': 'J20', 'header': 'Rep Comission', 'value': '$7,902.45/$2437.61'}
+{'cell': 'H21', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'H22', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'H23', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'L23', 'header': 'Commission Paid ', 'value': '1/16 Ian paid 2900'}
+{'cell': 'H24', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'H25', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'H26', 'header': 'Sales Rep', 'value': 'Kyle'}
+{'cell': 'H27', 'header': 'Sales Rep', 'value': 'Ian/Collier'}
+{'cell': 'J27', 'header': 'Rep Comission', 'value': '1825.56 Ian, 801.46 to collies (20% of 90% of total)'}
+{'cell': 'H28', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'O28', 'header': 'Referral Fee/Comission', 'value': 'Updaed Payout from 30,000 to 41,719.42 1/15/26 after recipt of IKO warranty claim confirmation'}
+{'cell': 'H29', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'H30', 'header': 'Sales Rep', 'value': 'justin'}
+{'cell': 'H31', 'header': 'Sales Rep', 'value': 'justin'}
+{'cell': 'H32', 'header': 'Sales Rep', 'value': 'justin'}
+{'cell': 'H33', 'header': 'Sales Rep', 'value': 'Kyle'}
+{'cell': 'H34', 'header': 'Sales Rep', 'value': 'Seth/Justin'}
+{'cell': 'H35', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'L35', 'header': 'Commission Paid ', 'value': 'full'}
+{'cell': 'H36', 'header': 'Sales Rep', 'value': 'kyle'}
+{'cell': 'H37', 'header': 'Sales Rep', 'value': 'Kyle'}
+{'cell': 'H38', 'header': 'Sales Rep', 'value': 'Meranda/Ian'}
+{'cell': 'J38', 'header': 'Rep Comission', 'value': '2438.4/1219.2'}
+{'cell': 'L38', 'header': 'Commission Paid ', 'value': 'Ian Paid 1k 12/21'}
+{'cell': 'H39', 'header': 'Sales Rep', 'value': 'Justin/Ian'}
+{'cell': 'J39', 'header': 'Rep Comission', 'value': '$4024.64/3,018.48'}
+{'cell': 'L39', 'header': 'Commission Paid ', 'value': 'Ian Paid 3800 12/22'}
+{'cell': 'H40', 'header': 'Sales Rep', 'value': 'Justin/Ian'}
+{'cell': 'J40', 'header': 'Rep Comission', 'value': '$2,027.2/2,027.2'}
+{'cell': 'L40', 'header': 'Commission Paid ', 'value': 'Ian Paid 2000 12/23'}
+{'cell': 'H41', 'header': 'Sales Rep', 'value': 'Ian/Nick'}
+{'cell': 'J41', 'header': 'Rep Comission', 'value': '$3,975.4/$1084.2'}
+{'cell': 'H42', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'L42', 'header': 'Commission Paid ', 'value': 'ian - 2300 draw 7/1, 3880 7/4, mf 7/15'}
+{'cell': 'H43', 'header': 'Sales Rep', 'value': 'Justin/Charlie'}
+{'cell': 'J43', 'header': 'Rep Comission', 'value': '6267.87,  $1880.36 charlie'}
+{'cell': 'H44', 'header': 'Sales Rep', 'value': 'Kyle'}
+{'cell': 'H45', 'header': 'Sales Rep', 'value': 'Justin'}
+{'cell': 'H46', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'L46', 'header': 'Commission Paid ', 'value': '7k paid 3/14. 5k Paid 4/23, 5/2 $500, 4/29 $500, 5/26 paid 2k total commission paid 15k.'}
+{'cell': 'H49', 'header': 'Sales Rep', 'value': 'Ian/ Meranda'}
+{'cell': 'H50', 'header': 'Sales Rep', 'value': 'Ian/ Justin'}
+{'cell': 'H51', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'L51', 'header': 'Commission Paid ', 'value': '1500 Paid'}
+{'cell': 'H52', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'J52', 'header': 'Rep Comission', 'value': 'Ian / Will'}
+{'cell': 'H53', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'H54', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'L54', 'header': 'Commission Paid ', 'value': 'Ian 2k draw'}
+{'cell': 'H55', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'L55', 'header': 'Commission Paid ', 'value': 'ian paid 4/8/26. MF 6/1'}
+{'cell': 'H56', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'H57', 'header': 'Sales Rep', 'value': 'Justin'}
+{'cell': 'H58', 'header': 'Sales Rep', 'value': 'Ian/Justin'}
+{'cell': 'L58', 'header': 'Commission Paid ', 'value': 'ian -'}
+{'cell': 'H59', 'header': 'Sales Rep', 'value': 'Ian/Will'}
+{'cell': 'J59', 'header': 'Rep Comission', 'value': 'Ian- $2652.9 Will- $2,387.61'}
+{'cell': 'L59', 'header': 'Commission Paid ', 'value': '$900 Draw to Will on 2/25/26 $125 Ian on 3/14/26, $330 Ian on 3/16/26 $200 from Justin for hotel* total commission owed: $862.61'}
+{'cell': 'M59', 'header': 'Date', 'value': 'Ian&Will paid 3/28/25'}
+{'cell': 'J60', 'header': 'Rep Comission', 'value': 'Ian - 3k paid 3/24'}
+{'cell': 'H61', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'H62', 'header': 'Sales Rep', 'value': 'Justin'}
+{'cell': 'H63', 'header': 'Sales Rep', 'value': 'Ian/Jovanny'}
+{'cell': 'I63', 'header': 'Commission Percentage', 'value': '30 Ian / 30 Jov = 1206'}
+{'cell': 'L63', 'header': 'Commission Paid ', 'value': 'Jovanny paid full commission'}
+{'cell': 'H64', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'L64', 'header': 'Commission Paid ', 'value': 'Ian paid 8k of commission 5/18, ian paid 1k 5/27 closed out. MF paid 6/1'}
+{'cell': 'H65', 'header': 'Sales Rep', 'value': 'Charlie'}
+{'cell': 'L65', 'header': 'Commission Paid ', 'value': 'Rep Fully paid'}
+{'cell': 'H66', 'header': 'Sales Rep', 'value': 'Ian/Will'}
+{'cell': 'I66', 'header': 'Commission Percentage', 'value': 'Ian 40%/Will 20%(of 90%)'}
+{'cell': 'L66', 'header': 'Commission Paid ', 'value': '$500 Draw to Will Will advance 500, Will left $270 out of $1,019.77'}
+{'cell': 'H67', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'L67', 'header': 'Commission Paid ', 'value': 'Paid 5/27. MF paid 6/1'}
+{'cell': 'H68', 'header': 'Sales Rep', 'value': 'ian'}
+{'cell': 'L68', 'header': 'Commission Paid ', 'value': 'Paid 5/27. MF paid 6/1'}
+{'cell': 'H69', 'header': 'Sales Rep', 'value': 'Charlie/Justin'}
+{'cell': 'J69', 'header': 'Rep Comission', 'value': '693.00/693.00'}
+{'cell': 'L69', 'header': 'Commission Paid ', 'value': '693.00/693.00'}
+{'cell': 'H70', 'header': 'Sales Rep', 'value': 'Justin'}
+{'cell': 'H71', 'header': 'Sales Rep', 'value': 'JMI'}
+{'cell': 'H72', 'header': 'Sales Rep', 'value': 'Justin'}
+{'cell': 'L72', 'header': 'Commission Paid ', 'value': '1k draw 5/20'}
+{'cell': 'H73', 'header': 'Sales Rep', 'value': 'Justin'}
+{'cell': 'H74', 'header': 'Sales Rep', 'value': 'Justin / Ian'}
+{'cell': 'L74', 'header': 'Commission Paid ', 'value': '2 K Draw - Justin, mf 7/15'}
+{'cell': 'H75', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'L75', 'header': 'Commission Paid ', 'value': '2k paid 6/1 2800 paid 6/11 paid 3600'}
+{'cell': 'H76', 'header': 'Sales Rep', 'value': 'JMI'}
+{'cell': 'J76', 'header': 'Rep Comission', 'value': 'JMI Each = $576'}
+{'cell': 'L76', 'header': 'Commission Paid ', 'value': 'J - Paid'}
+{'cell': 'H77', 'header': 'Sales Rep', 'value': 'Ian'}
+{'cell': 'H78', 'header': 'Sales Rep', 'value': 'Justin/Ian'}
+{'cell': 'L78', 'header': 'Commission Paid ', 'value': 'Ian 1800$ draw'}
+{'cell': 'H79', 'header': 'Sales Rep', 'value': 'Justin/Eric'}
+{'cell': 'J79', 'header': 'Rep Comission', 'value': '$7,314.87/$2,438.29'}
+{'cell': 'L79', 'header': 'Commission Paid ', 'value': 'J paid $6,433, MF 7/15'}
+{'cell': 'H80', 'header': 'Sales Rep', 'value': 'Ian/Justin'}
