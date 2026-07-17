@@ -145,10 +145,13 @@ src/lib/password.ts     Password hashing (scrypt) for the Credentials provider
 src/lib/permissions.ts  Permission catalog and requirePermission() authorization check
 src/lib/audit.ts        recordAuditEvent() — always call inside the mutation's transaction
 src/lib/decimal.ts      Decimal-string sign-flip helpers — never round-trip money through a JS number
+src/lib/completion-checklist.ts  Fixed default checklist items (docs/04 SS4); see D-015 for configurability
 src/server/commands/    Protected mutation commands (permission check + mutation + audit, atomic)
-src/server/queries/     Read models, e.g. getJobFinancialSummary (aggregates computed in Postgres)
-src/test-support/fixtures.ts  Shared integration-test fixtures (org/user/permission/job setup)
+src/server/queries/     Read models: getJobFinancialSummary, evaluateCloseReadiness (all in Postgres)
+src/test-support/fixtures.ts  Shared integration-test fixtures (org/user/permission/job/close setup)
 src/app/dashboard/jobs/ Jobs list, create-job form, job detail page (revenue/collections/costs)
+src/app/dashboard/jobs/ui.tsx  Shared small components (Field, Section, RowTable, buttons) across job pages
+src/app/dashboard/jobs/[jobId]/close/  Completion checklist, cost finalization, close gates, versions, reopen
 drizzle/                Generated SQL migrations, including the audit_events append-only trigger
 drizzle.config.ts       Drizzle Kit config (schema path, migrations output, dialect)
 docker-compose.yml      Local Postgres 16 (dev + test databases)
@@ -172,4 +175,12 @@ Not yet built: settings screens for managing users/roles, object storage abstrac
 
 Job financial ledgers (docs/07 roadmap Phase 2) is implemented: customers, jobs, job_assignments, revenue_components, collection_transactions, vendors, and cost_transactions, plus commands for creating a job, adding/approving revenue components, posting/reversing collections, and posting/approving/returning cost transactions — each following the same permission-check-plus-audit-event-in-one-transaction pattern as Phase 1. `getJobFinancialSummary` computes expected/collected/remaining/cost totals with all arithmetic done in Postgres, never JS, so the numbers stay exact. A minimal jobs list, create-job form, and job detail page (with inline add/approve/reverse forms) exist. 22 integration tests cover every command plus a full fixture pinning the exact summary math; checked by hand in a real browser end to end (create a job, add and approve revenue, post a collection, post and approve a cost, watch the summary reconcile at each step).
 
-Not yet built: documents/file uploads (no object storage vendor decided — see D-020/ADR-001), a command surface for job_adjustments (schema exists, arrives with Phase 4 commission math), and the fuller submit/review/reject cost-approval workflow (Phase 2 uses a simple Draft → Approved state; the richer workflow belongs with Phase 3's close-gate work). Completion, close gates, financial close versions, and commission (Phases 3-4) have no schema or code yet.
+Not yet built: documents/file uploads (no object storage vendor decided — see D-020/ADR-001), a command surface for job_adjustments (schema exists, arrives with Phase 4 commission math), and the fuller submit/review/reject cost-approval workflow (Phase 2 uses a simple Draft → Approved state; the richer workflow belongs with Phase 3's close-gate work).
+
+## Phase 3 status
+
+Completion and financial close (docs/07 roadmap Phase 3) is implemented: operational completion (checklist templates, reviews, answers), cost category finalization (labor/material/adjustments — distinct from individual transaction approval), and the full close-gate/versioning/reopen lifecycle. `evaluateCloseReadiness` names the exact blocker per gate and is always re-evaluated server-side at approval time, never trusting the submitted snapshot. Closing snapshots `getJobFinancialSummary`'s numbers into an immutable `financial_close_versions` row (append-only, same pattern as `audit_events`); reopening creates a new attempt without ever touching the prior version, so a correction-and-reclose produces a second version with a full paper trail back to the first. New `/dashboard/jobs/[jobId]/close` screen ties checklist, finalization, gates, version history with variance, and reopen together.
+
+43 integration tests cover the full lifecycle, including a dedicated test that closes a job, reopens it, posts a cost return, recloses, and asserts Version 2's numbers, Version 1's immutability, and the variance between them are all exact. Also checked by hand in a real browser end to end: completed a job, finalized all three cost categories, closed to Version 1, reopened, posted and approved a $200 material return, re-closed to Version 2 — Version 1's numbers were unchanged and the variance ($200) matched exactly.
+
+Not yet built: `job_exceptions` ("Close with Exception" — docs/04 SS11, a distinct controlled workflow with its own second-approval rules), configurable checklist templates per funding type (one fixed default is seeded — D-015 is a configuration decision, not blocking), and the distinct-second-approver rule for reopening a job with paid commission (docs/04 SS11 — moot until Phase 4 adds commission to pay). Financial close does not set `jobs.record_state = 'Closed'`; per docs/04 SS10 that requires an approved commission batch too, which doesn't exist until Phase 4. Commission and settlement (Phase 4) has no schema or code yet.
