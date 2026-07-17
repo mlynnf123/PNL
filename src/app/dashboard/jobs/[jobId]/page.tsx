@@ -161,12 +161,20 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
             {job.propertyPostalCode} · {job.fundingType}
           </p>
         </div>
-        <Link
-          href={`/dashboard/jobs/${job.id}/close`}
-          className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-normal text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
-        >
-          Close
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href={`/dashboard/jobs/${job.id}/close`}
+            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-normal text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+          >
+            Close
+          </Link>
+          <Link
+            href={`/dashboard/jobs/${job.id}/commission`}
+            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-normal text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+          >
+            Commission
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 rounded-lg border border-zinc-200 bg-gradient-to-b from-white to-zinc-50 p-6 sm:grid-cols-4 dark:border-zinc-800 dark:from-zinc-950 dark:to-black">

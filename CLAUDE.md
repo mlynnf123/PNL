@@ -107,7 +107,7 @@ ADR-001 in `docs/07_IMPLEMENTATION_ROADMAP_AND_DECISION_REGISTER.md` records the
 
 ## Commands and repository layout
 
-All commands below were run successfully in this repository as of 2026-07-17 (Phase 1: platform foundation).
+All commands below were run successfully in this repository as of 2026-07-17 (through Phase 4: commission and settlement).
 
 | Purpose                           | Command                    |
 | --------------------------------- | -------------------------- |
@@ -140,18 +140,20 @@ src/auth.ts             Auth.js config: Credentials provider, JWT strategy (see 
 src/db/schema.ts        Drizzle schema (organizations, users, roles, permissions, audit_events)
 src/db/client.ts        Drizzle/postgres-js client factory, reads DATABASE_URL
 src/db/test-client.ts   Same, reads TEST_DATABASE_URL (integration tests only)
-src/db/seed.ts          Idempotent dev seed: org, roles/permissions, bootstrap owner user
+src/db/seed.ts          Idempotent dev seed: org, roles/permissions, bootstrap owner, named commission users, active rule set
 src/lib/password.ts     Password hashing (scrypt) for the Credentials provider
 src/lib/permissions.ts  Permission catalog and requirePermission() authorization check
 src/lib/audit.ts        recordAuditEvent() — always call inside the mutation's transaction
 src/lib/decimal.ts      Decimal-string sign-flip helpers — never round-trip money through a JS number
 src/lib/completion-checklist.ts  Fixed default checklist items (docs/04 SS4); see D-015 for configurability
+src/lib/commission-rules.ts  Pure commission rule-matching logic (no DB access); throws CommissionBlockedError
 src/server/commands/    Protected mutation commands (permission check + mutation + audit, atomic)
-src/server/queries/     Read models: getJobFinancialSummary, evaluateCloseReadiness (all in Postgres)
-src/test-support/fixtures.ts  Shared integration-test fixtures (org/user/permission/job/close setup)
+src/server/queries/     Read models: getJobFinancialSummary, evaluateCloseReadiness, getRepCommissionBalance (all in Postgres)
+src/test-support/fixtures.ts  Shared integration-test fixtures (org/user/permission/job/close/commission-rule-set setup)
 src/app/dashboard/jobs/ Jobs list, create-job form, job detail page (revenue/collections/costs)
-src/app/dashboard/jobs/ui.tsx  Shared small components (Field, Section, RowTable, buttons) across job pages
+src/app/dashboard/jobs/ui.tsx  Shared small components (Field, Section, RowTable, UserSelectField, buttons) across job pages
 src/app/dashboard/jobs/[jobId]/close/  Completion checklist, cost finalization, close gates, versions, reopen
+src/app/dashboard/jobs/[jobId]/commission/  Batch generate/approve/reject, allocation table, ledger, post/reverse transactions
 drizzle/                Generated SQL migrations, including the audit_events append-only trigger
 drizzle.config.ts       Drizzle Kit config (schema path, migrations output, dialect)
 docker-compose.yml      Local Postgres 16 (dev + test databases)
@@ -183,4 +185,12 @@ Completion and financial close (docs/07 roadmap Phase 3) is implemented: operati
 
 43 integration tests cover the full lifecycle, including a dedicated test that closes a job, reopens it, posts a cost return, recloses, and asserts Version 2's numbers, Version 1's immutability, and the variance between them are all exact. Also checked by hand in a real browser end to end: completed a job, finalized all three cost categories, closed to Version 1, reopened, posted and approved a $200 material return, re-closed to Version 2 — Version 1's numbers were unchanged and the variance ($200) matched exactly.
 
-Not yet built: `job_exceptions` ("Close with Exception" — docs/04 SS11, a distinct controlled workflow with its own second-approval rules), configurable checklist templates per funding type (one fixed default is seeded — D-015 is a configuration decision, not blocking), and the distinct-second-approver rule for reopening a job with paid commission (docs/04 SS11 — moot until Phase 4 adds commission to pay). Financial close does not set `jobs.record_state = 'Closed'`; per docs/04 SS10 that requires an approved commission batch too, which doesn't exist until Phase 4. Commission and settlement (Phase 4) has no schema or code yet.
+Not yet built: `job_exceptions` ("Close with Exception" — docs/04 SS11, a distinct controlled workflow with its own second-approval rules), configurable checklist templates per funding type (one fixed default is seeded — D-015 is a configuration decision, not blocking), and the distinct-second-approver rule for reopening a job with paid commission (docs/04 SS11 — see Phase 4 status below). Financial close does not set `jobs.record_state = 'Closed'`; per docs/04 SS10 that requires an approved commission batch too.
+
+## Phase 4 status
+
+Commission and settlement (docs/07 roadmap Phase 4) is implemented: commission_rule_sets, commission_rules, commission_allocation_batches, commission_allocations, and commission_transactions, plus `commission_status` on jobs. The rule-matching engine (`src/lib/commission-rules.ts`) is pure logic — no DB access — taking an explicit seller id and rule rows, matching owner-seller/named-user rows ahead of the standard-rep fallback, and refusing to compute a `conditionsJson`-flagged blocked rule by throwing `CommissionBlockedError` rather than silently picking a number. Commands: `generateCommissionBatch`, `approveCommissionBatch` (re-validates reconciliation server side, not just at generation), `rejectCommissionBatch`, `postCommissionTransaction` (draw/payment/clawback/adjustment, sign fixed by type), `reverseCommissionTransaction` (the first command in the app requiring a second, distinct approver holding `high_risk_approval` — same-actor reversal is rejected). `getRepCommissionBalance` sums approved allocations plus every ledger transaction for a recipient in one query; a prior job's negative carry-forward nets against a later approval for free through that running sum. New `/dashboard/jobs/[jobId]/commission` screen covers generate/approve/reject, the allocation table with company profit, the ledger, and inline post/reverse forms.
+
+19 integration tests cover the three confirmed patterns from docs/01 SS7 (standard rep 40/10/10/10; Justin and Ian each 50% + universal 10% with no owner override on their own sale), the Charlie-blocked fixture, an overpayment/clawback fixture proving the natural carry-forward offset across two jobs, same-approver-denied vs. distinct-approver-succeeds reversal, and authorization per command — all passing, alongside the full 62-test suite across every phase. Checked by hand in a real browser: generated and approved a batch on a real closed job, posted a draw, confirmed a same-approver reversal is rejected, then reversed it with a distinct second approver and watched the balance reconcile.
+
+Not yet built: manual allocation overrides, a cross-job rep-ledger dashboard (the job-level ledger and balance query already prove the math), and commission-aware reopening (Phase 3's `reopenFinancials` does not yet place an approved batch `OnHold`). D-001 through D-004 remain fully unresolved for production — this phase proves the engine against confirmed and blocked fixtures, it does not activate any rule for real payroll. Charlie's fixture is test-only; the dev seed's Justin/Ian/Third-owner rule set is for a local sandbox, not a production decision.

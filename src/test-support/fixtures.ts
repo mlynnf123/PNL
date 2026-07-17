@@ -2,7 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
 import { testDb } from '@/db/test-client';
 import {
+  commissionRules,
+  commissionRuleSets,
   completionChecklistTemplates,
+  jobs,
   organizations,
   permissions as permissionsTable,
   roles,
@@ -21,6 +24,7 @@ import {
   requestOperationalCompletion,
 } from '@/server/commands/operational-completion';
 import { addRevenueComponent, approveRevenueComponent } from '@/server/commands/revenue-components';
+import { approveFinancialClose, submitFinancialClose } from '@/server/commands/financial-close';
 
 // organizations cascades to everything scoped to it (users, jobs, roles, ...).
 // The permissions catalog is left alone — it's a fixed, reusable global list,
@@ -97,8 +101,14 @@ export async function grantPermission(
 
 // A user with FINANCIAL_ENTRY (and, when needed, COST_FINALIZATION) plus a
 // freshly created job — the common starting point for most Phase 2 tests.
-export async function createJobFixture(organizationId: string, actorUserId: string) {
-  const salesRep = await createUser(organizationId);
+// Pass sellerUserId (e.g. a named owner-seller fixture) to control who's
+// assigned as primary sales rep; otherwise a fresh standard-rep user is created.
+export async function createJobFixture(
+  organizationId: string,
+  actorUserId: string,
+  sellerUserId?: string,
+) {
+  const salesRep = sellerUserId ? { id: sellerUserId } : await createUser(organizationId);
   const job = await createJob(
     {
       actorUserId,
@@ -122,8 +132,12 @@ export async function createJobFixture(organizationId: string, actorUserId: stri
 // labor and material costs, and an approved operational completion review —
 // every close gate passes. The actor needs FINANCIAL_ENTRY and
 // COST_FINALIZATION (Phase 2/3 tests already grant both together).
-export async function createCloseableJobFixture(organizationId: string, actorUserId: string) {
-  const { job, salesRep } = await createJobFixture(organizationId, actorUserId);
+export async function createCloseableJobFixture(
+  organizationId: string,
+  actorUserId: string,
+  sellerUserId?: string,
+) {
+  const { job, salesRep } = await createJobFixture(organizationId, actorUserId, sellerUserId);
 
   const contract = await addRevenueComponent(
     {
@@ -206,4 +220,122 @@ export async function createCloseableJobFixture(organizationId: string, actorUse
   );
 
   return { job, salesRep };
+}
+
+// A closeable job fixture taken all the way through submit + approve, so its
+// financial_close_status is Closed and it has a current financial version —
+// the starting point for Phase 4 commission tests. The actor needs
+// FINANCIAL_ENTRY, COST_FINALIZATION, and CLOSE_APPROVAL.
+export async function createClosedJobFixture(
+  organizationId: string,
+  actorUserId: string,
+  sellerUserId?: string,
+) {
+  const { job, salesRep } = await createCloseableJobFixture(
+    organizationId,
+    actorUserId,
+    sellerUserId,
+  );
+
+  const attempt = await submitFinancialClose(
+    { actorUserId, organizationId, jobId: job.id },
+    testDb,
+  );
+  const version = await approveFinancialClose(
+    { actorUserId, organizationId, closeAttemptId: attempt.id },
+    testDb,
+  );
+
+  const [closedJob] = await testDb.select().from(jobs).where(eq(jobs.id, job.id)).limit(1);
+  return { job: closedJob, salesRep, version };
+}
+
+// docs/01 SS7 confirmed patterns, mirroring src/db/seed.ts's production rule
+// set but scoped to one test organization: standard rep 40/10/10/10, Justin
+// and Ian each 50% + universal 10% on their own sales. No Charlie rule here —
+// blocked fixtures build their own rule set inline (see commission-batch tests).
+export async function createCommissionRuleSetFixture(
+  organizationId: string,
+  owners: { justinId: string; ianId: string; thirdOwnerId: string },
+) {
+  const [ruleSet] = await testDb
+    .insert(commissionRuleSets)
+    .values({
+      organizationId,
+      name: 'Test rule set',
+      versionNumber: 1,
+      effectiveFrom: '2020-01-01',
+      status: 'Active',
+    })
+    .returning();
+
+  await testDb.insert(commissionRules).values([
+    {
+      ruleSetId: ruleSet.id,
+      priority: 1,
+      sellerMatchType: 'standard_rep',
+      allocationType: 'primary_sales',
+      rate: '0.4000',
+    },
+    {
+      ruleSetId: ruleSet.id,
+      priority: 2,
+      sellerMatchType: 'standard_rep',
+      allocationType: 'owner_override',
+      recipientUserId: owners.justinId,
+      rate: '0.1000',
+    },
+    {
+      ruleSetId: ruleSet.id,
+      priority: 3,
+      sellerMatchType: 'standard_rep',
+      allocationType: 'owner_override',
+      recipientUserId: owners.ianId,
+      rate: '0.1000',
+    },
+    {
+      ruleSetId: ruleSet.id,
+      priority: 4,
+      sellerMatchType: 'standard_rep',
+      allocationType: 'universal_owner_share',
+      recipientUserId: owners.thirdOwnerId,
+      rate: '0.1000',
+    },
+    {
+      ruleSetId: ruleSet.id,
+      priority: 1,
+      sellerMatchType: 'owner_seller',
+      sellerUserId: owners.justinId,
+      allocationType: 'primary_sales',
+      rate: '0.5000',
+    },
+    {
+      ruleSetId: ruleSet.id,
+      priority: 2,
+      sellerMatchType: 'owner_seller',
+      sellerUserId: owners.justinId,
+      allocationType: 'universal_owner_share',
+      recipientUserId: owners.thirdOwnerId,
+      rate: '0.1000',
+    },
+    {
+      ruleSetId: ruleSet.id,
+      priority: 1,
+      sellerMatchType: 'owner_seller',
+      sellerUserId: owners.ianId,
+      allocationType: 'primary_sales',
+      rate: '0.5000',
+    },
+    {
+      ruleSetId: ruleSet.id,
+      priority: 2,
+      sellerMatchType: 'owner_seller',
+      sellerUserId: owners.ianId,
+      allocationType: 'universal_owner_share',
+      recipientUserId: owners.thirdOwnerId,
+      rate: '0.1000',
+    },
+  ]);
+
+  return ruleSet;
 }

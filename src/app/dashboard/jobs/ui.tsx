@@ -104,6 +104,33 @@ export function SelectField({
   );
 }
 
+export function UserSelectField({
+  label,
+  name,
+  users,
+}: {
+  label: string;
+  name: string;
+  users: { id: string; displayName: string }[];
+}) {
+  return (
+    <label className="flex flex-col gap-1 text-xs text-zinc-700 dark:text-zinc-300">
+      {label}
+      <select
+        name={name}
+        required
+        className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm font-normal text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+      >
+        {users.map((u) => (
+          <option key={u.id} value={u.id}>
+            {u.displayName}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 export function SubmitButton({ children }: { children: React.ReactNode }) {
   return (
     <button

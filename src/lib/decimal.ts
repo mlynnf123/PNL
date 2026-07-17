@@ -10,6 +10,12 @@ export function toNegativeDecimalString(value: string): string {
   return value.startsWith('-') ? value : `-${value}`;
 }
 
+// Forces a decimal string positive regardless of how it was entered — for an
+// adjustment_credit amount, which is always an increase.
+export function toPositiveDecimalString(value: string): string {
+  return value.startsWith('-') ? value.slice(1) : value;
+}
+
 export function todayDateString(): string {
   return new Date().toISOString().slice(0, 10);
 }

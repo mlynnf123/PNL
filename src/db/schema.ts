@@ -210,6 +210,17 @@ export const financialCloseStatusEnum = pgEnum('financial_close_status', [
   'Reopened',
 ]);
 
+export const commissionStatusEnum = pgEnum('commission_status', [
+  'NotEligible',
+  'Ready',
+  'InReview',
+  'Approved',
+  'PartiallyPaid',
+  'Paid',
+  'Adjusted',
+  'OnHold',
+]);
+
 export const jobs = pgTable(
   'jobs',
   {
@@ -242,6 +253,7 @@ export const jobs = pgTable(
     financialCloseStatus: financialCloseStatusEnum('financial_close_status')
       .notNull()
       .default('NotReady'),
+    commissionStatus: commissionStatusEnum('commission_status').notNull().default('NotEligible'),
     recordState: recordStateEnum('record_state').notNull().default('Active'),
     actualCompletionDate: date('actual_completion_date'),
     // No FK: financial_close_versions.job_id already references jobs.id, and
@@ -682,4 +694,152 @@ export const financialReopenRequests = pgTable('financial_reopen_requests', {
   requestedAt: timestamp('requested_at', { withTimezone: true }).notNull().defaultNow(),
   approvedBy: uuid('approved_by').references(() => users.id),
   approvedAt: timestamp('approved_at', { withTimezone: true }),
+});
+
+// docs/03_DATA_MODEL.md SS8 Commission rules and allocations
+
+export const ruleSetStatusEnum = pgEnum('rule_set_status', ['Draft', 'Active', 'Retired']);
+
+export const commissionRuleSets = pgTable('commission_rule_sets', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  organizationId: uuid('organization_id')
+    .notNull()
+    .references(() => organizations.id),
+  name: text('name').notNull(),
+  versionNumber: integer('version_number').notNull(),
+  effectiveFrom: date('effective_from').notNull(),
+  effectiveTo: date('effective_to'),
+  status: ruleSetStatusEnum('status').notNull().default('Draft'),
+  approvedBy: uuid('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  notes: text('notes'),
+});
+
+export const sellerMatchTypeEnum = pgEnum('seller_match_type', [
+  'owner_seller',
+  'standard_rep',
+  'named_user',
+]);
+
+export const commissionAllocationTypeEnum = pgEnum('commission_allocation_type', [
+  'primary_sales',
+  'owner_override',
+  'universal_owner_share',
+]);
+
+export const commissionRules = pgTable('commission_rules', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  ruleSetId: uuid('rule_set_id')
+    .notNull()
+    .references(() => commissionRuleSets.id),
+  priority: integer('priority').notNull(),
+  sellerMatchType: sellerMatchTypeEnum('seller_match_type').notNull(),
+  // Required for owner_seller/named_user rows; null for standard_rep (matches
+  // any seller not covered by a more specific owner_seller/named_user rule).
+  sellerUserId: uuid('seller_user_id').references(() => users.id),
+  allocationType: commissionAllocationTypeEnum('allocation_type').notNull(),
+  // Null means "derives from the job's seller" (the primary_sales recipient
+  // on a standard_rep rule is whoever actually sold that job).
+  recipientUserId: uuid('recipient_user_id').references(() => users.id),
+  rate: numeric('rate', { precision: 5, scale: 4 }).notNull(),
+  // { blocked: true, reason: 'BLOCKED_PENDING_BUSINESS_CONFIRMATION' } marks a
+  // rule (e.g. Charlie's unresolved D-001 case) that must never compute a
+  // real allocation until the business confirms the intended split.
+  conditionsJson: jsonb('conditions_json'),
+  active: boolean('active').notNull().default(true),
+});
+
+export const commissionBatchStatusEnum = pgEnum('commission_batch_status', [
+  'Proposed',
+  'InReview',
+  'Approved',
+  'Rejected',
+  'Superseded',
+  'OnHold',
+]);
+
+export const commissionAllocationBatches = pgTable('commission_allocation_batches', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  jobId: uuid('job_id')
+    .notNull()
+    .references(() => jobs.id),
+  financialCloseVersionId: uuid('financial_close_version_id')
+    .notNull()
+    .references(() => financialCloseVersions.id),
+  ruleSetId: uuid('rule_set_id')
+    .notNull()
+    .references(() => commissionRuleSets.id),
+  status: commissionBatchStatusEnum('status').notNull().default('Proposed'),
+  totalAllocatedAmount: numeric('total_allocated_amount', { precision: 12, scale: 2 }).notNull(),
+  companyProfit: numeric('company_profit', { precision: 12, scale: 2 }).notNull(),
+  generatedAt: timestamp('generated_at', { withTimezone: true }).notNull().defaultNow(),
+  approvedBy: uuid('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+});
+
+export const commissionAllocations = pgTable('commission_allocations', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  batchId: uuid('batch_id')
+    .notNull()
+    .references(() => commissionAllocationBatches.id),
+  recipientUserId: uuid('recipient_user_id')
+    .notNull()
+    .references(() => users.id),
+  allocationType: commissionAllocationTypeEnum('allocation_type').notNull(),
+  sourceRuleId: uuid('source_rule_id')
+    .notNull()
+    .references(() => commissionRules.id),
+  rate: numeric('rate', { precision: 5, scale: 4 }).notNull(),
+  basisAmount: numeric('basis_amount', { precision: 12, scale: 2 }).notNull(),
+  earnedAmount: numeric('earned_amount', { precision: 12, scale: 2 }).notNull(),
+});
+
+// docs/03_DATA_MODEL.md SS9 Commission ledger
+
+export const commissionTransactionTypeEnum = pgEnum('commission_transaction_type', [
+  'draw',
+  'payment',
+  'clawback_debit',
+  'clawback_offset',
+  'adjustment_credit',
+  'adjustment_debit',
+  'reversal',
+]);
+
+export const commissionTransactions = pgTable('commission_transactions', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  organizationId: uuid('organization_id')
+    .notNull()
+    .references(() => organizations.id),
+  // Nullable only for an approved cross-job offset record (docs/03 SS9).
+  jobId: uuid('job_id').references(() => jobs.id),
+  allocationId: uuid('allocation_id').references(() => commissionAllocations.id),
+  recipientUserId: uuid('recipient_user_id')
+    .notNull()
+    .references(() => users.id),
+  transactionType: commissionTransactionTypeEnum('transaction_type').notNull(),
+  // Signed by the command based on transactionType, same pattern as
+  // src/lib/decimal.ts — never trust a caller-supplied sign.
+  amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+  transactionDate: date('transaction_date').notNull(),
+  reason: text('reason'),
+  paymentMethod: text('payment_method'),
+  referenceNumber: text('reference_number'),
+  originalTransactionId: uuid('original_transaction_id').references(
+    (): AnyPgColumn => commissionTransactions.id,
+  ),
+  postedBy: uuid('posted_by')
+    .notNull()
+    .references(() => users.id),
+  postedAt: timestamp('posted_at', { withTimezone: true }).notNull().defaultNow(),
 });
