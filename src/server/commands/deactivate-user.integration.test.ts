@@ -1,79 +1,16 @@
 import { randomUUID } from 'node:crypto';
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { testDb } from '@/db/test-client';
-import {
-  auditEvents,
-  organizations,
-  permissions as permissionsTable,
-  roles,
-  rolePermissions,
-  userRoles,
-  users,
-} from '@/db/schema';
-import { hashPassword } from '@/lib/password';
+import { auditEvents, users } from '@/db/schema';
 import { AuthorizationError, PERMISSIONS } from '@/lib/permissions';
+import {
+  createOrganization,
+  createUser,
+  grantPermission,
+  resetDatabase,
+} from '@/test-support/fixtures';
 import { deactivateUser, UserNotFoundError } from './deactivate-user';
-
-async function resetDatabase() {
-  await testDb.execute(
-    sql`TRUNCATE TABLE audit_events, user_roles, role_permissions, permissions, roles, users, organizations RESTART IDENTITY CASCADE`,
-  );
-}
-
-async function createOrganization() {
-  const [org] = await testDb
-    .insert(organizations)
-    .values({ legalName: 'Test Org', displayName: 'Test Org', timeZone: 'America/Chicago' })
-    .returning();
-  return org;
-}
-
-async function createUser(organizationId: string) {
-  const passwordHash = await hashPassword('test-password');
-  const [inserted] = await testDb
-    .insert(users)
-    .values({
-      organizationId,
-      identityProviderSubject: 'pending',
-      email: `user-${randomUUID()}@example.com`,
-      displayName: 'Test User',
-      userType: 'staff',
-      passwordHash,
-    })
-    .returning();
-
-  const [user] = await testDb
-    .update(users)
-    .set({ identityProviderSubject: inserted.id })
-    .where(eq(users.id, inserted.id))
-    .returning();
-
-  return user;
-}
-
-async function grantPermission(organizationId: string, userId: string, permissionKey: string) {
-  const [role] = await testDb
-    .insert(roles)
-    .values({ organizationId, name: `role-${randomUUID()}` })
-    .returning();
-
-  let [permission] = await testDb
-    .select()
-    .from(permissionsTable)
-    .where(eq(permissionsTable.key, permissionKey))
-    .limit(1);
-
-  if (!permission) {
-    [permission] = await testDb
-      .insert(permissionsTable)
-      .values({ key: permissionKey, description: permissionKey })
-      .returning();
-  }
-
-  await testDb.insert(rolePermissions).values({ roleId: role.id, permissionId: permission.id });
-  await testDb.insert(userRoles).values({ userId, roleId: role.id });
-}
 
 describe('deactivateUser', () => {
   beforeEach(async () => {

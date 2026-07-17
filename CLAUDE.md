@@ -95,6 +95,12 @@ Prefer concise production-ready error handling. Do not add verbose error-message
 
 Never mention Claude, Anthropic, or any AI tooling in a commit message. Write commits and code comments the way a developer would leave notes for the next developer — short, plain, natural. No AI-sounding phrasing anywhere in this repo.
 
+When asked to commit, always push to GitHub right after. "Commit" means commit and push, not commit and stop.
+
+## UI rules
+
+No emojis, no decorative icons — keep icons to an absolute minimum and only when functionally necessary. No bold text: body copy stays at font-weight 400 or lighter, headings max out at 500. Font is Arial or Roboto, not a framework default. Monochromatic color scheme, but use gradients and subtle differentiation so components read as distinct rather than flat. Sleek, modern, professional — should never look AI-generated.
+
 ## Stack decision
 
 ADR-001 in `docs/07_IMPLEMENTATION_ROADMAP_AND_DECISION_REGISTER.md` records the chosen stack: Next.js (TypeScript, App Router) for web client and backend, PostgreSQL, Drizzle ORM, Auth.js (credentials/sessions), Fly.io or Railway hosting with a separate worker process, S3-compatible object storage.
@@ -121,7 +127,7 @@ All commands below were run successfully in this repository as of 2026-07-17 (Ph
 | Apply Drizzle migration           | `npm run db:migrate`       |
 | Drizzle Studio                    | `npm run db:studio`        |
 
-No API or end-to-end (browser-driven) test commands exist yet — those are added as Phase 2+ introduces real screens. `npm run build` succeeds without a database connection (no route performs data access at build/static-generation time yet).
+Integration tests run against real Postgres (`npm run test:integration`, requires `docker-compose up -d`). No API or end-to-end (browser-driven) test commands exist yet. `npm run build` succeeds without a database connection (no route performs data access at build/static-generation time yet).
 
 Local Postgres requires Docker. This machine uses Colima (`brew install colima docker docker-compose`, `colima start --mount /path/to/repo:w`) rather than Docker Desktop — the Colima VM must have the repository's path mounted, or bind-mounted files (e.g. `docker/init-test-db.sql`) will silently appear as empty directories inside the container. `docker-compose up -d` creates both `jj_roofing_dev` and `jj_roofing_test` databases in one Postgres 16 instance.
 
@@ -138,7 +144,11 @@ src/db/seed.ts          Idempotent dev seed: org, roles/permissions, bootstrap o
 src/lib/password.ts     Password hashing (scrypt) for the Credentials provider
 src/lib/permissions.ts  Permission catalog and requirePermission() authorization check
 src/lib/audit.ts        recordAuditEvent() — always call inside the mutation's transaction
+src/lib/decimal.ts      Decimal-string sign-flip helpers — never round-trip money through a JS number
 src/server/commands/    Protected mutation commands (permission check + mutation + audit, atomic)
+src/server/queries/     Read models, e.g. getJobFinancialSummary (aggregates computed in Postgres)
+src/test-support/fixtures.ts  Shared integration-test fixtures (org/user/permission/job setup)
+src/app/dashboard/jobs/ Jobs list, create-job form, job detail page (revenue/collections/costs)
 drizzle/                Generated SQL migrations, including the audit_events append-only trigger
 drizzle.config.ts       Drizzle Kit config (schema path, migrations output, dialect)
 docker-compose.yml      Local Postgres 16 (dev + test databases)
@@ -154,6 +164,12 @@ CI (`.github/workflows/ci.yml`) runs `format:check`, `lint`, `typecheck`, `test`
 
 ## Phase 1 status
 
-Platform foundation (docs/07 roadmap Phase 1) is implemented: organizations, users, roles, permissions, user_roles, role_permissions, and an append-only audit_events table (database-trigger enforced). Auth.js Credentials provider with JWT sessions and session-version-based revocation (ADR-002) is wired up but has no sign-in UI yet — only the API route handler exists. One protected mutation command (`deactivateUser`) demonstrates the required pattern: permission check, mutation, and audit event creation inside one atomic transaction, proven by an integration test against real Postgres (positive case, authorization-denial case, and append-only trigger verification).
+Platform foundation (docs/07 roadmap Phase 1) is implemented: organizations, users, roles, permissions, user_roles, role_permissions, and an append-only audit_events table (database-trigger enforced). Auth.js Credentials provider with JWT sessions and session-version-based revocation (ADR-002) is wired up with a working sign-in page, protected dashboard, and sign-out — checked by hand in a real browser (correct login, wrong password, sign-out, unauthenticated redirect all behave correctly). One protected mutation command (`deactivateUser`) demonstrates the required pattern: permission check, mutation, and audit event creation inside one atomic transaction, proven by an integration test against real Postgres (positive case, authorization-denial case, and append-only trigger verification).
 
-Not yet built: sign-in/sign-out UI, settings screens for managing users/roles, object storage abstraction, and observability/structured logging. Jobs, revenue, costs, financial close, and commission (Phases 2-4) have no schema or code yet.
+Not yet built: settings screens for managing users/roles, object storage abstraction, observability/structured logging, and a staging environment (only local dev is configured so far).
+
+## Phase 2 status
+
+Job financial ledgers (docs/07 roadmap Phase 2) is implemented: customers, jobs, job_assignments, revenue_components, collection_transactions, vendors, and cost_transactions, plus commands for creating a job, adding/approving revenue components, posting/reversing collections, and posting/approving/returning cost transactions — each following the same permission-check-plus-audit-event-in-one-transaction pattern as Phase 1. `getJobFinancialSummary` computes expected/collected/remaining/cost totals with all arithmetic done in Postgres, never JS, so the numbers stay exact. A minimal jobs list, create-job form, and job detail page (with inline add/approve/reverse forms) exist. 22 integration tests cover every command plus a full fixture pinning the exact summary math; checked by hand in a real browser end to end (create a job, add and approve revenue, post a collection, post and approve a cost, watch the summary reconcile at each step).
+
+Not yet built: documents/file uploads (no object storage vendor decided — see D-020/ADR-001), a command surface for job_adjustments (schema exists, arrives with Phase 4 commission math), and the fuller submit/review/reject cost-approval workflow (Phase 2 uses a simple Draft → Approved state; the richer workflow belongs with Phase 3's close-gate work). Completion, close gates, financial close versions, and commission (Phases 3-4) have no schema or code yet.
