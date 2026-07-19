@@ -19,6 +19,12 @@ export function AppHeader() {
         >
           Jobs
         </Link>
+        <Link
+          href="/dashboard/reports"
+          className="text-sm font-normal text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+        >
+          Reports
+        </Link>
       </div>
       <form action={logout}>
         <button

@@ -107,7 +107,7 @@ ADR-001 in `docs/07_IMPLEMENTATION_ROADMAP_AND_DECISION_REGISTER.md` records the
 
 ## Commands and repository layout
 
-All commands below were run successfully in this repository as of 2026-07-17 (through Phase 4: commission and settlement).
+All commands below were run successfully in this repository as of 2026-07-19 (through Phase 5: work queues and reports).
 
 | Purpose                           | Command                    |
 | --------------------------------- | -------------------------- |
@@ -127,7 +127,7 @@ All commands below were run successfully in this repository as of 2026-07-17 (th
 | Apply Drizzle migration           | `npm run db:migrate`       |
 | Drizzle Studio                    | `npm run db:studio`        |
 
-Integration tests run against real Postgres (`npm run test:integration`, requires `docker-compose up -d`). No API or end-to-end (browser-driven) test commands exist yet. `npm run build` succeeds without a database connection (no route performs data access at build/static-generation time yet).
+Integration tests run against real Postgres (`npm run test:integration`, requires `docker-compose up -d`). No automated end-to-end (browser-driven) test commands exist yet — the one non-auth API route (`/api/reports/[reportKey]`, CSV export) is verified by hand against a real session, same as every page. `npm run build` succeeds without a database connection (no route performs data access at build/static-generation time yet).
 
 Local Postgres requires Docker. This machine uses Colima (`brew install colima docker docker-compose`, `colima start --mount /path/to/repo:w`) rather than Docker Desktop — the Colima VM must have the repository's path mounted, or bind-mounted files (e.g. `docker/init-test-db.sql`) will silently appear as empty directories inside the container. `docker-compose up -d` creates both `jj_roofing_dev` and `jj_roofing_test` databases in one Postgres 16 instance.
 
@@ -147,13 +147,18 @@ src/lib/audit.ts        recordAuditEvent() — always call inside the mutation's
 src/lib/decimal.ts      Decimal-string sign-flip helpers — never round-trip money through a JS number
 src/lib/completion-checklist.ts  Fixed default checklist items (docs/04 SS4); see D-015 for configurability
 src/lib/commission-rules.ts  Pure commission rule-matching logic (no DB access); throws CommissionBlockedError
+src/lib/csv.ts          rowsToCsv() — report-agnostic CSV serializer used by the report export route
 src/server/commands/    Protected mutation commands (permission check + mutation + audit, atomic)
-src/server/queries/     Read models: getJobFinancialSummary, evaluateCloseReadiness, getRepCommissionBalance (all in Postgres)
+src/server/commands/report-export.ts  recordReportExport() — permission check + audit event only; the audit row is the point
+src/server/queries/     Read models: getJobFinancialSummary, evaluateCloseReadiness, getRepCommissionBalance, dashboard-queues, and the report queries (all in Postgres)
 src/test-support/fixtures.ts  Shared integration-test fixtures (org/user/permission/job/close/commission-rule-set setup)
 src/app/dashboard/jobs/ Jobs list, create-job form, job detail page (revenue/collections/costs)
 src/app/dashboard/jobs/ui.tsx  Shared small components (Field, Section, RowTable, UserSelectField, buttons) across job pages
 src/app/dashboard/jobs/[jobId]/close/  Completion checklist, cost finalization, close gates, versions, reopen
 src/app/dashboard/jobs/[jobId]/commission/  Batch generate/approve/reject, allocation table, ledger, post/reverse transactions
+src/app/dashboard/page.tsx  Dashboard queues (docs/04 SS13): counts and linked jobs per queue
+src/app/dashboard/reports/  Reports screen: one section per report, Company Profit and export links permission-gated
+src/app/api/reports/[reportKey]/route.ts  CSV export: recordReportExport() then the matching report query then rowsToCsv()
 drizzle/                Generated SQL migrations, including the audit_events append-only trigger
 drizzle.config.ts       Drizzle Kit config (schema path, migrations output, dialect)
 docker-compose.yml      Local Postgres 16 (dev + test databases)
@@ -193,4 +198,12 @@ Commission and settlement (docs/07 roadmap Phase 4) is implemented: commission_r
 
 19 integration tests cover the three confirmed patterns from docs/01 SS7 (standard rep 40/10/10/10; Justin and Ian each 50% + universal 10% with no owner override on their own sale), the Charlie-blocked fixture, an overpayment/clawback fixture proving the natural carry-forward offset across two jobs, same-approver-denied vs. distinct-approver-succeeds reversal, and authorization per command — all passing, alongside the full 62-test suite across every phase. Checked by hand in a real browser: generated and approved a batch on a real closed job, posted a draw, confirmed a same-approver reversal is rejected, then reversed it with a distinct second approver and watched the balance reconcile.
 
-Not yet built: manual allocation overrides, a cross-job rep-ledger dashboard (the job-level ledger and balance query already prove the math), and commission-aware reopening (Phase 3's `reopenFinancials` does not yet place an approved batch `OnHold`). D-001 through D-004 remain fully unresolved for production — this phase proves the engine against confirmed and blocked fixtures, it does not activate any rule for real payroll. Charlie's fixture is test-only; the dev seed's Justin/Ian/Third-owner rule set is for a local sandbox, not a production decision.
+Not yet built: manual allocation overrides, a cross-job rep-ledger dashboard (the job-level ledger and balance query already prove the math — Phase 5's Rep Ledger report now covers this), and commission-aware reopening (Phase 3's `reopenFinancials` does not yet place an approved batch `OnHold`). D-001 through D-004 remain fully unresolved for production — this phase proves the engine against confirmed and blocked fixtures, it does not activate any rule for real payroll. Charlie's fixture is test-only; the dev seed's Justin/Ian/Third-owner rule set is for a local sandbox, not a production decision.
+
+## Phase 5 status
+
+Work queues and reports (docs/07 roadmap Phase 5) is implemented, with no new tables — every queue and report is a live read query over what Phases 1-4 already produced. Reports (`src/server/queries/`): `job-profitability-report` (per closed job, from its latest `financial_close_versions` row — commissionable profit is always visible, `companyProfit` is only attached with `company_profit_viewing`), `company-profit-report` (org-wide approved-batch sum, throws `AuthorizationError` without the permission — enforced in the query itself, not just the page), `outstanding-collections-report`, `depreciation-aging-report` (insurance, OperationallyComplete, remaining > 0, aged in days), `all-rep-commission-balances` (generalizes `getRepCommissionBalance` across every recipient with activity — one query feeds Commission Payable, Negative Rep Balance, and the Rep Ledger report), and `reopened-job-variance-report` (a `LAG()` window function pairing each job's latest close version against its prior one). `dashboard-queues` composes all of these plus `evaluateCloseReadiness`, reused live rather than re-derived in SQL, for Ready-to-Close/Close-Blocked. New command `recordReportExport` (permission check + one audit event, same pattern as every other command — the audit row is the entire point of "export without permission: denied and logged"). A thin CSV route (`/api/reports/[reportKey]`) calls it, then the matching report, then `rowsToCsv()`. New screens: a real `/dashboard` (queue counts and linked jobs, replacing the old stub) and `/dashboard/reports` (one section per report, Company Profit and every export link gated by `userHasPermission`).
+
+40 new integration tests (plus 4 unit tests for the CSV helper) cover exact reconciliation to real close versions, approved batches, and rep balances; the Company-Profit authorization denial at both the query and export layers; and dashboard queue inclusion/exclusion per fixture — full suite now 87 integration and 15 unit tests, all passing. Verified by hand against a real authenticated session: dashboard queue counts matched real historical data exactly (a $7,000-remaining collection, the standard-rep 40/10/10/10 split as Commission Payable, the earlier Phase 3 reopen's exact $200 variance), CSV exports downloaded correctly and each created one `audit_events` row, and a sales-rep-role user with neither `company_profit_viewing` nor `report_export` saw no Company Profit section/column and got a 403 on export, while the owner saw everything.
+
+Not yet built: the Closed-with-Exception queue/report (depends on `job_exceptions`, which Phase 3 never built) and a dedicated Audit Log browsing screen (the underlying data is fully populated and audited; only a filter/search UI is missing). Archive age/D-014 remains unresolved and unrelated to whether these reports reconcile.
