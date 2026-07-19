@@ -7,6 +7,36 @@ export function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
+export function NoAccessNotice() {
+  return (
+    <p className="text-sm font-normal text-zinc-600 dark:text-zinc-400">
+      You don&apos;t have access to view this yet. Ask an owner to grant you access.
+    </p>
+  );
+}
+
+const STATUS_PILL_TONE_CLASSES = {
+  strong: 'bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900',
+  medium: 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
+  soft: 'border border-zinc-200 bg-zinc-100 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400',
+} as const;
+
+export function StatusPill({
+  tone,
+  children,
+}: {
+  tone: keyof typeof STATUS_PILL_TONE_CLASSES;
+  children: React.ReactNode;
+}) {
+  return (
+    <span
+      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-normal ${STATUS_PILL_TONE_CLASSES[tone]}`}
+    >
+      {children}
+    </span>
+  );
+}
+
 export function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-gradient-to-b from-white to-zinc-50 p-6 dark:border-zinc-800 dark:from-zinc-950 dark:to-black">

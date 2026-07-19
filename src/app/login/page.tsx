@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { AuthError } from 'next-auth';
 import { auth, signIn } from '@/auth';
 
@@ -77,6 +78,13 @@ export default async function LoginPage({
         >
           Sign in
         </button>
+
+        <p className="text-center text-sm font-normal text-zinc-600 dark:text-zinc-400">
+          Don&apos;t have an account?{' '}
+          <Link href="/signup" className="text-zinc-900 hover:underline dark:text-zinc-50">
+            Create one
+          </Link>
+        </p>
       </form>
     </div>
   );

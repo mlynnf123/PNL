@@ -11,6 +11,7 @@ import {
   revenueComponents,
 } from '@/db/schema';
 import { requireSession } from '@/lib/require-session';
+import { PERMISSIONS, userHasPermission } from '@/lib/permissions';
 import { addRevenueComponent, approveRevenueComponent } from '@/server/commands/revenue-components';
 import { postCollection, reverseCollection } from '@/server/commands/collections';
 import {
@@ -19,13 +20,30 @@ import {
   reverseOrCreditCost,
 } from '@/server/commands/cost-transactions';
 import { getJobFinancialSummary } from '@/server/queries/job-financial-summary';
-import { AppHeader } from '../../app-header';
-import { Field, RowTable, Section, SelectField, SmallButton, Stat, SubmitButton } from '../ui';
+import {
+  Field,
+  NoAccessNotice,
+  RowTable,
+  Section,
+  SelectField,
+  SmallButton,
+  Stat,
+  SubmitButton,
+} from '../ui';
 
 export default async function JobDetailPage({ params }: { params: Promise<{ jobId: string }> }) {
   const session = await requireSession();
   const { jobId } = await params;
   const path = `/dashboard/jobs/${jobId}`;
+
+  const canView = await userHasPermission(db, session.user.id, PERMISSIONS.JOB_VIEWING);
+  if (!canView) {
+    return (
+      <div className="flex flex-1 flex-col gap-6">
+        <NoAccessNotice />
+      </div>
+    );
+  }
 
   const [job] = await db
     .select({ job: jobs, customer: customers })
@@ -150,9 +168,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6 bg-gradient-to-b from-zinc-50 to-white p-8 dark:from-black dark:to-zinc-950">
-      <AppHeader />
-
+    <div className="flex flex-1 flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{job.jobNumber}</h2>

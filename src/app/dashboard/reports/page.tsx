@@ -8,8 +8,7 @@ import { getOutstandingCollectionsReport } from '@/server/queries/outstanding-co
 import { getDepreciationAgingReport } from '@/server/queries/depreciation-aging-report';
 import { getAllRepCommissionBalances } from '@/server/queries/all-rep-commission-balances';
 import { getReopenedJobVarianceReport } from '@/server/queries/reopened-job-variance-report';
-import { AppHeader } from '../app-header';
-import { RowTable, Section, Stat } from '../jobs/ui';
+import { NoAccessNotice, RowTable, Section, Stat } from '../jobs/ui';
 
 function ExportLink({ reportKey, canExport }: { reportKey: string; canExport: boolean }) {
   if (!canExport) return null;
@@ -28,10 +27,20 @@ export default async function ReportsPage() {
   const organizationId = session.user.organizationId;
   const viewerId = session.user.id;
 
-  const [canViewCompanyProfit, canExport] = await Promise.all([
+  const [canView, canViewCompanyProfit, canExport] = await Promise.all([
+    userHasPermission(db, viewerId, PERMISSIONS.JOB_VIEWING),
     userHasPermission(db, viewerId, PERMISSIONS.COMPANY_PROFIT_VIEWING),
     userHasPermission(db, viewerId, PERMISSIONS.REPORT_EXPORT),
   ]);
+
+  if (!canView) {
+    return (
+      <div className="flex flex-1 flex-col gap-6">
+        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Reports</h2>
+        <NoAccessNotice />
+      </div>
+    );
+  }
 
   const [
     profitabilityRows,
@@ -52,9 +61,7 @@ export default async function ReportsPage() {
   const commissionPayableRows = balances.filter((b) => Number(b.balance) > 0);
 
   return (
-    <div className="flex flex-1 flex-col gap-6 bg-gradient-to-b from-zinc-50 to-white p-8 dark:from-black dark:to-zinc-950">
-      <AppHeader />
-
+    <div className="flex flex-1 flex-col gap-6">
       <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Reports</h2>
 
       <Section title="Job profitability">

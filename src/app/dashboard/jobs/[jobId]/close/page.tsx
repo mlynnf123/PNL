@@ -13,6 +13,7 @@ import {
 } from '@/db/schema';
 import { DEFAULT_CHECKLIST_ITEMS } from '@/lib/completion-checklist';
 import { requireSession } from '@/lib/require-session';
+import { PERMISSIONS, userHasPermission } from '@/lib/permissions';
 import {
   approveFinancialClose,
   rejectFinancialClose,
@@ -26,8 +27,7 @@ import {
 import { finalizeCostCategory } from '@/server/commands/finalize-cost-category';
 import { reopenFinancials } from '@/server/commands/reopen-financials';
 import { evaluateCloseReadiness } from '@/server/queries/close-readiness';
-import { AppHeader } from '../../../app-header';
-import { Field, RowTable, Section, SelectField, SmallButton } from '../../ui';
+import { Field, NoAccessNotice, RowTable, Section, SelectField, SmallButton } from '../../ui';
 
 const FINALIZATION_CATEGORIES = ['labor', 'material', 'adjustments'] as const;
 
@@ -35,6 +35,15 @@ export default async function JobClosePage({ params }: { params: Promise<{ jobId
   const session = await requireSession();
   const { jobId } = await params;
   const path = `/dashboard/jobs/${jobId}/close`;
+
+  const canView = await userHasPermission(db, session.user.id, PERMISSIONS.JOB_VIEWING);
+  if (!canView) {
+    return (
+      <div className="flex flex-1 flex-col gap-6">
+        <NoAccessNotice />
+      </div>
+    );
+  }
 
   const [job] = await db
     .select()
@@ -180,9 +189,7 @@ export default async function JobClosePage({ params }: { params: Promise<{ jobId
   const canReviewAttempt = latestAttempt?.status === 'Submitted';
 
   return (
-    <div className="flex flex-1 flex-col gap-6 bg-gradient-to-b from-zinc-50 to-white p-8 dark:from-black dark:to-zinc-950">
-      <AppHeader />
-
+    <div className="flex flex-1 flex-col gap-6">
       <div>
         <Link
           href={`/dashboard/jobs/${jobId}`}

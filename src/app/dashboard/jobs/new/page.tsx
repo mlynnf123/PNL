@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation';
+import { db } from '@/db/client';
 import { requireSession } from '@/lib/require-session';
 import { createJob } from '@/server/commands/create-job';
-import { AuthorizationError } from '@/lib/permissions';
-import { AppHeader } from '../../app-header';
+import { AuthorizationError, PERMISSIONS, userHasPermission } from '@/lib/permissions';
+import { NoAccessNotice } from '../ui';
 
 export default async function NewJobPage({
   searchParams,
@@ -11,6 +12,15 @@ export default async function NewJobPage({
 }) {
   const session = await requireSession();
   const { error } = await searchParams;
+
+  const canView = await userHasPermission(db, session.user.id, PERMISSIONS.JOB_VIEWING);
+  if (!canView) {
+    return (
+      <div className="flex flex-1 flex-col gap-6">
+        <NoAccessNotice />
+      </div>
+    );
+  }
 
   async function create(formData: FormData) {
     'use server';
@@ -41,9 +51,7 @@ export default async function NewJobPage({
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6 bg-gradient-to-b from-zinc-50 to-white p-8 dark:from-black dark:to-zinc-950">
-      <AppHeader />
-
+    <div className="flex flex-1 flex-col gap-6">
       <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">New job</h2>
 
       {error && (

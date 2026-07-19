@@ -1,8 +1,9 @@
 import Link from 'next/link';
+import { db } from '@/db/client';
 import { requireSession } from '@/lib/require-session';
+import { PERMISSIONS, userHasPermission } from '@/lib/permissions';
 import { getDashboardQueues } from '@/server/queries/dashboard-queues';
-import { AppHeader } from './app-header';
-import { RowTable, Section } from './jobs/ui';
+import { NoAccessNotice, RowTable, Section } from './jobs/ui';
 
 const JOB_QUEUES = [
   { key: 'completionReview', title: 'Completion review' },
@@ -21,12 +22,10 @@ const PERSON_QUEUES = [
 
 export default async function DashboardPage() {
   const session = await requireSession();
-  const queues = await getDashboardQueues(session.user.organizationId);
+  const canView = await userHasPermission(db, session.user.id, PERMISSIONS.JOB_VIEWING);
 
   return (
-    <div className="flex flex-1 flex-col gap-6 bg-gradient-to-b from-zinc-50 to-white p-8 dark:from-black dark:to-zinc-950">
-      <AppHeader />
-
+    <div className="flex flex-1 flex-col gap-6">
       <div>
         <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Dashboard</h2>
         <p className="text-sm font-normal text-zinc-600 dark:text-zinc-400">
@@ -34,6 +33,18 @@ export default async function DashboardPage() {
         </p>
       </div>
 
+      {!canView && <NoAccessNotice />}
+
+      {canView && <DashboardQueues organizationId={session.user.organizationId} />}
+    </div>
+  );
+}
+
+async function DashboardQueues({ organizationId }: { organizationId: string }) {
+  const queues = await getDashboardQueues(organizationId);
+
+  return (
+    <>
       {JOB_QUEUES.map(({ key, title }) => {
         const items = queues[key];
         return (
@@ -76,6 +87,6 @@ export default async function DashboardPage() {
           ])}
         />
       </Section>
-    </div>
+    </>
   );
 }

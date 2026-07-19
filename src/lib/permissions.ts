@@ -18,6 +18,7 @@ export const PERMISSIONS = {
   REPORT_EXPORT: 'report_export',
   AUDIT_VIEWING: 'audit_viewing',
   COMPANY_PROFIT_VIEWING: 'company_profit_viewing',
+  JOB_VIEWING: 'job_viewing',
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -45,6 +46,10 @@ export const PERMISSION_CATALOG: ReadonlyArray<{ key: PermissionKey; description
   {
     key: PERMISSIONS.COMPANY_PROFIT_VIEWING,
     description: "View Company Profit and other reps' commission",
+  },
+  {
+    key: PERMISSIONS.JOB_VIEWING,
+    description: 'View jobs, financial summaries, and reports',
   },
 ];
 
