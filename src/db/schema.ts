@@ -843,3 +843,164 @@ export const commissionTransactions = pgTable('commission_transactions', {
     .references(() => users.id),
   postedAt: timestamp('posted_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+// docs/05_MIGRATION_AND_DATA_QUALITY_PLAN.md — spreadsheet import.
+// See ADR-004 (docs/07) for why import lineage lives in its own tables rather
+// than as nullable import_* columns scattered across every business table.
+
+export const importBatchStatusEnum = pgEnum('import_batch_status', [
+  // Uploaded, fingerprinted, raw-extracted, normalized, and validated in one
+  // pass (createImportBatch); nothing is written to financial tables yet.
+  'Parsed',
+  'Committed',
+  'PartiallyCommitted',
+  'RolledBack',
+  'Failed',
+]);
+
+export const importSourceRowStatusEnum = pgEnum('import_source_row_status', [
+  'Pending',
+  'Valid', // no blocker-severity exceptions; committable
+  'Blocked', // has an unresolved blocker exception
+  'Committed',
+  'Excluded', // owner marked as a non-job / note-only row
+]);
+
+export const importExceptionCategoryEnum = pgEnum('import_exception_category', [
+  'identity',
+  'assignment',
+  'money_type',
+  'percentage',
+  'formula',
+  'reconciliation',
+  'payment_narrative',
+  'date',
+  'completion',
+  'duplicate',
+  'negative_profit',
+]);
+
+export const importExceptionSeverityEnum = pgEnum('import_exception_severity', [
+  'blocker', // must be resolved before the row can be committed
+  'warning', // recorded for owner review; does not block commit
+]);
+
+export const importExceptionStatusEnum = pgEnum('import_exception_status', [
+  'Open',
+  'Resolved', // owner supplied a corrected value
+  'Accepted', // owner accepted the source as-is despite the flag
+  'Deferred', // owner chose to revisit later
+]);
+
+export const importBatches = pgTable(
+  'import_batches',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    fileName: text('file_name').notNull(),
+    // SHA-256 of the uploaded bytes — the idempotency fingerprint (docs/05 S5.1).
+    fileHash: text('file_hash').notNull(),
+    sheetName: text('sheet_name').notNull(),
+    parserVersion: text('parser_version').notNull(),
+    // Owner-declared "as of" date for the workbook snapshot. Imported jobs have
+    // no per-row contract date, so this becomes their contracted_at / opening
+    // effective date rather than inventing a date (docs/05 S7).
+    sourceAsOfDate: date('source_as_of_date').notNull(),
+    status: importBatchStatusEnum('status').notNull().default('Parsed'),
+    rowCount: integer('row_count').notNull().default(0),
+    // Stage-7 reconciliation snapshot (docs/05 S5.7), written at commit time.
+    reconciliationJson: jsonb('reconciliation_json'),
+    uploadedBy: uuid('uploaded_by')
+      .notNull()
+      .references(() => users.id),
+    uploadedAt: timestamp('uploaded_at', { withTimezone: true }).notNull().defaultNow(),
+    committedBy: uuid('committed_by').references(() => users.id),
+    committedAt: timestamp('committed_at', { withTimezone: true }),
+  },
+  (table) => [
+    // Reject re-uploading an identical file (docs/05 S5.1), except once a batch
+    // is rolled back the same file may be re-imported.
+    uniqueIndex('import_batches_org_hash_unique')
+      .on(table.organizationId, table.fileHash)
+      .where(sql`status <> 'RolledBack'`),
+  ],
+);
+
+export const importSourceRows = pgTable(
+  'import_source_rows',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    batchId: uuid('batch_id')
+      .notNull()
+      .references(() => importBatches.id),
+    rowNumber: integer('row_number').notNull(),
+    // Immutable raw extraction: exact cell values, formulas, and cached results
+    // per column (docs/05 S3 "Preserve source"). Write-once by convention.
+    rawJson: jsonb('raw_json').notNull(),
+    // Normalized candidate values (parsed money/rate/date), preserved alongside
+    // the raw values, never replacing them.
+    normalizedJson: jsonb('normalized_json'),
+    // Column A display name, denormalized for the queue and duplicate detection.
+    displayName: text('display_name'),
+    status: importSourceRowStatusEnum('status').notNull().default('Pending'),
+    // Owner-supplied row-level corrections (address parts, chosen seller user id,
+    // funding type, or an exclude flag) applied at commit (docs/05 S6).
+    resolutionJson: jsonb('resolution_json'),
+    resolvedBy: uuid('resolved_by').references(() => users.id),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex('import_source_rows_batch_row_unique').on(table.batchId, table.rowNumber),
+  ],
+);
+
+export const importExceptions = pgTable('import_exceptions', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  sourceRowId: uuid('source_row_id')
+    .notNull()
+    .references(() => importSourceRows.id),
+  // Denormalized for batch-wide exception-queue queries.
+  batchId: uuid('batch_id')
+    .notNull()
+    .references(() => importBatches.id),
+  category: importExceptionCategoryEnum('category').notNull(),
+  severity: importExceptionSeverityEnum('severity').notNull(),
+  // Column letter/name the exception is about, when applicable.
+  field: text('field'),
+  detail: text('detail').notNull(),
+  status: importExceptionStatusEnum('status').notNull().default('Open'),
+  resolutionNote: text('resolution_note'),
+  resolvedBy: uuid('resolved_by').references(() => users.id),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+});
+
+// Lineage + idempotency (docs/05 S3 "Traceability" / "Idempotency"): every
+// record created by a commit links back to its batch and source row, and the
+// unique idempotency key makes re-running a commit produce zero duplicates.
+export const importRecordLinks = pgTable(
+  'import_record_links',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    batchId: uuid('batch_id')
+      .notNull()
+      .references(() => importBatches.id),
+    sourceRowId: uuid('source_row_id')
+      .notNull()
+      .references(() => importSourceRows.id),
+    entityType: text('entity_type').notNull(),
+    entityId: uuid('entity_id').notNull(),
+    idempotencyKey: text('idempotency_key').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('import_record_links_idempotency_unique').on(table.idempotencyKey)],
+);

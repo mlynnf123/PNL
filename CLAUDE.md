@@ -107,7 +107,7 @@ ADR-001 in `docs/07_IMPLEMENTATION_ROADMAP_AND_DECISION_REGISTER.md` records the
 
 ## Commands and repository layout
 
-All commands below were run successfully in this repository as of 2026-07-19 (through Phase 5: work queues and reports).
+All commands below were run successfully in this repository as of 2026-07-21 (through Phase 6: spreadsheet migration).
 
 | Purpose                           | Command                    |
 | --------------------------------- | -------------------------- |
@@ -159,6 +159,13 @@ src/app/dashboard/jobs/[jobId]/commission/  Batch generate/approve/reject, alloc
 src/app/dashboard/page.tsx  Dashboard queues (docs/04 SS13): counts and linked jobs per queue
 src/app/dashboard/reports/  Reports screen: one section per report, Company Profit and export links permission-gated
 src/app/api/reports/[reportKey]/route.ts  CSV export: recordReportExport() then the matching report query then rowsToCsv()
+src/lib/import/           Pure spreadsheet-import parser: cells (money/rate/date, never coerce text/#REF! to 0), rep-split, normalize, validate; workbook.ts is the only exceljs user (ADR-003)
+src/server/commands/import-batch.ts   createImportBatch — fingerprint + raw extract + normalize + validate, one exception per finding
+src/server/commands/import-commit.ts  commitImportBatch (Draft/unverified openings, idempotent, never Closed), resolveImportRow (identity queue), rollbackImportBatch (only pre-activity)
+src/server/queries/import-preview.ts  Source-vs-target per row + exception queue for the preview screen
+src/server/queries/import-reconciliation.ts  Stage-7 row accounting + source totals, stored on the batch at commit
+src/app/dashboard/import/  Upload + batch list, and per-batch preview/commit/rollback/resolve
+src/test-support/import-fixtures.ts   makeImportWorkbook() + a representative defect-row set for import tests
 drizzle/                Generated SQL migrations, including the audit_events append-only trigger
 drizzle.config.ts       Drizzle Kit config (schema path, migrations output, dialect)
 docker-compose.yml      Local Postgres 16 (dev + test databases)
@@ -207,3 +214,9 @@ Work queues and reports (docs/07 roadmap Phase 5) is implemented, with no new ta
 40 new integration tests (plus 4 unit tests for the CSV helper) cover exact reconciliation to real close versions, approved batches, and rep balances; the Company-Profit authorization denial at both the query and export layers; and dashboard queue inclusion/exclusion per fixture — full suite now 87 integration and 15 unit tests, all passing. Verified by hand against a real authenticated session: dashboard queue counts matched real historical data exactly (a $7,000-remaining collection, the standard-rep 40/10/10/10 split as Commission Payable, the earlier Phase 3 reopen's exact $200 variance), CSV exports downloaded correctly and each created one `audit_events` row, and a sales-rep-role user with neither `company_profit_viewing` nor `report_export` saw no Company Profit section/column and got a 403 on export, while the owner saw everything.
 
 Not yet built: the Closed-with-Exception queue/report (depends on `job_exceptions`, which Phase 3 never built) and a dedicated Audit Log browsing screen (the underlying data is fully populated and audited; only a filter/search UI is missing). Archive age/D-014 remains unresolved and unrelated to whether these reports reconcile.
+
+## Phase 6 status
+
+Spreadsheet migration (docs/07 roadmap Phase 6) is implemented. Four new tables (`import_batches`, `import_source_rows`, `import_exceptions`, `import_record_links` — ADR-004) plus a pure, library-agnostic parser lib in `src/lib/import/` (`cells.ts` money/rate/date parsers that never coerce text or `#REF!` to zero, `rep-split.ts` for `Ian/Justin`-style splits, `normalize.ts` column map + exact-cents recomputed Job Profit, `validate.ts` deterministic validators, `workbook.ts` the only module touching exceljs — ADR-003). `createImportBatch` fingerprints the file (SHA-256), extracts each row's raw cells + formulas immutably, normalizes, validates, and writes one exception per finding; a partial unique index on (org, file hash) rejects re-uploading a still-live workbook. `getImportPreview` returns source-vs-target per row with the exception queue; `commitImportBatch` writes each committable row as **unverified Draft** records (revenue/costs count nothing toward the financial summary until approved), never sets a job to Closed, and links every created record with a unique idempotency key so a re-commit is a no-op; `resolveImportRow` is the identity queue (supply address/payout, or exclude a row); `rollbackImportBatch` reverses a batch only while no imported job has downstream activity (audit events preserved, append-only). `buildImportReconciliation` (Stage 7) accounts for every source row and ties source totals to created openings, stored on the batch at commit. New screens: `/dashboard/import` (upload + batch list) and `/dashboard/import/[batchId]` (summary, exception queue, per-row source-vs-target, commit/rollback/resolve). 41 tests (21 unit for the parser, 20 integration across parse/preview/commit/resolve/rollback/reconciliation — full suite now 128 integration + 36 unit, all passing), plus a real end-to-end run of the actual 86-row workbook: 53 rows committed, 33 blocked (missing address/payout), every row accounted for, source totals exact ($1,141,200.88 payout). Exit criteria "staging dry run accounts for every source row" met; owner sign-off on exceptions/opening balances is an operational step.
+
+Not yet built (deliberately deferred): structured address parsing (single-line source address goes in line 1, city/state/zip blank until an owner supplies them), auto-matching rep name strings to users (only an explicit resolution assigns a seller), and importing commission/payment history (narratives are queued for owner review, never auto-posted — docs/05 S7/S8).
