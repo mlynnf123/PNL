@@ -107,7 +107,7 @@ ADR-001 in `docs/07_IMPLEMENTATION_ROADMAP_AND_DECISION_REGISTER.md` records the
 
 ## Commands and repository layout
 
-All commands below were run successfully in this repository as of 2026-07-21 (through Phase 6: spreadsheet migration).
+All commands below were run successfully in this repository as of 2026-07-22 (through Phase 7 first slice: settings & admin).
 
 | Purpose                           | Command                    |
 | --------------------------------- | -------------------------- |
@@ -166,6 +166,14 @@ src/server/queries/import-preview.ts  Source-vs-target per row + exception queue
 src/server/queries/import-reconciliation.ts  Stage-7 row accounting + source totals, stored on the batch at commit
 src/app/dashboard/import/  Upload + batch list, and per-batch preview/commit/rollback/resolve
 src/test-support/import-fixtures.ts   makeImportWorkbook() + a representative defect-row set for import tests
+src/server/commands/user-roles.ts     assignRole/revokeRole/reactivateUser
+src/server/commands/roles-admin.ts    createRole/setRolePermissions (records the permission delta)
+src/server/commands/commission-rule-admin.ts  createCommissionRuleSet/addCommissionRule/activateCommissionRuleSet (Draft→Active, non-overlapping effective windows)
+src/server/queries/settings-directory.ts  listUsersWithRoles / listRolesWithPermissions
+src/server/queries/commission-rule-sets.ts  listCommissionRuleSets with resolved seller/recipient names
+src/server/queries/audit-log.ts       getAuditLog (filters) / getAuditFilterOptions — read side of the append-only ledger
+src/app/dashboard/settings/  Users, roles & permissions, and commission-rule management
+src/app/dashboard/audit/   Filterable audit-log browser (gated by audit_viewing)
 drizzle/                Generated SQL migrations, including the audit_events append-only trigger
 drizzle.config.ts       Drizzle Kit config (schema path, migrations output, dialect)
 docker-compose.yml      Local Postgres 16 (dev + test databases)
@@ -220,3 +228,9 @@ Not yet built: the Closed-with-Exception queue/report (depends on `job_exception
 Spreadsheet migration (docs/07 roadmap Phase 6) is implemented. Four new tables (`import_batches`, `import_source_rows`, `import_exceptions`, `import_record_links` — ADR-004) plus a pure, library-agnostic parser lib in `src/lib/import/` (`cells.ts` money/rate/date parsers that never coerce text or `#REF!` to zero, `rep-split.ts` for `Ian/Justin`-style splits, `normalize.ts` column map + exact-cents recomputed Job Profit, `validate.ts` deterministic validators, `workbook.ts` the only module touching exceljs — ADR-003). `createImportBatch` fingerprints the file (SHA-256), extracts each row's raw cells + formulas immutably, normalizes, validates, and writes one exception per finding; a partial unique index on (org, file hash) rejects re-uploading a still-live workbook. `getImportPreview` returns source-vs-target per row with the exception queue; `commitImportBatch` writes each committable row as **unverified Draft** records (revenue/costs count nothing toward the financial summary until approved), never sets a job to Closed, and links every created record with a unique idempotency key so a re-commit is a no-op; `resolveImportRow` is the identity queue (supply address/payout, or exclude a row); `rollbackImportBatch` reverses a batch only while no imported job has downstream activity (audit events preserved, append-only). `buildImportReconciliation` (Stage 7) accounts for every source row and ties source totals to created openings, stored on the batch at commit. New screens: `/dashboard/import` (upload + batch list) and `/dashboard/import/[batchId]` (summary, exception queue, per-row source-vs-target, commit/rollback/resolve). 41 tests (21 unit for the parser, 20 integration across parse/preview/commit/resolve/rollback/reconciliation — full suite now 128 integration + 36 unit, all passing), plus a real end-to-end run of the actual 86-row workbook: 53 rows committed, 33 blocked (missing address/payout), every row accounted for, source totals exact ($1,141,200.88 payout). Exit criteria "staging dry run accounts for every source row" met; owner sign-off on exceptions/opening balances is an operational step.
 
 Not yet built (deliberately deferred): structured address parsing (single-line source address goes in line 1, city/state/zip blank until an owner supplies them), auto-matching rep name strings to users (only an explicit resolution assigns a seller), and importing commission/payment history (narratives are queued for owner review, never auto-posted — docs/05 S7/S8).
+
+## Phase 7 status (in progress)
+
+Pilot and production hardening (docs/07 roadmap Phase 7) is underway; the first slice is **Settings & admin**, closing the Phase-1 "settings screens" gap and the Phase-5 "audit log browsing screen" deferral. New commands (each permission-checked + audit-in-transaction like every other): `assignRole`/`revokeRole`/`reactivateUser` (`src/server/commands/user-roles.ts`), `createRole`/`setRolePermissions` (`roles-admin.ts` — records the old→new permission delta, docs/06 SS8; ensures the fixed permission catalog rows exist before linking), and the commission rule-set lifecycle `createCommissionRuleSet`/`addCommissionRule`/`activateCommissionRuleSet` (`commission-rule-admin.ts`). Rule-set semantics: a set is a Draft until activated; rules can only be added to a Draft (an Active/Retired set is immutable, so approved history stays reproducible — docs/06 SS4); activating a newer set closes the prior open set's effective window the day before the new one begins, so windows never overlap and commission selection stays deterministic (docs/06 SS6); approved jobs snapshot their own rule set, so none of this recalculates history. Read models: `listUsersWithRoles`/`listRolesWithPermissions` (`settings-directory.ts`), `listCommissionRuleSets` (`commission-rule-sets.ts`), `getAuditLog`/`getAuditFilterOptions` (`audit-log.ts`). Screens: `/dashboard/settings` (users, roles & permissions, commission rules) and `/dashboard/audit` (filterable append-only timeline, gated by `audit_viewing`). 10 new integration tests (settings-admin + audit-log) with authorization-denial coverage — full suite now 117 integration + 36 unit, all passing; build clean; new routes verified healthy (redirect to login unauthenticated).
+
+Remaining Phase 7 work is operational or owner-gated: D-001 Charlie and D-002 rounding, documents & private object storage (D-020 storage vendor), structured operational logging, optimistic-concurrency enforcement on mutable records (docs/06 SS10), backup/restore verification, monitoring, security review, and cutover approval.

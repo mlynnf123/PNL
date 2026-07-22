@@ -8,6 +8,8 @@ const NAV_ITEMS = [
   { href: '/dashboard/jobs', label: 'Jobs' },
   { href: '/dashboard/reports', label: 'Reports' },
   { href: '/dashboard/import', label: 'Import' },
+  { href: '/dashboard/audit', label: 'Audit log' },
+  { href: '/dashboard/settings', label: 'Settings' },
 ];
 
 export function SidebarNav() {
