@@ -1,8 +1,9 @@
 import { revalidatePath } from 'next/cache';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { and, asc, desc, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
+import { ConcurrencyConflictError } from '@/lib/concurrency';
 import {
   costCategoryFinalizations,
   financialCloseAttempts,
@@ -31,9 +32,16 @@ import { Field, NoAccessNotice, RowTable, Section, SelectField, SmallButton } fr
 
 const FINALIZATION_CATEGORIES = ['labor', 'material', 'adjustments'] as const;
 
-export default async function JobClosePage({ params }: { params: Promise<{ jobId: string }> }) {
+export default async function JobClosePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ jobId: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
   const session = await requireSession();
   const { jobId } = await params;
+  const { error } = await searchParams;
   const path = `/dashboard/jobs/${jobId}/close`;
 
   const canView = await userHasPermission(db, session.user.id, PERMISSIONS.JOB_VIEWING);
@@ -150,11 +158,19 @@ export default async function JobClosePage({ params }: { params: Promise<{ jobId
 
   async function approveClose(formData: FormData) {
     'use server';
-    await approveFinancialClose({
-      actorUserId: session.user.id,
-      organizationId: session.user.organizationId,
-      closeAttemptId: String(formData.get('attemptId')),
-    });
+    try {
+      await approveFinancialClose({
+        actorUserId: session.user.id,
+        organizationId: session.user.organizationId,
+        closeAttemptId: String(formData.get('attemptId')),
+        expectedJobRowVersion: Number(formData.get('jobRowVersion')),
+      });
+    } catch (err) {
+      if (err instanceof ConcurrencyConflictError) {
+        redirect(`${path}?error=conflict`);
+      }
+      throw err;
+    }
     revalidatePath(path);
   }
 
@@ -171,15 +187,24 @@ export default async function JobClosePage({ params }: { params: Promise<{ jobId
 
   async function reopen(formData: FormData) {
     'use server';
-    await reopenFinancials({
-      actorUserId: session.user.id,
-      organizationId: session.user.organizationId,
-      jobId,
-      reasonType: formData.get('reasonType') as
-        'late_cost' | 'return' | 'revenue_correction' | 'accounting_error' | 'warranty' | 'other',
-      explanation: String(formData.get('explanation')),
-      estimatedFinancialImpact: String(formData.get('estimatedFinancialImpact') || '') || undefined,
-    });
+    try {
+      await reopenFinancials({
+        actorUserId: session.user.id,
+        organizationId: session.user.organizationId,
+        jobId,
+        reasonType: formData.get('reasonType') as
+          'late_cost' | 'return' | 'revenue_correction' | 'accounting_error' | 'warranty' | 'other',
+        explanation: String(formData.get('explanation')),
+        estimatedFinancialImpact:
+          String(formData.get('estimatedFinancialImpact') || '') || undefined,
+        expectedJobRowVersion: Number(formData.get('jobRowVersion')),
+      });
+    } catch (err) {
+      if (err instanceof ConcurrencyConflictError) {
+        redirect(`${path}?error=conflict`);
+      }
+      throw err;
+    }
     revalidatePath(path);
   }
 
@@ -199,6 +224,13 @@ export default async function JobClosePage({ params }: { params: Promise<{ jobId
         </Link>
         <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Close</h2>
       </div>
+
+      {error === 'conflict' && (
+        <p className="rounded-md border-l-2 border-zinc-900 bg-zinc-100 px-3 py-2 text-sm text-zinc-800 dark:border-zinc-50 dark:bg-zinc-900 dark:text-zinc-200">
+          This job was changed by someone else while you were viewing it. The page has been
+          refreshed — review the current state and try again.
+        </p>
+      )}
 
       <Section title="Operational completion">
         <p className="text-sm font-normal text-zinc-600 dark:text-zinc-400">
@@ -298,6 +330,7 @@ export default async function JobClosePage({ params }: { params: Promise<{ jobId
             <>
               <form action={approveClose}>
                 <input type="hidden" name="attemptId" value={latestAttempt!.id} />
+                <input type="hidden" name="jobRowVersion" value={job.rowVersion} />
                 <SmallButton>Approve close</SmallButton>
               </form>
               <form action={rejectClose} className="flex items-center gap-2">
@@ -357,6 +390,7 @@ export default async function JobClosePage({ params }: { params: Promise<{ jobId
       {job.financialCloseStatus === 'Closed' && (
         <Section title="Reopen financials">
           <form action={reopen} className="flex flex-col gap-3">
+            <input type="hidden" name="jobRowVersion" value={job.rowVersion} />
             <SelectField
               label="Reason type"
               name="reasonType"

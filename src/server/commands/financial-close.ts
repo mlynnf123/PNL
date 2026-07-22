@@ -8,6 +8,7 @@ import {
   jobs,
 } from '@/db/schema';
 import { recordAuditEvent } from '@/lib/audit';
+import { updateJob } from '@/lib/concurrency';
 import { PERMISSIONS, requirePermission } from '@/lib/permissions';
 import { evaluateCloseReadiness, isCloseReady } from '@/server/queries/close-readiness';
 
@@ -75,14 +76,12 @@ export async function submitFinancialClose(
       })
       .returning();
 
-    await tx
-      .update(jobs)
-      .set({
-        financialCloseStatus: ready ? 'Ready' : 'NotReady',
-        updatedBy: input.actorUserId,
-        updatedAt: new Date(),
-      })
-      .where(eq(jobs.id, input.jobId));
+    await updateJob(
+      tx,
+      input.jobId,
+      { financialCloseStatus: ready ? 'Ready' : 'NotReady' },
+      { actorUserId: input.actorUserId },
+    );
 
     await recordAuditEvent(tx, {
       organizationId: input.organizationId,
@@ -104,6 +103,10 @@ export interface ApproveFinancialCloseInput {
   actorUserId: string;
   organizationId: string;
   closeAttemptId: string;
+  // Optional optimistic-concurrency guard: the job row_version the approver was
+  // looking at. A mismatch means the job changed since — reject rather than
+  // clobber (docs/06 SS10).
+  expectedJobRowVersion?: number;
   correlationId?: string;
 }
 
@@ -215,15 +218,12 @@ export async function approveFinancialClose(
       .set({ status: 'Approved', approvedBy: input.actorUserId, approvedAt: new Date() })
       .where(eq(financialCloseAttempts.id, attempt.id));
 
-    await tx
-      .update(jobs)
-      .set({
-        financialCloseStatus: 'Closed',
-        currentFinancialVersionId: version.id,
-        updatedBy: input.actorUserId,
-        updatedAt: new Date(),
-      })
-      .where(eq(jobs.id, attempt.jobId));
+    await updateJob(
+      tx,
+      attempt.jobId,
+      { financialCloseStatus: 'Closed', currentFinancialVersionId: version.id },
+      { actorUserId: input.actorUserId, expectedRowVersion: input.expectedJobRowVersion },
+    );
 
     await recordAuditEvent(tx, {
       organizationId: input.organizationId,

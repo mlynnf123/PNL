@@ -5,9 +5,9 @@ import {
   completionChecklistTemplates,
   jobCompletionAnswers,
   jobCompletionReviews,
-  jobs,
 } from '@/db/schema';
 import { recordAuditEvent } from '@/lib/audit';
+import { updateJob } from '@/lib/concurrency';
 import { PERMISSIONS, requirePermission } from '@/lib/permissions';
 
 export class CompletionReviewNotFoundError extends Error {
@@ -72,14 +72,12 @@ export async function requestOperationalCompletion(
       });
     }
 
-    await tx
-      .update(jobs)
-      .set({
-        operationalStatus: 'CompletionReview',
-        updatedBy: input.actorUserId,
-        updatedAt: new Date(),
-      })
-      .where(eq(jobs.id, input.jobId));
+    await updateJob(
+      tx,
+      input.jobId,
+      { operationalStatus: 'CompletionReview' },
+      { actorUserId: input.actorUserId },
+    );
 
     await recordAuditEvent(tx, {
       organizationId: input.organizationId,
@@ -127,15 +125,15 @@ export async function approveOperationalCompletion(
       .where(eq(jobCompletionReviews.id, input.reviewId))
       .returning();
 
-    await tx
-      .update(jobs)
-      .set({
+    await updateJob(
+      tx,
+      review.jobId,
+      {
         operationalStatus: 'OperationallyComplete',
         actualCompletionDate: review.actualCompletionDate,
-        updatedBy: input.actorUserId,
-        updatedAt: new Date(),
-      })
-      .where(eq(jobs.id, review.jobId));
+      },
+      { actorUserId: input.actorUserId },
+    );
 
     await recordAuditEvent(tx, {
       organizationId: input.organizationId,
@@ -189,14 +187,12 @@ export async function rejectOperationalCompletion(
       .where(eq(jobCompletionReviews.id, input.reviewId))
       .returning();
 
-    await tx
-      .update(jobs)
-      .set({
-        operationalStatus: 'InProduction',
-        updatedBy: input.actorUserId,
-        updatedAt: new Date(),
-      })
-      .where(eq(jobs.id, review.jobId));
+    await updateJob(
+      tx,
+      review.jobId,
+      { operationalStatus: 'InProduction' },
+      { actorUserId: input.actorUserId },
+    );
 
     await recordAuditEvent(tx, {
       organizationId: input.organizationId,

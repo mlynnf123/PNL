@@ -3,6 +3,7 @@ import { db as defaultDb } from '@/db/client';
 import type { DbClient } from '@/db/client';
 import { financialReopenRequests, jobs } from '@/db/schema';
 import { recordAuditEvent } from '@/lib/audit';
+import { updateJob } from '@/lib/concurrency';
 import { PERMISSIONS, requirePermission } from '@/lib/permissions';
 
 export class JobNotFoundError extends Error {
@@ -27,6 +28,8 @@ export interface ReopenFinancialsInput {
     'late_cost' | 'return' | 'revenue_correction' | 'accounting_error' | 'warranty' | 'other';
   explanation: string;
   estimatedFinancialImpact?: string;
+  // Optimistic-concurrency guard: the job row_version the actor was looking at.
+  expectedJobRowVersion?: number;
   correlationId?: string;
 }
 
@@ -67,14 +70,12 @@ export async function reopenFinancials(input: ReopenFinancialsInput, db: DbClien
       })
       .returning();
 
-    await tx
-      .update(jobs)
-      .set({
-        financialCloseStatus: 'Reopened',
-        updatedBy: input.actorUserId,
-        updatedAt: new Date(),
-      })
-      .where(eq(jobs.id, input.jobId));
+    await updateJob(
+      tx,
+      input.jobId,
+      { financialCloseStatus: 'Reopened' },
+      { actorUserId: input.actorUserId, expectedRowVersion: input.expectedJobRowVersion },
+    );
 
     await recordAuditEvent(tx, {
       organizationId: input.organizationId,

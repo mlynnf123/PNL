@@ -12,6 +12,7 @@ import {
 } from '@/db/schema';
 import { recordAuditEvent } from '@/lib/audit';
 import { matchCommissionRules } from '@/lib/commission-rules';
+import { updateJob } from '@/lib/concurrency';
 import { PERMISSIONS, requirePermission } from '@/lib/permissions';
 
 export class JobNotFoundError extends Error {
@@ -203,10 +204,12 @@ export async function generateCommissionBatch(
       .where(eq(commissionAllocationBatches.id, batch.id))
       .returning();
 
-    await tx
-      .update(jobs)
-      .set({ commissionStatus: 'InReview', updatedBy: input.actorUserId, updatedAt: new Date() })
-      .where(eq(jobs.id, input.jobId));
+    await updateJob(
+      tx,
+      input.jobId,
+      { commissionStatus: 'InReview' },
+      { actorUserId: input.actorUserId },
+    );
 
     await recordAuditEvent(tx, {
       organizationId: input.organizationId,
@@ -275,10 +278,12 @@ export async function approveCommissionBatch(
       .where(eq(commissionAllocationBatches.id, input.batchId))
       .returning();
 
-    await tx
-      .update(jobs)
-      .set({ commissionStatus: 'Approved', updatedBy: input.actorUserId, updatedAt: new Date() })
-      .where(eq(jobs.id, batch.jobId));
+    await updateJob(
+      tx,
+      batch.jobId,
+      { commissionStatus: 'Approved' },
+      { actorUserId: input.actorUserId },
+    );
 
     await recordAuditEvent(tx, {
       organizationId: input.organizationId,
