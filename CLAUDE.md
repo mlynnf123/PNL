@@ -245,4 +245,15 @@ Pilot and production hardening (docs/07 roadmap Phase 7) is underway; the first 
 
 Second slice: **optimistic concurrency on the job record** (docs/06 SS10; database rule "prevent silent last-write-wins"). `jobs.row_version` was previously a dead column. `src/lib/concurrency.ts` adds `updateJob` — the single path every job mutation now takes; it always advances `row_version`, and when passed an `expectedRowVersion` it rejects a stale write with `ConcurrencyConflictError` instead of overwriting. All 8 job status-transition updates (submit/approve close, reopen, operational-completion request/approve/reject, commission generate/approve) route through it; `approveFinancialClose` and `reopenFinancials` accept `expectedJobRowVersion`, wired from the close page's approve/reopen forms (hidden `jobRowVersion`) so a stale form submit is caught and rendered as a refresh-and-retry banner. 3 new integration tests (helper conflict, stale close-approval conflict, stale reopen conflict) — full suite now 120 integration + 36 unit, all passing.
 
-Remaining Phase 7 work is operational or owner-gated: D-001 Charlie and D-002 rounding, documents & private object storage (D-020 storage vendor), structured operational logging, backup/restore verification, monitoring, security review, and cutover approval.
+Remaining Phase 7 work is operational or owner-gated: D-001 Charlie and D-002 rounding, backup/restore verification, monitoring, security review, and cutover approval.
+
+## CRM port (in progress)
+
+Bringing the RoofRunners OS reference app's CRM/sales/production features and visual design into this app, re-implemented in our architecture (never Supabase, never browser DB access). Plan: `~/.claude/plans/reference-project-*.md`. Branch `crm-port`. Job costing is excluded. Phases so far:
+
+- **A — Design system:** adopted the reference look — sticky slate topbar + centered `max-w-7xl` content (`src/app/dashboard/topbar.tsx`), slate + teal palette, flat `rounded-xl` cards, `lucide-react` functional icons. Shared components in `src/components/ui/` (Card/StatCard, Button, Badge, PageHeader, DataTable, form controls, Modal, Drawer). Font unchanged (Roboto/Arial, ≤500). UI rules in this file updated to match.
+- **B — Leads/CRM:** `leads` table; `crm_viewing`/`crm_management` permissions; commands `src/server/commands/leads.ts` (create/update/status/delete/convertLeadToJob); `/dashboard/leads` (grid/list, filters, modal, detail drawer).
+- **C — Calls:** `calls` table (transcript/appointment JSONB); `src/server/commands/calls.ts` (log/update/delete/convertCallToLead); `/dashboard/calls`. Voice-agent auto-ingestion deferred.
+- **D — Object storage (ADR-005):** `src/lib/storage/` `StorageClient` with a local dev backend (default; `.storage/`, no cloud creds) and an S3-compatible production backend (`STORAGE_DRIVER=s3` + `STORAGE_S3_*`). `documents` table + `src/server/commands/documents.ts` (upload with orphan cleanup, delete) + `/api/documents/[id]` download route (session + org + record-level view permission; s3 presigned redirect or local stream). Prerequisite for Estimates/Contracts/job docs.
+
+Next: E (Document Templates), F (Estimates + PDF), G (Contracts + e-sign), H (jobs production pipeline + restyle existing pages).

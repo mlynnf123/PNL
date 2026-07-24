@@ -14,3 +14,6 @@ coverage/
 .vercel
 *.tsbuildinfo
 next-env.d.ts
+
+# local object storage backend (dev)
+.storage/

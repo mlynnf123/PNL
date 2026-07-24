@@ -1115,3 +1115,33 @@ export const calls = pgTable('calls', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   rowVersion: integer('row_version').notNull().default(1),
 });
+
+// Private documents (ADR-005). The bytes live in object storage; this table is
+// the metadata + record-level lineage. entity_id is polymorphic (job / lead /
+// estimate / contract) and intentionally has no FK, like audit_events.job_id.
+export const documentEntityTypeEnum = pgEnum('document_entity_type', [
+  'job',
+  'lead',
+  'estimate',
+  'contract',
+]);
+
+export const documents = pgTable('documents', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  organizationId: uuid('organization_id')
+    .notNull()
+    .references(() => organizations.id),
+  entityType: documentEntityTypeEnum('entity_type').notNull(),
+  entityId: uuid('entity_id').notNull(),
+  // Opaque storage key (never a user-controlled path).
+  storageKey: text('storage_key').notNull().unique(),
+  fileName: text('file_name').notNull(),
+  contentType: text('content_type').notNull(),
+  sizeBytes: integer('size_bytes').notNull().default(0),
+  uploadedBy: uuid('uploaded_by')
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});

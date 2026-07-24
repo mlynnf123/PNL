@@ -286,6 +286,53 @@ Rollback or supersession path
   need their lineage re-expressed before these tables could be dropped.
 ```
 
+```text
+ADR-005: Private object storage — S3-compatible, with a local dev backend
+Status: Accepted
+Date: 2026-07-24
+Decision owner: Claude Code (technical), for the CRM port (docs/07 CRM plan)
+
+Context
+  Estimates (cover photos, PDFs), Contracts (signed PDFs, signature images), and
+  job Documents need private file storage with access only after record-level
+  authorization (docs/06 SS9). ADR-001 already committed to "S3-compatible
+  private storage with short-lived signed URLs." Dev, test, and CI must not
+  require cloud credentials.
+
+Decision
+  A StorageClient interface (src/lib/storage) with two backends chosen from the
+  environment (STORAGE_DRIVER):
+    - local (default): filesystem backend under .storage/ (gitignored). No cloud
+      credentials. Used by dev, test, and CI.
+    - s3: S3-compatible backend (@aws-sdk/client-s3 + s3-request-presigner) —
+      AWS S3, Cloudflare R2, or MinIO — configured via STORAGE_S3_* env. The live
+      cloud bucket is a PRODUCTION-ONLY configuration.
+  A `documents` table holds metadata + polymorphic lineage (job/lead/estimate/
+  contract, no FK on entity_id, like audit_events.job_id). Bytes are keyed by an
+  opaque `${org}/${entityType}/${uuid}` path — never a user-controlled path.
+  Access is gated by a download route (/api/documents/[id]) that enforces session
+  + org scope + the entity's view permission; for s3 it 302-redirects to a
+  short-lived presigned URL, for local it streams the bytes through the
+  authorized handler. uploadDocument stores bytes first, then records the row +
+  audit event in one transaction, deleting the orphaned object if the DB write
+  fails (docs/06 SS10).
+
+Consequences and tradeoffs
+  - Dev/test/CI need no cloud account; production points STORAGE_DRIVER at a real
+    bucket. The download route is one code path for both backends.
+  - The local backend has no shareable URL (access is always re-authorized);
+    only the s3 backend issues expiring presigned URLs.
+  - Adds @aws-sdk/client-s3 (server-only; never in the browser bundle).
+
+Affected requirements/tests/migrations
+  docs/06 SS9/SS10, D-020. drizzle/0008_*. Covered by src/lib/storage/local.test
+  and the document command integration tests (against a storage double).
+
+Rollback or supersession path
+  Swap the StorageClient implementation; the `documents` table and the download
+  route contract stay the same. Moving buckets requires re-keying stored objects.
+```
+
 ## 6. Architecture options if the repository is empty
 
 | Option                                                                                     | Strengths                                                                | Tradeoffs                                                 | Relative operating complexity |
