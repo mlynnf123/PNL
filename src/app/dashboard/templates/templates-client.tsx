@@ -1,0 +1,369 @@
+'use client';
+
+import { Copy, Pencil, Trash2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useMemo, useState, useTransition } from 'react';
+import { Badge, Button, FormField, Input, Modal, Select, Textarea } from '@/components/ui';
+import { formatCurrency } from '@/lib/format';
+import type {
+  LineCategory,
+  TemplateFields,
+  TemplateLineItem,
+} from '@/server/commands/document-templates';
+import type { TemplateRow } from '@/server/queries/document-templates';
+import {
+  type ActionResult,
+  createTemplateAction,
+  deleteTemplateAction,
+  duplicateTemplateAction,
+  updateTemplateAction,
+} from './actions';
+
+const CATEGORIES: LineCategory[] = ['roofing', 'gutter', 'window', 'other'];
+
+function blankLine(): TemplateLineItem {
+  return {
+    id: crypto.randomUUID(),
+    description: '',
+    quantity: 1,
+    unitPrice: 0,
+    total: 0,
+    category: 'roofing',
+  };
+}
+
+function templateTotal(items: TemplateLineItem[]): number {
+  return items.reduce((s, i) => s + (Number(i.total) || 0), 0);
+}
+
+export function TemplatesClient({
+  templates,
+  canManage,
+}: {
+  templates: TemplateRow[];
+  canManage: boolean;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [form, setForm] = useState<TemplateRow | null | undefined>(undefined);
+  const [error, setError] = useState('');
+
+  const filtered = useMemo(
+    () => templates.filter((t) => typeFilter === 'all' || t.type === typeFilter),
+    [templates, typeFilter],
+  );
+
+  function run(action: Promise<ActionResult>, onOk?: () => void) {
+    setError('');
+    startTransition(async () => {
+      const res = await action;
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      onOk?.();
+      router.refresh();
+    });
+  }
+
+  return (
+    <>
+      <div className="space-y-6">
+        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+          <h2 className="text-2xl font-medium tracking-tight text-slate-900">
+            Contract &amp; Estimate Templates
+          </h2>
+          <div className="flex items-center gap-3">
+            <select
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+            >
+              <option value="all">All Types</option>
+              <option value="estimate">Estimates</option>
+              <option value="contract">Contracts</option>
+            </select>
+            {canManage && <Button onClick={() => setForm(null)}>New Template</Button>}
+          </div>
+        </div>
+
+        {error && (
+          <p className="rounded-lg border-l-2 border-red-500 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </p>
+        )}
+
+        {filtered.length === 0 ? (
+          <div className="rounded-xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+            <h3 className="mb-2 text-lg font-medium text-slate-900">No templates yet</h3>
+            <p className="text-sm text-slate-500">
+              Create a reusable estimate or contract template to speed up new documents.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {filtered.map((t) => (
+              <div
+                key={t.id}
+                className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
+              >
+                <div className="mb-3 flex items-start justify-between">
+                  <div>
+                    <h3 className="font-medium text-slate-900">{t.name}</h3>
+                    <div className="mt-2">
+                      <Badge tone={t.type === 'contract' ? 'slate' : 'teal'}>{t.type}</Badge>
+                    </div>
+                  </div>
+                  {canManage && (
+                    <div className="flex gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setForm(t)}
+                        title="Edit"
+                        className="p-1.5 text-slate-400 transition-colors hover:text-blue-600"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => run(duplicateTemplateAction(t.id))}
+                        title="Duplicate"
+                        className="p-1.5 text-slate-400 transition-colors hover:text-slate-700"
+                      >
+                        <Copy size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm('Delete this template? This cannot be undone.')) {
+                            run(deleteTemplateAction(t.id));
+                          }
+                        }}
+                        title="Delete"
+                        className="p-1.5 text-slate-400 transition-colors hover:text-red-600"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {t.projectDescription && (
+                  <p className="mb-4 line-clamp-2 text-sm text-slate-600">{t.projectDescription}</p>
+                )}
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Line items</span>
+                    <span className="font-medium text-slate-900">{t.lineItems.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Default total</span>
+                    <span className="font-medium text-teal-600">
+                      {formatCurrency(templateTotal(t.lineItems))}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {form !== undefined && (
+        <TemplateModal
+          template={form}
+          pending={isPending}
+          onClose={() => setForm(undefined)}
+          onSubmit={(fields) => {
+            const action = form
+              ? updateTemplateAction(form.id, form.rowVersion, fields)
+              : createTemplateAction(fields);
+            run(action, () => setForm(undefined));
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function TemplateModal({
+  template,
+  pending,
+  onClose,
+  onSubmit,
+}: {
+  template: TemplateRow | null;
+  pending: boolean;
+  onClose: () => void;
+  onSubmit: (fields: TemplateFields) => void;
+}) {
+  const [name, setName] = useState(template?.name ?? '');
+  const [type, setType] = useState<'contract' | 'estimate'>(
+    (template?.type as 'contract' | 'estimate') ?? 'estimate',
+  );
+  const [projectDescription, setProjectDescription] = useState(template?.projectDescription ?? '');
+  const [items, setItems] = useState<TemplateLineItem[]>(
+    template?.lineItems.length ? template.lineItems : [blankLine()],
+  );
+  const [terms, setTerms] = useState(template?.terms ?? '');
+  const [warrantyInfo, setWarrantyInfo] = useState(template?.warrantyInfo ?? '');
+  const [notes, setNotes] = useState(template?.notes ?? '');
+
+  function updateItem(index: number, patch: Partial<TemplateLineItem>) {
+    setItems((prev) =>
+      prev.map((item, i) => {
+        if (i !== index) return item;
+        const next = { ...item, ...patch };
+        next.total =
+          Math.round((Number(next.quantity) || 0) * (Number(next.unitPrice) || 0) * 100) / 100;
+        return next;
+      }),
+    );
+  }
+
+  const grandTotal = templateTotal(items);
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={template ? 'Edit template' : 'New template'}
+      size="xl"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            disabled={pending || !name.trim()}
+            onClick={() =>
+              onSubmit({
+                name,
+                type,
+                projectDescription,
+                lineItems: items,
+                terms: type === 'contract' ? terms : null,
+                warrantyInfo: type === 'contract' ? warrantyInfo : null,
+                notes,
+              })
+            }
+          >
+            {template ? 'Update template' : 'Create template'}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="sm:col-span-2">
+            <FormField label="Template name">
+              <Input value={name} onChange={(e) => setName(e.target.value)} required />
+            </FormField>
+          </div>
+          <FormField label="Type">
+            <Select
+              value={type}
+              onChange={(e) => setType(e.target.value as 'contract' | 'estimate')}
+            >
+              <option value="estimate">Estimate</option>
+              <option value="contract">Contract</option>
+            </Select>
+          </FormField>
+        </div>
+
+        <FormField label="Project description">
+          <Textarea
+            rows={2}
+            value={projectDescription}
+            onChange={(e) => setProjectDescription(e.target.value)}
+          />
+        </FormField>
+
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-sm font-medium text-slate-700">Line items</span>
+            <button
+              type="button"
+              onClick={() => setItems((prev) => [...prev, blankLine()])}
+              className="text-sm font-medium text-slate-700 underline hover:text-slate-900"
+            >
+              + Add line item
+            </button>
+          </div>
+          <div className="space-y-2">
+            {items.map((item, index) => (
+              <div key={item.id} className="grid grid-cols-12 items-center gap-2">
+                <input
+                  className="col-span-12 rounded-lg border border-slate-300 px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-slate-500 md:col-span-5"
+                  placeholder="Description"
+                  value={item.description}
+                  onChange={(e) => updateItem(index, { description: e.target.value })}
+                />
+                <select
+                  className="col-span-4 rounded-lg border border-slate-300 px-2 py-1.5 text-sm outline-none md:col-span-2"
+                  value={item.category}
+                  onChange={(e) => updateItem(index, { category: e.target.value as LineCategory })}
+                >
+                  {CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min="0"
+                  className="col-span-2 rounded-lg border border-slate-300 px-2 py-1.5 text-right text-sm outline-none md:col-span-1"
+                  value={item.quantity}
+                  onChange={(e) => updateItem(index, { quantity: Number(e.target.value) })}
+                />
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="col-span-3 rounded-lg border border-slate-300 px-2 py-1.5 text-right text-sm outline-none md:col-span-2"
+                  value={item.unitPrice}
+                  onChange={(e) => updateItem(index, { unitPrice: Number(e.target.value) })}
+                />
+                <div className="col-span-2 text-right text-sm text-slate-700 md:col-span-1">
+                  {formatCurrency(item.total)}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setItems((prev) => prev.filter((_, i) => i !== index))}
+                  className="col-span-1 justify-self-end p-1 text-slate-400 transition-colors hover:text-red-600"
+                  title="Remove line"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex justify-end border-t border-slate-200 pt-3 text-sm text-slate-600">
+            Total:{' '}
+            <span className="ml-1 font-medium text-slate-900">{formatCurrency(grandTotal)}</span>
+          </div>
+        </div>
+
+        {type === 'contract' && (
+          <div className="space-y-4 border-t border-slate-100 pt-4">
+            <FormField label="Terms & conditions">
+              <Textarea rows={3} value={terms} onChange={(e) => setTerms(e.target.value)} />
+            </FormField>
+            <FormField label="Warranty information">
+              <Textarea
+                rows={2}
+                value={warrantyInfo}
+                onChange={(e) => setWarrantyInfo(e.target.value)}
+              />
+            </FormField>
+          </div>
+        )}
+
+        <FormField label="Internal notes" hint="Not shown to customers.">
+          <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        </FormField>
+      </div>
+    </Modal>
+  );
+}

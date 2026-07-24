@@ -1145,3 +1145,34 @@ export const documents = pgTable('documents', {
     .references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+// CRM — reusable contract/estimate line-item templates (ported from
+// RoofRunners OS). Line items are stored as JSONB defaults; authoritative money
+// on real estimates/contracts is recomputed server-side in later phases.
+export const documentTemplateTypeEnum = pgEnum('document_template_type', ['contract', 'estimate']);
+
+export const documentTemplates = pgTable('document_templates', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  organizationId: uuid('organization_id')
+    .notNull()
+    .references(() => organizations.id),
+  name: text('name').notNull(),
+  type: documentTemplateTypeEnum('type').notNull().default('estimate'),
+  projectDescription: text('project_description'),
+  // TemplateLineItem[] — { id, description, quantity, unitPrice, total, category }.
+  lineItemsJson: jsonb('line_items_json')
+    .notNull()
+    .default(sql`'[]'::jsonb`),
+  // Contract-only defaults.
+  terms: text('terms'),
+  warrantyInfo: text('warranty_info'),
+  notes: text('notes'),
+  createdBy: uuid('created_by')
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  rowVersion: integer('row_version').notNull().default(1),
+});
