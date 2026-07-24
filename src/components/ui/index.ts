@@ -10,3 +10,5 @@ export { FormField, Input, Textarea, Select } from './form';
 export { Modal } from './modal';
 export { Drawer } from './drawer';
 export { EmptyState } from './empty-state';
+export { LifecycleTracker } from './lifecycle-tracker';
+export { ActivityTimeline, type ActivityEntry } from './activity-timeline';
