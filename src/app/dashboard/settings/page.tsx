@@ -2,9 +2,9 @@ import Link from 'next/link';
 import { db } from '@/db/client';
 import { requireSession } from '@/lib/require-session';
 import { PERMISSIONS, userHasPermission } from '@/lib/permissions';
-import { NoAccessNotice } from '../jobs/ui';
+import { PageHeader } from '@/components/ui';
 
-const CARDS = [
+const MANAGE_CARDS = [
   {
     href: '/dashboard/settings/users',
     title: 'Users',
@@ -22,31 +22,44 @@ const CARDS = [
   },
 ];
 
+const AUDIT_CARD = {
+  href: '/dashboard/settings/audit',
+  title: 'Audit log',
+  body: 'Search the append-only record of every protected change.',
+};
+
 export default async function SettingsPage() {
   const session = await requireSession();
-  const canManage = await userHasPermission(db, session.user.id, PERMISSIONS.SETTINGS_MANAGEMENT);
+  const [canManage, canAudit] = await Promise.all([
+    userHasPermission(db, session.user.id, PERMISSIONS.SETTINGS_MANAGEMENT),
+    userHasPermission(db, session.user.id, PERMISSIONS.AUDIT_VIEWING),
+  ]);
 
-  if (!canManage) {
+  if (!canManage && !canAudit) {
     return (
-      <div className="flex flex-1 flex-col gap-4">
-        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Settings</h2>
-        <NoAccessNotice />
+      <div>
+        <PageHeader title="Settings" />
+        <p className="text-sm font-normal text-slate-500">
+          You don&apos;t have access to settings yet. Ask an owner to grant you access.
+        </p>
       </div>
     );
   }
 
+  const cards = [...(canManage ? MANAGE_CARDS : []), ...(canAudit ? [AUDIT_CARD] : [])];
+
   return (
-    <div className="flex flex-1 flex-col gap-6">
-      <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Settings</h2>
+    <div>
+      <PageHeader title="Settings" />
       <div className="grid gap-4 sm:grid-cols-3">
-        {CARDS.map((card) => (
+        {cards.map((card) => (
           <Link
             key={card.href}
             href={card.href}
-            className="flex flex-col gap-2 rounded-lg border border-zinc-200 bg-gradient-to-b from-white to-zinc-50 p-6 hover:border-zinc-300 dark:border-zinc-800 dark:from-zinc-950 dark:to-black dark:hover:border-zinc-700"
+            className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
           >
-            <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-50">{card.title}</h3>
-            <p className="text-sm font-normal text-zinc-600 dark:text-zinc-400">{card.body}</p>
+            <h3 className="font-medium text-slate-900">{card.title}</h3>
+            <p className="text-sm font-normal text-slate-600">{card.body}</p>
           </Link>
         ))}
       </div>
