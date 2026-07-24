@@ -47,7 +47,8 @@ export function LeadsClient({
   const [detail, setDetail] = useState<LeadRow | null>(null);
   const [error, setError] = useState('');
 
-  const filtered = useMemo(() => {
+  // Search + priority filtered (but NOT status) — the basis for the bucket counts.
+  const preStatus = useMemo(() => {
     const q = search.toLowerCase();
     return leads.filter((l) => {
       const matchesSearch =
@@ -56,11 +57,21 @@ export function LeadsClient({
         (l.customerPhone ?? '').includes(search) ||
         (l.customerEmail ?? '').toLowerCase().includes(q) ||
         (l.notes ?? '').toLowerCase().includes(q);
-      const matchesStatus = statusFilter === 'all' || l.status === statusFilter;
       const matchesPriority = priorityFilter === 'all' || l.priority === priorityFilter;
-      return matchesSearch && matchesStatus && matchesPriority;
+      return matchesSearch && matchesPriority;
     });
-  }, [leads, search, statusFilter, priorityFilter]);
+  }, [leads, search, priorityFilter]);
+
+  const statusCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const l of preStatus) m.set(l.status, (m.get(l.status) ?? 0) + 1);
+    return m;
+  }, [preStatus]);
+
+  const filtered = useMemo(
+    () => (statusFilter === 'all' ? preStatus : preStatus.filter((l) => l.status === statusFilter)),
+    [preStatus, statusFilter],
+  );
 
   function run(action: Promise<ActionResult>, onOk?: (r: ActionResult) => void) {
     setError('');
@@ -116,33 +127,46 @@ export function LeadsClient({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <div className="flex items-center gap-3">
-              <select
-                className="rounded-lg border border-slate-300 p-2 text-sm outline-none"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="all">All Status</option>
-                {STATUSES.map((s) => (
-                  <option key={s} value={s} className="capitalize">
-                    {s}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="rounded-lg border border-slate-300 p-2 text-sm outline-none"
-                value={priorityFilter}
-                onChange={(e) => setPriorityFilter(e.target.value)}
-              >
-                <option value="all">All Priority</option>
-                {PRIORITIES.map((p) => (
-                  <option key={p} value={p} className="capitalize">
-                    {p}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              className="rounded-lg border border-slate-300 p-2 text-sm outline-none"
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}
+            >
+              <option value="all">All Priority</option>
+              {PRIORITIES.map((p) => (
+                <option key={p} value={p} className="capitalize">
+                  {p}
+                </option>
+              ))}
+            </select>
           </div>
+        </div>
+
+        {/* Status buckets with counts */}
+        <div className="flex flex-wrap gap-2">
+          {['all', ...STATUSES].map((b) => {
+            const count = b === 'all' ? preStatus.length : (statusCounts.get(b) ?? 0);
+            const active = statusFilter === b;
+            return (
+              <button
+                key={b}
+                type="button"
+                onClick={() => setStatusFilter(b)}
+                className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium capitalize transition-colors ${
+                  active
+                    ? 'bg-slate-800 text-white'
+                    : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {b}
+                <span
+                  className={`rounded-full px-1.5 text-xs ${active ? 'bg-white/20' : 'bg-slate-100 text-slate-500'}`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {filtered.length === 0 ? (
