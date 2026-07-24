@@ -19,6 +19,8 @@ export const PERMISSIONS = {
   AUDIT_VIEWING: 'audit_viewing',
   COMPANY_PROFIT_VIEWING: 'company_profit_viewing',
   JOB_VIEWING: 'job_viewing',
+  CRM_VIEWING: 'crm_viewing',
+  CRM_MANAGEMENT: 'crm_management',
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -50,6 +52,11 @@ export const PERMISSION_CATALOG: ReadonlyArray<{ key: PermissionKey; description
   {
     key: PERMISSIONS.JOB_VIEWING,
     description: 'View jobs, financial summaries, and reports',
+  },
+  { key: PERMISSIONS.CRM_VIEWING, description: 'View leads, calls, estimates, and contracts' },
+  {
+    key: PERMISSIONS.CRM_MANAGEMENT,
+    description: 'Create and edit leads, calls, estimates, and contracts',
   },
 ];
 

@@ -43,6 +43,13 @@
       "when": 1784660785284,
       "tag": "0005_needy_iron_patriot",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784871943555,
+      "tag": "0006_low_mandrill",
+      "breakpoints": true
     }
   ]
 }

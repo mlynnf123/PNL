@@ -1004,3 +1004,63 @@ export const importRecordLinks = pgTable(
   },
   (table) => [uniqueIndex('import_record_links_idempotency_unique').on(table.idempotencyKey)],
 );
+
+// CRM — Leads. Ported from RoofRunners OS (reference app), re-implemented in our
+// architecture: organization-scoped, permission-gated (crm_viewing/
+// crm_management), audited, optimistic-concurrency on update. A lead is the
+// front-of-funnel record that can convert into a financial job.
+
+export const leadSourceEnum = pgEnum('lead_source', [
+  'referral',
+  'online',
+  'advertisement',
+  'cold_call',
+  'other',
+]);
+
+export const leadStatusEnum = pgEnum('lead_status', [
+  'new',
+  'contacted',
+  'quoted',
+  'converted',
+  'lost',
+]);
+
+export const leadPriorityEnum = pgEnum('lead_priority', ['low', 'medium', 'high']);
+
+export const preferredContactEnum = pgEnum('preferred_contact', ['phone', 'email', 'text']);
+
+export const leads = pgTable('leads', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  organizationId: uuid('organization_id')
+    .notNull()
+    .references(() => organizations.id),
+  customerName: text('customer_name').notNull(),
+  // Single-line address as captured from the lead (like imported jobs); a
+  // structured property address is established when the lead becomes a job.
+  customerAddress: text('customer_address'),
+  customerPhone: text('customer_phone'),
+  customerEmail: text('customer_email'),
+  preferredContact: preferredContactEnum('preferred_contact').notNull().default('phone'),
+  source: leadSourceEnum('source').notNull().default('other'),
+  status: leadStatusEnum('status').notNull().default('new'),
+  priority: leadPriorityEnum('priority').notNull().default('medium'),
+  estimatedValue: numeric('estimated_value', { precision: 12, scale: 2 }).notNull().default('0'),
+  description: text('description'),
+  notes: text('notes'),
+  assignedTo: uuid('assigned_to').references(() => users.id),
+  // No FK yet: contracts arrive in a later port phase.
+  contractId: uuid('contract_id'),
+  convertedJobId: uuid('converted_job_id').references(() => jobs.id),
+  lastContactDate: date('last_contact_date'),
+  nextFollowUp: date('next_follow_up'),
+  createdBy: uuid('created_by')
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  // Optimistic concurrency (same pattern as jobs.rowVersion).
+  rowVersion: integer('row_version').notNull().default(1),
+});
