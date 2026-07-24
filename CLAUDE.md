@@ -99,7 +99,16 @@ When asked to commit, always push to GitHub right after. "Commit" means commit a
 
 ## UI rules
 
-No emojis, no decorative icons — keep icons to an absolute minimum and only when functionally necessary. No bold text: body copy stays at font-weight 400 or lighter, headings max out at 500. Font is Arial or Roboto, not a framework default. Monochromatic color scheme, but use gradients and subtle differentiation so components read as distinct rather than flat. Sleek, modern, professional — should never look AI-generated.
+The app adopts the RoofRunners OS design language (see the CRM port plan). Shared components live in `src/components/ui/` and pages should compose them rather than re-inventing styles.
+
+- **Shell:** a sticky slate top navigation bar (`bg-slate-900`) with a centered `max-w-7xl` content column on a `bg-slate-50` page. No sidebar.
+- **Palette:** `slate` neutral surface (white cards, `slate-50/100/200` borders and backgrounds, `slate-900/700/500` text) with **`teal` as the single positive/CTA accent**. Semantic: teal = success/approved, amber = in-progress/pending, red = danger/negative, blue = informational. Cards are **flat**: `rounded-xl border border-slate-200 bg-white shadow-sm` — favor flat surfaces over gradients.
+- **Icons:** `lucide-react` is allowed but only as **functional affordances** (row actions edit/delete/view, modal close, status) — never decorative filler, never in place of a text label where a label is clearer. Keep them small and sparse.
+- **Charts:** `recharts` is allowed for operational (non-costing) dashboards.
+- **Font (unchanged — the one thing that does not change):** Roboto → Arial/Helvetica, weights **400 and 500 only**. No bold: body copy 400, headings max `font-medium` (500). Page titles use `text-2xl font-medium`, not bold.
+- Sleek, modern, professional — should never look AI-generated.
+
+The existing financial pages (jobs, reports, import, settings, audit) are being migrated from the earlier zinc/gradient styling to this system in a later port phase; new pages use `src/components/ui/` from the start.
 
 ## Stack decision
 

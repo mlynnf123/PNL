@@ -65,13 +65,16 @@ export default async function ImportBatchPage({
   async function commit() {
     'use server';
     const correlationId = newCorrelationId();
-    await instrument('import.commit', { correlationId, batchId, actorUserId: session.user.id }, () =>
-      commitImportBatch({
-        actorUserId: session.user.id,
-        organizationId: session.user.organizationId,
-        batchId,
-        correlationId,
-      }),
+    await instrument(
+      'import.commit',
+      { correlationId, batchId, actorUserId: session.user.id },
+      () =>
+        commitImportBatch({
+          actorUserId: session.user.id,
+          organizationId: session.user.organizationId,
+          batchId,
+          correlationId,
+        }),
     );
     redirect(`/dashboard/import/${batchId}`);
   }

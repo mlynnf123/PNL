@@ -86,9 +86,14 @@ describe('instrument', () => {
   it('LOG-007: logs op.failed with the error and rethrows', async () => {
     const { logger, entries } = collector();
     await expect(
-      instrument('report.export', { reportKey: 'x' }, async () => {
-        throw new Error('boom');
-      }, logger),
+      instrument(
+        'report.export',
+        { reportKey: 'x' },
+        async () => {
+          throw new Error('boom');
+        },
+        logger,
+      ),
     ).rejects.toThrow('boom');
 
     expect(entries()[0].msg).toBe('report.export.failed');
