@@ -1064,3 +1064,54 @@ export const leads = pgTable('leads', {
   // Optimistic concurrency (same pattern as jobs.rowVersion).
   rowVersion: integer('row_version').notNull().default(1),
 });
+
+// CRM — Calls. Manual call logging (ported from RoofRunners OS). The voice-agent
+// auto-ingestion (ElevenLabs webhook) is deliberately deferred; agent_id /
+// conversation_id are kept nullable for that later phase.
+
+export const callStatusEnum = pgEnum('call_status', [
+  'completed',
+  'missed',
+  'busy',
+  'no_answer',
+  'voicemail',
+]);
+
+export const callSuccessEnum = pgEnum('call_success', ['success', 'partial', 'failed']);
+
+export const calls = pgTable('calls', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  organizationId: uuid('organization_id')
+    .notNull()
+    .references(() => organizations.id),
+  customerName: text('customer_name'),
+  customerPhone: text('customer_phone').notNull(),
+  customerEmail: text('customer_email'),
+  status: callStatusEnum('status').notNull().default('completed'),
+  // Seconds.
+  duration: integer('duration').notNull().default(0),
+  startTime: timestamp('start_time', { withTimezone: true }).notNull(),
+  endTime: timestamp('end_time', { withTimezone: true }),
+  // TranscriptEntry[] — { role: 'agent'|'user', message, timeInCallSecs }.
+  transcript: jsonb('transcript')
+    .notNull()
+    .default(sql`'[]'::jsonb`),
+  summary: text('summary'),
+  callSuccessful: callSuccessEnum('call_successful').notNull().default('success'),
+  appointmentBooked: boolean('appointment_booked').notNull().default(false),
+  // { date, time, address, serviceType, notes? } | null.
+  appointmentDetails: jsonb('appointment_details'),
+  leadId: uuid('lead_id').references(() => leads.id),
+  notes: text('notes'),
+  // Voice-agent fields, nullable until the ingestion phase populates them.
+  agentId: text('agent_id'),
+  conversationId: text('conversation_id'),
+  createdBy: uuid('created_by')
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  rowVersion: integer('row_version').notNull().default(1),
+});

@@ -50,6 +50,13 @@
       "when": 1784871943555,
       "tag": "0006_low_mandrill",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1784872674549,
+      "tag": "0007_greedy_quicksilver",
+      "breakpoints": true
     }
   ]
 }
