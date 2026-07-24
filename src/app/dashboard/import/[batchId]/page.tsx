@@ -9,6 +9,7 @@ import {
   resolveImportRow,
   rollbackImportBatch,
 } from '@/server/commands/import-commit';
+import { instrument, newCorrelationId } from '@/lib/logger';
 import { getImportPreview } from '@/server/queries/import-preview';
 import { getStoredReconciliation } from '@/server/queries/import-reconciliation';
 import { NoAccessNotice, Section, StatusPill } from '../../jobs/ui';
@@ -63,23 +64,34 @@ export default async function ImportBatchPage({
 
   async function commit() {
     'use server';
-    await commitImportBatch({
-      actorUserId: session.user.id,
-      organizationId: session.user.organizationId,
-      batchId,
-    });
+    const correlationId = newCorrelationId();
+    await instrument('import.commit', { correlationId, batchId, actorUserId: session.user.id }, () =>
+      commitImportBatch({
+        actorUserId: session.user.id,
+        organizationId: session.user.organizationId,
+        batchId,
+        correlationId,
+      }),
+    );
     redirect(`/dashboard/import/${batchId}`);
   }
 
   async function rollback(formData: FormData) {
     'use server';
+    const correlationId = newCorrelationId();
     try {
-      await rollbackImportBatch({
-        actorUserId: session.user.id,
-        organizationId: session.user.organizationId,
-        batchId,
-        reason: String(formData.get('reason') || 'Import rollback'),
-      });
+      await instrument(
+        'import.rollback',
+        { correlationId, batchId, actorUserId: session.user.id },
+        () =>
+          rollbackImportBatch({
+            actorUserId: session.user.id,
+            organizationId: session.user.organizationId,
+            batchId,
+            reason: String(formData.get('reason') || 'Import rollback'),
+            correlationId,
+          }),
+      );
     } catch (err) {
       if (err instanceof RollbackBlockedError) {
         redirect(`/dashboard/import/${batchId}?error=rollback_blocked`);

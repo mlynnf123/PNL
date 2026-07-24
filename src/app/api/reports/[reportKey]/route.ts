@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireSession } from '@/lib/require-session';
 import { AuthorizationError } from '@/lib/permissions';
 import { rowsToCsv } from '@/lib/csv';
+import { instrument, logger, newCorrelationId } from '@/lib/logger';
 import { recordReportExport } from '@/server/commands/report-export';
 import { getJobProfitabilityReport } from '@/server/queries/job-profitability-report';
 import { getCompanyProfitReport } from '@/server/queries/company-profit-report';
@@ -42,26 +43,34 @@ export async function GET(
     return NextResponse.json({ error: 'Unknown report' }, { status: 404 });
   }
 
+  const correlationId = newCorrelationId();
+  const logFields = { correlationId, reportKey, actorUserId: session.user.id };
+
+  // Authorization is the expected gate (docs/06 SS9 "export without permission:
+  // denied and logged") — a denial is a warn, not an instrumented failure.
   try {
     await recordReportExport({
       actorUserId: session.user.id,
       organizationId: session.user.organizationId,
       reportKey,
+      correlationId,
     });
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      logger.warn('report.export.denied', { ...logFields, reason: error.message });
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
+    throw error;
+  }
 
+  return instrument('report.export', logFields, async () => {
     const rows = await handler(session.user.organizationId, session.user.id);
     const csv = rowsToCsv(rows);
-
     return new Response(csv, {
       headers: {
         'Content-Type': 'text/csv',
         'Content-Disposition': `attachment; filename="${reportKey}.csv"`,
       },
     });
-  } catch (error) {
-    if (error instanceof AuthorizationError) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
-    throw error;
-  }
+  });
 }

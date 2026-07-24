@@ -5,6 +5,7 @@ import { db } from '@/db/client';
 import { importBatches } from '@/db/schema';
 import { requireSession } from '@/lib/require-session';
 import { AuthorizationError, PERMISSIONS, userHasPermission } from '@/lib/permissions';
+import { instrument, newCorrelationId } from '@/lib/logger';
 import { createImportBatch, DuplicateImportError } from '@/server/commands/import-batch';
 import { NoAccessNotice, Section, StatusPill, SubmitButton } from '../jobs/ui';
 
@@ -55,16 +56,23 @@ export default async function ImportPage({
       redirect('/dashboard/import?error=no_file');
     }
 
+    const correlationId = newCorrelationId();
     let batchId: string;
     try {
       const bytes = Buffer.from(await (file as File).arrayBuffer());
-      const batch = await createImportBatch({
-        actorUserId: session.user.id,
-        organizationId: session.user.organizationId,
-        fileName: (file as File).name,
-        fileBytes: bytes,
-        sourceAsOfDate,
-      });
+      const batch = await instrument(
+        'import.parse',
+        { correlationId, actorUserId: session.user.id, fileName: (file as File).name },
+        () =>
+          createImportBatch({
+            actorUserId: session.user.id,
+            organizationId: session.user.organizationId,
+            fileName: (file as File).name,
+            fileBytes: bytes,
+            sourceAsOfDate,
+            correlationId,
+          }),
+      );
       batchId = batch.id;
     } catch (err) {
       if (err instanceof DuplicateImportError) {
