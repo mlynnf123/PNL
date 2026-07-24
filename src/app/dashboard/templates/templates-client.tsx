@@ -3,7 +3,16 @@
 import { Copy, Pencil, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
-import { Badge, Button, FormField, Input, Modal, Select, Textarea } from '@/components/ui';
+import {
+  Badge,
+  Button,
+  EmptyState,
+  FormField,
+  Input,
+  Modal,
+  Select,
+  Textarea,
+} from '@/components/ui';
 import { formatCurrency } from '@/lib/format';
 import type {
   LineCategory,
@@ -95,12 +104,13 @@ export function TemplatesClient({
         )}
 
         {filtered.length === 0 ? (
-          <div className="rounded-xl border border-slate-200 bg-white p-12 text-center shadow-sm">
-            <h3 className="mb-2 text-lg font-medium text-slate-900">No templates yet</h3>
-            <p className="text-sm text-slate-500">
-              Create a reusable estimate or contract template to speed up new documents.
-            </p>
-          </div>
+          <EmptyState
+            title="No templates yet"
+            description="Create a reusable estimate or contract template to speed up new documents."
+            action={
+              canManage ? <Button onClick={() => setForm(null)}>New Template</Button> : undefined
+            }
+          />
         ) : (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {filtered.map((t) => (

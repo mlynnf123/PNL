@@ -3,18 +3,9 @@
 import { Pencil, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
-import {
-  Badge,
-  type BadgeTone,
-  Button,
-  Drawer,
-  FormField,
-  Input,
-  Modal,
-  Select,
-  Textarea,
-} from '@/components/ui';
+import { Badge, Button, Drawer, FormField, Input, Modal, Select, Textarea } from '@/components/ui';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { LEAD_STATUS_TONE as STATUS_TONE, PRIORITY_TONE } from '@/lib/status';
 import type { LeadRow } from '@/server/queries/leads';
 import {
   type ActionResult,
@@ -31,15 +22,6 @@ const STATUSES = ['new', 'contacted', 'quoted', 'converted', 'lost'] as const;
 const PRIORITIES = ['low', 'medium', 'high'] as const;
 const SOURCES = ['referral', 'online', 'advertisement', 'cold_call', 'other'] as const;
 const CONTACTS = ['phone', 'email', 'text'] as const;
-
-const STATUS_TONE: Record<string, BadgeTone> = {
-  new: 'slate',
-  contacted: 'blue',
-  quoted: 'amber',
-  converted: 'teal',
-  lost: 'red',
-};
-const PRIORITY_TONE: Record<string, BadgeTone> = { high: 'red', medium: 'amber', low: 'slate' };
 
 function label(value: string): string {
   return value.replace(/_/g, ' ');

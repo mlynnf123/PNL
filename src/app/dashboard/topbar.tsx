@@ -51,6 +51,14 @@ export function Topbar({ email, logout }: { email: string; logout: () => Promise
           </nav>
 
           <div className="ml-6 hidden items-center space-x-4 border-l border-slate-700 pl-6 md:flex">
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent('open-command-palette'))}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-400 transition-colors hover:text-white"
+            >
+              Search
+              <kbd className="rounded bg-slate-800 px-1.5 py-0.5 text-xs text-slate-300">⌘K</kbd>
+            </button>
             {email && (
               <span className="max-w-[180px] truncate text-sm text-slate-400" title={email}>
                 {email}
