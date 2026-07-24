@@ -9,3 +9,4 @@ export { DataTable } from './data-table';
 export { FormField, Input, Textarea, Select } from './form';
 export { Modal } from './modal';
 export { Drawer } from './drawer';
+export { EmptyState } from './empty-state';
