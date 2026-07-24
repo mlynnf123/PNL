@@ -71,6 +71,13 @@
       "when": 1784874331458,
       "tag": "0009_spooky_network",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784881120628,
+      "tag": "0010_material_queen_noir",
+      "breakpoints": true
     }
   ]
 }

@@ -56,6 +56,13 @@ export const PRIORITY_TONE: Record<string, BadgeTone> = {
   low: 'slate',
 };
 
+export const ESTIMATE_STATUS_TONE: Record<string, BadgeTone> = {
+  draft: 'slate',
+  sent: 'amber',
+  accepted: 'teal',
+  declined: 'red',
+};
+
 export function toneFor(map: Record<string, BadgeTone>, value: string): BadgeTone {
   return map[value] ?? 'slate';
 }
