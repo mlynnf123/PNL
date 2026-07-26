@@ -28,7 +28,7 @@ export default async function CommissionRulesSettingsPage({
   if (!canManage) {
     return (
       <div className="flex flex-1 flex-col gap-4">
-        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Commission rules</h2>
+        <h2 className="text-lg font-medium text-slate-900">Commission rules</h2>
         <NoAccessNotice />
       </div>
     );
@@ -96,10 +96,10 @@ export default async function CommissionRulesSettingsPage({
 
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Commission rules</h2>
+      <h2 className="text-lg font-medium text-slate-900">Commission rules</h2>
 
       {error && (
-        <p className="rounded-md border-l-2 border-zinc-900 bg-zinc-100 px-3 py-2 text-sm text-zinc-800 dark:border-zinc-50 dark:bg-zinc-900 dark:text-zinc-200">
+        <p className="rounded-md border-l-2 border-slate-900 bg-slate-100 px-3 py-2 text-sm text-slate-800">
           {ERRORS[error] ?? 'Something went wrong.'}
         </p>
       )}
@@ -114,7 +114,7 @@ export default async function CommissionRulesSettingsPage({
           <div>
             <button
               type="submit"
-              className="rounded-md bg-gradient-to-b from-zinc-800 to-zinc-950 px-3 py-1.5 text-sm font-medium text-white hover:from-zinc-700 hover:to-zinc-900 dark:from-zinc-100 dark:to-zinc-300 dark:text-zinc-900"
+              className="rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
             >
               Create draft
             </button>
@@ -138,7 +138,7 @@ export default async function CommissionRulesSettingsPage({
                 <input type="hidden" name="ruleSetId" value={set.id} />
                 <button
                   type="submit"
-                  className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-normal text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-normal text-slate-700 hover:bg-slate-100"
                 >
                   Activate
                 </button>
@@ -148,7 +148,7 @@ export default async function CommissionRulesSettingsPage({
 
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-zinc-200 text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
+              <tr className="border-b border-slate-200 text-slate-600">
                 <th className="px-2 py-2 font-normal">Priority</th>
                 <th className="px-2 py-2 font-normal">Match</th>
                 <th className="px-2 py-2 font-normal">Seller</th>
@@ -159,30 +159,17 @@ export default async function CommissionRulesSettingsPage({
             </thead>
             <tbody>
               {set.rules.map((rule) => (
-                <tr
-                  key={rule.id}
-                  className="border-b border-zinc-100 last:border-0 dark:border-zinc-900"
-                >
-                  <td className="px-2 py-2 font-normal text-zinc-600 dark:text-zinc-400">
-                    {rule.priority}
-                  </td>
-                  <td className="px-2 py-2 font-normal text-zinc-900 dark:text-zinc-50">
-                    {rule.sellerMatchType}
-                  </td>
-                  <td className="px-2 py-2 font-normal text-zinc-600 dark:text-zinc-400">
-                    {rule.sellerName ?? '—'}
-                  </td>
-                  <td className="px-2 py-2 font-normal text-zinc-900 dark:text-zinc-50">
-                    {rule.allocationType}
-                  </td>
-                  <td className="px-2 py-2 font-normal text-zinc-600 dark:text-zinc-400">
+                <tr key={rule.id} className="border-b border-slate-100 last:border-0">
+                  <td className="px-2 py-2 font-normal text-slate-600">{rule.priority}</td>
+                  <td className="px-2 py-2 font-normal text-slate-900">{rule.sellerMatchType}</td>
+                  <td className="px-2 py-2 font-normal text-slate-600">{rule.sellerName ?? '—'}</td>
+                  <td className="px-2 py-2 font-normal text-slate-900">{rule.allocationType}</td>
+                  <td className="px-2 py-2 font-normal text-slate-600">
                     {rule.recipientName ?? 'seller'}
                   </td>
-                  <td className="px-2 py-2 font-normal text-zinc-600 dark:text-zinc-400">
+                  <td className="px-2 py-2 font-normal text-slate-600">
                     {(Number(rule.rate) * 100).toFixed(2)}%
-                    {rule.blocked && (
-                      <span className="ml-1 text-zinc-900 dark:text-zinc-100">blocked</span>
-                    )}
+                    {rule.blocked && <span className="ml-1 text-slate-900">blocked</span>}
                   </td>
                 </tr>
               ))}
@@ -198,11 +185,11 @@ export default async function CommissionRulesSettingsPage({
                 min="1"
                 placeholder="Priority"
                 required
-                className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-normal text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                className="rounded-md border border-slate-300 px-2 py-1 text-xs font-normal text-slate-900"
               />
               <select
                 name="sellerMatchType"
-                className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-normal text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                className="rounded-md border border-slate-300 px-2 py-1 text-xs font-normal text-slate-900"
               >
                 <option value="standard_rep">standard_rep</option>
                 <option value="owner_seller">owner_seller</option>
@@ -210,7 +197,7 @@ export default async function CommissionRulesSettingsPage({
               </select>
               <select
                 name="sellerUserId"
-                className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-normal text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                className="rounded-md border border-slate-300 px-2 py-1 text-xs font-normal text-slate-900"
               >
                 <option value="">seller: any</option>
                 {users.map((u) => (
@@ -221,7 +208,7 @@ export default async function CommissionRulesSettingsPage({
               </select>
               <select
                 name="allocationType"
-                className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-normal text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                className="rounded-md border border-slate-300 px-2 py-1 text-xs font-normal text-slate-900"
               >
                 <option value="primary_sales">primary_sales</option>
                 <option value="owner_override">owner_override</option>
@@ -229,7 +216,7 @@ export default async function CommissionRulesSettingsPage({
               </select>
               <select
                 name="recipientUserId"
-                className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-normal text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                className="rounded-md border border-slate-300 px-2 py-1 text-xs font-normal text-slate-900"
               >
                 <option value="">recipient: seller</option>
                 {users.map((u) => (
@@ -243,11 +230,11 @@ export default async function CommissionRulesSettingsPage({
                   name="rate"
                   placeholder="0.40"
                   required
-                  className="w-16 rounded-md border border-zinc-300 px-2 py-1 text-xs font-normal text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                  className="w-16 rounded-md border border-slate-300 px-2 py-1 text-xs font-normal text-slate-900"
                 />
                 <button
                   type="submit"
-                  className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-normal text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                  className="rounded-md border border-slate-300 px-2 py-1 text-xs font-normal text-slate-700 hover:bg-slate-100"
                 >
                   Add
                 </button>
@@ -255,9 +242,7 @@ export default async function CommissionRulesSettingsPage({
             </form>
           )}
 
-          {set.notes && (
-            <p className="text-xs font-normal text-zinc-500 dark:text-zinc-500">{set.notes}</p>
-          )}
+          {set.notes && <p className="text-xs font-normal text-slate-500">{set.notes}</p>}
         </Section>
       ))}
     </div>

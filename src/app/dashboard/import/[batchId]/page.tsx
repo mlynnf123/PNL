@@ -46,7 +46,7 @@ export default async function ImportBatchPage({
   if (!canManage) {
     return (
       <div className="flex flex-1 flex-col gap-4">
-        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Import batch</h2>
+        <h2 className="text-lg font-medium text-slate-900">Import batch</h2>
         <NoAccessNotice />
       </div>
     );
@@ -126,8 +126,8 @@ export default async function ImportBatchPage({
     <div className="flex flex-1 flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{batch.fileName}</h2>
-          <p className="text-xs font-normal text-zinc-500 dark:text-zinc-500">
+          <h2 className="text-lg font-medium text-slate-900">{batch.fileName}</h2>
+          <p className="text-xs font-normal text-slate-500">
             {batch.sheetName} · as of {batch.sourceAsOfDate} · {batch.rowCount} rows
           </p>
         </div>
@@ -137,7 +137,7 @@ export default async function ImportBatchPage({
           </StatusPill>
           <Link
             href="/dashboard/import"
-            className="text-sm font-normal text-zinc-600 hover:underline dark:text-zinc-400"
+            className="text-sm font-normal text-slate-600 hover:underline"
           >
             All imports
           </Link>
@@ -145,7 +145,7 @@ export default async function ImportBatchPage({
       </div>
 
       {error && (
-        <p className="rounded-md border-l-2 border-zinc-900 bg-zinc-100 px-3 py-2 text-sm text-zinc-800 dark:border-zinc-50 dark:bg-zinc-900 dark:text-zinc-200">
+        <p className="rounded-md border-l-2 border-slate-900 bg-slate-100 px-3 py-2 text-sm text-slate-800">
           {DETAIL_ERRORS[error] ?? 'Something went wrong.'}
         </p>
       )}
@@ -173,7 +173,7 @@ export default async function ImportBatchPage({
             <form action={commit}>
               <button
                 type="submit"
-                className="rounded-md bg-gradient-to-b from-zinc-800 to-zinc-950 px-3 py-1.5 text-sm font-medium text-white hover:from-zinc-700 hover:to-zinc-900 dark:from-zinc-100 dark:to-zinc-300 dark:text-zinc-900"
+                className="rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
               >
                 Commit {summary.valid} row{summary.valid === 1 ? '' : 's'}
               </button>
@@ -184,11 +184,11 @@ export default async function ImportBatchPage({
               <input
                 name="reason"
                 placeholder="Rollback reason"
-                className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm font-normal text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                className="rounded-md border border-slate-300 px-2 py-1.5 text-sm font-normal text-slate-900"
               />
               <button
                 type="submit"
-                className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-normal text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-normal text-slate-700 hover:bg-slate-100"
               >
                 Roll back
               </button>
@@ -210,7 +210,7 @@ export default async function ImportBatchPage({
             <Stat label="Source labor" value={reconciliation.totals.sourceLabor} />
             <Stat label="Source material" value={reconciliation.totals.sourceMaterial} />
           </div>
-          <p className="text-xs font-normal text-zinc-500 dark:text-zinc-500">
+          <p className="text-xs font-normal text-slate-500">
             Imported revenue and costs are unverified drafts — they do not count toward a job&apos;s
             financial summary until an owner approves them.
           </p>
@@ -221,7 +221,7 @@ export default async function ImportBatchPage({
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-zinc-200 text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
+              <tr className="border-b border-slate-200 text-slate-600">
                 <th className="px-2 py-2 font-normal">#</th>
                 <th className="px-2 py-2 font-normal">Name</th>
                 <th className="px-2 py-2 font-normal">Status</th>
@@ -235,51 +235,41 @@ export default async function ImportBatchPage({
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="border-b border-zinc-100 align-top last:border-0 dark:border-zinc-900"
-                >
-                  <td className="px-2 py-2 font-normal text-zinc-500 dark:text-zinc-500">
-                    {row.rowNumber}
-                  </td>
-                  <td className="px-2 py-2 font-normal text-zinc-900 dark:text-zinc-50">
-                    {row.displayName ?? '—'}
-                  </td>
+                <tr key={row.id} className="border-b border-slate-100 align-top last:border-0">
+                  <td className="px-2 py-2 font-normal text-slate-500">{row.rowNumber}</td>
+                  <td className="px-2 py-2 font-normal text-slate-900">{row.displayName ?? '—'}</td>
                   <td className="px-2 py-2">
                     <StatusPill tone={ROW_STATUS_TONE[row.status] ?? 'soft'}>
                       {row.status}
                     </StatusPill>
                   </td>
-                  <td className="px-2 py-2 font-normal text-zinc-600 dark:text-zinc-400">
+                  <td className="px-2 py-2 font-normal text-slate-600">
                     {row.source.address ?? '—'}
                   </td>
-                  <td className="px-2 py-2 font-normal text-zinc-600 dark:text-zinc-400">
+                  <td className="px-2 py-2 font-normal text-slate-600">
                     {money(row.source.payout)}
                   </td>
-                  <td className="px-2 py-2 font-normal text-zinc-600 dark:text-zinc-400">
+                  <td className="px-2 py-2 font-normal text-slate-600">
                     {money(row.source.labor)}
                   </td>
-                  <td className="px-2 py-2 font-normal text-zinc-600 dark:text-zinc-400">
+                  <td className="px-2 py-2 font-normal text-slate-600">
                     {money(row.source.material)}
                   </td>
-                  <td className="px-2 py-2 font-normal text-zinc-600 dark:text-zinc-400">
+                  <td className="px-2 py-2 font-normal text-slate-600">
                     {money(row.computedJobProfit)}
                   </td>
                   <td className="px-2 py-2">
                     {row.exceptions.length === 0 ? (
-                      <span className="font-normal text-zinc-400 dark:text-zinc-600">None</span>
+                      <span className="font-normal text-slate-400">None</span>
                     ) : (
                       <ul className="flex flex-col gap-1">
                         {row.exceptions.map((exception) => (
-                          <li
-                            key={exception.id}
-                            className="font-normal text-zinc-600 dark:text-zinc-400"
-                          >
+                          <li key={exception.id} className="font-normal text-slate-600">
                             <span
                               className={
                                 exception.severity === 'blocker'
-                                  ? 'text-zinc-900 dark:text-zinc-100'
-                                  : 'text-zinc-500 dark:text-zinc-500'
+                                  ? 'text-slate-900'
+                                  : 'text-slate-500'
                               }
                             >
                               [{exception.severity}]
@@ -295,19 +285,19 @@ export default async function ImportBatchPage({
                         <input
                           name="addressLine1"
                           placeholder="Address"
-                          className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-normal text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                          className="rounded-md border border-slate-300 px-2 py-1 text-xs font-normal text-slate-900"
                         />
                         <input
                           name="payoutAmount"
                           placeholder="Payout"
-                          className="w-24 rounded-md border border-zinc-300 px-2 py-1 text-xs font-normal text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                          className="w-24 rounded-md border border-slate-300 px-2 py-1 text-xs font-normal text-slate-900"
                         />
-                        <label className="flex items-center gap-1 text-xs font-normal text-zinc-600 dark:text-zinc-400">
+                        <label className="flex items-center gap-1 text-xs font-normal text-slate-600">
                           <input type="checkbox" name="exclude" /> Exclude
                         </label>
                         <button
                           type="submit"
-                          className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-normal text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                          className="rounded-md border border-slate-300 px-2 py-1 text-xs font-normal text-slate-700 hover:bg-slate-100"
                         >
                           Resolve
                         </button>
@@ -327,8 +317,8 @@ export default async function ImportBatchPage({
 function Count({ label, value }: { label: string; value: number }) {
   return (
     <div>
-      <p className="text-xs font-normal text-zinc-500 dark:text-zinc-500">{label}</p>
-      <p className="font-normal text-zinc-900 dark:text-zinc-50">{value}</p>
+      <p className="text-xs font-normal text-slate-500">{label}</p>
+      <p className="font-normal text-slate-900">{value}</p>
     </div>
   );
 }
@@ -336,8 +326,8 @@ function Count({ label, value }: { label: string; value: number }) {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-xs font-normal text-zinc-500 dark:text-zinc-500">{label}</p>
-      <p className="font-normal text-zinc-900 dark:text-zinc-50">${value}</p>
+      <p className="text-xs font-normal text-slate-500">{label}</p>
+      <p className="font-normal text-slate-900">${value}</p>
     </div>
   );
 }

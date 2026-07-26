@@ -108,7 +108,7 @@ The app adopts the RoofRunners OS design language (see the CRM port plan). Share
 - **Font (unchanged — the one thing that does not change):** Roboto → Arial/Helvetica, weights **400 and 500 only**. No bold: body copy 400, headings max `font-medium` (500). Page titles use `text-2xl font-medium`, not bold.
 - Sleek, modern, professional — should never look AI-generated.
 
-The existing financial pages (jobs, reports, import, settings, audit) are being migrated from the earlier zinc/gradient styling to this system in a later port phase; new pages use `src/components/ui/` from the start.
+The existing financial pages (jobs, import, settings, audit, login/signup, and the shared `src/app/dashboard/jobs/ui.tsx` primitives) have been migrated from the earlier zinc/gradient styling to this system: flat white cards, slate text/borders, teal accent, no gradients, and the `dark:` variants stripped (the app is always-light). New pages use `src/components/ui/` from the start.
 
 ## Stack decision
 

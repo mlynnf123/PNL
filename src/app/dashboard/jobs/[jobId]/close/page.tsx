@@ -218,31 +218,29 @@ export default async function JobClosePage({
       <div>
         <Link
           href={`/dashboard/jobs/${jobId}`}
-          className="text-sm font-normal text-zinc-600 hover:underline dark:text-zinc-400"
+          className="text-sm font-normal text-slate-600 hover:underline"
         >
           ← {job.jobNumber}
         </Link>
-        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Close</h2>
+        <h2 className="text-lg font-medium text-slate-900">Close</h2>
       </div>
 
       {error === 'conflict' && (
-        <p className="rounded-md border-l-2 border-zinc-900 bg-zinc-100 px-3 py-2 text-sm text-zinc-800 dark:border-zinc-50 dark:bg-zinc-900 dark:text-zinc-200">
+        <p className="rounded-md border-l-2 border-slate-900 bg-slate-100 px-3 py-2 text-sm text-slate-800">
           This job was changed by someone else while you were viewing it. The page has been
           refreshed — review the current state and try again.
         </p>
       )}
 
       <Section title="Operational completion">
-        <p className="text-sm font-normal text-zinc-600 dark:text-zinc-400">
-          Status: {job.operationalStatus}
-        </p>
+        <p className="text-sm font-normal text-slate-600">Status: {job.operationalStatus}</p>
 
         {canRequestCompletion && (
           <form action={requestCompletion} className="flex flex-col gap-3">
             {DEFAULT_CHECKLIST_ITEMS.map((item) => (
               <label
                 key={item.key}
-                className="flex items-center gap-2 text-sm font-normal text-zinc-700 dark:text-zinc-300"
+                className="flex items-center gap-2 text-sm font-normal text-slate-700"
               >
                 <input type="checkbox" name={item.key} />
                 {item.label}
@@ -280,7 +278,7 @@ export default async function JobClosePage({
                   name="reason"
                   placeholder="Reason"
                   required
-                  className="w-40 rounded-md border border-zinc-300 px-2 py-1 text-xs font-normal text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                  className="w-40 rounded-md border border-slate-300 px-2 py-1 text-xs font-normal text-slate-900"
                 />
                 <SmallButton>Reject</SmallButton>
               </form>
@@ -339,7 +337,7 @@ export default async function JobClosePage({
                   name="reason"
                   placeholder="Reason"
                   required
-                  className="w-40 rounded-md border border-zinc-300 px-2 py-1 text-xs font-normal text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                  className="w-40 rounded-md border border-slate-300 px-2 py-1 text-xs font-normal text-slate-900"
                 />
                 <SmallButton>Reject close</SmallButton>
               </form>
@@ -348,7 +346,7 @@ export default async function JobClosePage({
         </div>
 
         {latestAttempt && (
-          <p className="text-xs font-normal text-zinc-500 dark:text-zinc-500">
+          <p className="text-xs font-normal text-slate-500">
             Latest attempt #{latestAttempt.attemptNumber}: {latestAttempt.status}
           </p>
         )}

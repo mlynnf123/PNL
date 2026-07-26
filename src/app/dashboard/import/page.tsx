@@ -35,7 +35,7 @@ export default async function ImportPage({
   if (!canManage) {
     return (
       <div className="flex flex-1 flex-col gap-4">
-        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Import</h2>
+        <h2 className="text-lg font-medium text-slate-900">Import</h2>
         <NoAccessNotice />
       </div>
     );
@@ -89,40 +89,40 @@ export default async function ImportPage({
   return (
     <div className="flex flex-1 flex-col gap-6">
       <div>
-        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Import</h2>
-        <p className="text-xs font-normal text-zinc-500 dark:text-zinc-500">
+        <h2 className="text-lg font-medium text-slate-900">Import</h2>
+        <p className="text-xs font-normal text-slate-500">
           Bring the Job Profit workbook in as reviewable, unverified opening records.
         </p>
       </div>
 
       {error && (
-        <p className="rounded-md border-l-2 border-zinc-900 bg-zinc-100 px-3 py-2 text-sm text-zinc-800 dark:border-zinc-50 dark:bg-zinc-900 dark:text-zinc-200">
+        <p className="rounded-md border-l-2 border-slate-900 bg-slate-100 px-3 py-2 text-sm text-slate-800">
           {IMPORT_ERRORS[error] ?? 'Something went wrong with the import.'}
         </p>
       )}
 
       <Section title="Upload a workbook">
         <form action={upload} className="flex max-w-lg flex-col gap-4">
-          <label className="flex flex-col gap-1 text-xs text-zinc-700 dark:text-zinc-300">
+          <label className="flex flex-col gap-1 text-xs text-slate-700">
             Workbook (.xlsx)
             <input
               type="file"
               name="file"
               accept=".xlsx"
               required
-              className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm font-normal text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              className="rounded-md border border-slate-300 px-2 py-1.5 text-sm font-normal text-slate-900"
             />
           </label>
-          <label className="flex max-w-xs flex-col gap-1 text-xs text-zinc-700 dark:text-zinc-300">
+          <label className="flex max-w-xs flex-col gap-1 text-xs text-slate-700">
             Snapshot &ldquo;as of&rdquo; date
             <input
               type="date"
               name="sourceAsOfDate"
               required
-              className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm font-normal text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              className="rounded-md border border-slate-300 px-2 py-1.5 text-sm font-normal text-slate-900"
             />
           </label>
-          <p className="text-xs font-normal text-zinc-500 dark:text-zinc-500">
+          <p className="text-xs font-normal text-slate-500">
             Imported jobs have no per-row contract date, so this date is recorded as their opening
             date. Nothing is committed until you review the preview.
           </p>
@@ -134,11 +134,11 @@ export default async function ImportPage({
 
       <Section title="Import batches">
         {batches.length === 0 ? (
-          <p className="text-sm font-normal text-zinc-600 dark:text-zinc-400">No imports yet.</p>
+          <p className="text-sm font-normal text-slate-600">No imports yet.</p>
         ) : (
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-zinc-200 text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
+              <tr className="border-b border-slate-200 text-slate-600">
                 <th className="px-2 py-2 font-normal">File</th>
                 <th className="px-2 py-2 font-normal">As of</th>
                 <th className="px-2 py-2 font-normal">Rows</th>
@@ -148,30 +148,23 @@ export default async function ImportPage({
             </thead>
             <tbody>
               {batches.map((batch) => (
-                <tr
-                  key={batch.id}
-                  className="border-b border-zinc-100 last:border-0 dark:border-zinc-900"
-                >
+                <tr key={batch.id} className="border-b border-slate-100 last:border-0">
                   <td className="px-2 py-2">
                     <Link
                       href={`/dashboard/import/${batch.id}`}
-                      className="font-normal text-zinc-900 hover:underline dark:text-zinc-50"
+                      className="font-normal text-slate-900 hover:underline"
                     >
                       {batch.fileName}
                     </Link>
                   </td>
-                  <td className="px-2 py-2 font-normal text-zinc-600 dark:text-zinc-400">
-                    {batch.sourceAsOfDate}
-                  </td>
-                  <td className="px-2 py-2 font-normal text-zinc-600 dark:text-zinc-400">
-                    {batch.rowCount}
-                  </td>
+                  <td className="px-2 py-2 font-normal text-slate-600">{batch.sourceAsOfDate}</td>
+                  <td className="px-2 py-2 font-normal text-slate-600">{batch.rowCount}</td>
                   <td className="px-2 py-2">
                     <StatusPill tone={BATCH_STATUS_TONE[batch.status] ?? 'soft'}>
                       {batch.status}
                     </StatusPill>
                   </td>
-                  <td className="px-2 py-2 font-normal text-zinc-600 dark:text-zinc-400">
+                  <td className="px-2 py-2 font-normal text-slate-600">
                     {batch.uploadedAt.toISOString().slice(0, 10)}
                   </td>
                 </tr>

@@ -15,7 +15,7 @@ export default async function UsersSettingsPage() {
   if (!canManage) {
     return (
       <div className="flex flex-1 flex-col gap-4">
-        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Users</h2>
+        <h2 className="text-lg font-medium text-slate-900">Users</h2>
         <NoAccessNotice />
       </div>
     );
@@ -80,7 +80,7 @@ export default async function UsersSettingsPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Users</h2>
+      <h2 className="text-lg font-medium text-slate-900">Users</h2>
 
       <Section title="Add a user">
         <form action={createUser} className="grid max-w-2xl gap-3 sm:grid-cols-2">
@@ -90,7 +90,7 @@ export default async function UsersSettingsPage() {
           <div className="flex items-end">
             <button
               type="submit"
-              className="rounded-md bg-gradient-to-b from-zinc-800 to-zinc-950 px-3 py-1.5 text-sm font-medium text-white hover:from-zinc-700 hover:to-zinc-900 dark:from-zinc-100 dark:to-zinc-300 dark:text-zinc-900"
+              className="rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
             >
               Create user
             </button>
@@ -103,13 +103,13 @@ export default async function UsersSettingsPage() {
           {users.map((user) => (
             <div
               key={user.id}
-              className="flex flex-col gap-3 border-b border-zinc-100 pb-3 last:border-0 dark:border-zinc-900"
+              className="flex flex-col gap-3 border-b border-slate-100 pb-3 last:border-0"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <p className="font-normal text-zinc-900 dark:text-zinc-50">
+                  <p className="font-normal text-slate-900">
                     {user.displayName}{' '}
-                    <span className="text-xs font-normal text-zinc-500 dark:text-zinc-500">
+                    <span className="text-xs font-normal text-slate-500">
                       {user.email} · {user.userType}
                     </span>
                   </p>
@@ -123,7 +123,7 @@ export default async function UsersSettingsPage() {
                     <input type="hidden" name="activate" value={user.active ? 'false' : 'true'} />
                     <button
                       type="submit"
-                      className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-normal text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                      className="rounded-md border border-slate-300 px-2 py-1 text-xs font-normal text-slate-700 hover:bg-slate-100"
                     >
                       {user.active ? 'Deactivate' : 'Reactivate'}
                     </button>
@@ -133,9 +133,7 @@ export default async function UsersSettingsPage() {
 
               <div className="flex flex-wrap items-center gap-2">
                 {user.roles.length === 0 ? (
-                  <span className="text-xs font-normal text-zinc-500 dark:text-zinc-500">
-                    No roles
-                  </span>
+                  <span className="text-xs font-normal text-slate-500">No roles</span>
                 ) : (
                   user.roles.map((role) => (
                     <form key={role.id} action={unassign} className="inline-flex">
@@ -144,10 +142,10 @@ export default async function UsersSettingsPage() {
                       <button
                         type="submit"
                         title="Remove role"
-                        className="rounded-full border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-xs font-normal text-zinc-700 hover:bg-zinc-200 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
+                        className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-normal text-slate-700 hover:bg-slate-200"
                       >
                         {role.name}
-                        <span className="ml-1 text-zinc-400 dark:text-zinc-600">remove</span>
+                        <span className="ml-1 text-slate-400">remove</span>
                       </button>
                     </form>
                   ))
@@ -156,7 +154,7 @@ export default async function UsersSettingsPage() {
                   <input type="hidden" name="targetUserId" value={user.id} />
                   <select
                     name="roleId"
-                    className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-normal text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                    className="rounded-md border border-slate-300 px-2 py-1 text-xs font-normal text-slate-900"
                   >
                     {roles.map((role) => (
                       <option key={role.id} value={role.id}>
@@ -166,7 +164,7 @@ export default async function UsersSettingsPage() {
                   </select>
                   <button
                     type="submit"
-                    className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-normal text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                    className="rounded-md border border-slate-300 px-2 py-1 text-xs font-normal text-slate-700 hover:bg-slate-100"
                   >
                     Add role
                   </button>

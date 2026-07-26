@@ -182,35 +182,33 @@ export default async function JobCommissionPage({
       <div>
         <Link
           href={`/dashboard/jobs/${jobId}`}
-          className="text-sm font-normal text-zinc-600 hover:underline dark:text-zinc-400"
+          className="text-sm font-normal text-slate-600 hover:underline"
         >
           ← {job.jobNumber}
         </Link>
-        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Commission</h2>
+        <h2 className="text-lg font-medium text-slate-900">Commission</h2>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 rounded-lg border border-zinc-200 bg-gradient-to-b from-white to-zinc-50 p-6 sm:grid-cols-3 dark:border-zinc-800 dark:from-zinc-950 dark:to-black">
+      <div className="grid grid-cols-2 gap-4 rounded-lg border border-slate-200 bg-white p-6 sm:grid-cols-3">
         <div>
-          <p className="text-xs font-normal text-zinc-500 dark:text-zinc-500">Primary sales rep</p>
-          <p className="font-normal text-zinc-900 dark:text-zinc-50">
+          <p className="text-xs font-normal text-slate-500">Primary sales rep</p>
+          <p className="font-normal text-slate-900">
             {primaryAssignment ? (userNameById.get(primaryAssignment.userId) ?? '—') : '—'}
           </p>
         </div>
         <div>
-          <p className="text-xs font-normal text-zinc-500 dark:text-zinc-500">
-            Financial close status
-          </p>
-          <p className="font-normal text-zinc-900 dark:text-zinc-50">{job.financialCloseStatus}</p>
+          <p className="text-xs font-normal text-slate-500">Financial close status</p>
+          <p className="font-normal text-slate-900">{job.financialCloseStatus}</p>
         </div>
         <div>
-          <p className="text-xs font-normal text-zinc-500 dark:text-zinc-500">Commission status</p>
-          <p className="font-normal text-zinc-900 dark:text-zinc-50">{job.commissionStatus}</p>
+          <p className="text-xs font-normal text-slate-500">Commission status</p>
+          <p className="font-normal text-slate-900">{job.commissionStatus}</p>
         </div>
       </div>
 
       <Section title="Allocation batch">
         {!latestBatch && !canGenerate && (
-          <p className="text-sm font-normal text-zinc-600 dark:text-zinc-400">
+          <p className="text-sm font-normal text-slate-600">
             This job must be financially closed before commission can be generated.
           </p>
         )}
@@ -225,8 +223,8 @@ export default async function JobCommissionPage({
           <>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <div>
-                <p className="text-xs font-normal text-zinc-500 dark:text-zinc-500">Status</p>
-                <p className="font-normal text-zinc-900 dark:text-zinc-50">{latestBatch.status}</p>
+                <p className="text-xs font-normal text-slate-500">Status</p>
+                <p className="font-normal text-slate-900">{latestBatch.status}</p>
               </div>
               <Stat label="Total allocated" value={latestBatch.totalAllocatedAmount} />
               <Stat label="Company profit" value={latestBatch.companyProfit} />
@@ -255,7 +253,7 @@ export default async function JobCommissionPage({
                     name="reason"
                     placeholder="Reason"
                     required
-                    className="w-40 rounded-md border border-zinc-300 px-2 py-1 text-xs font-normal text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                    className="w-40 rounded-md border border-slate-300 px-2 py-1 text-xs font-normal text-slate-900"
                   />
                   <SmallButton>Reject batch</SmallButton>
                 </form>
@@ -287,7 +285,7 @@ export default async function JobCommissionPage({
                   name="reason"
                   placeholder="Reason"
                   required
-                  className="w-32 rounded-md border border-zinc-300 px-2 py-1 text-xs font-normal text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                  className="w-32 rounded-md border border-slate-300 px-2 py-1 text-xs font-normal text-slate-900"
                 />
                 <SmallButton>Reverse</SmallButton>
               </form>

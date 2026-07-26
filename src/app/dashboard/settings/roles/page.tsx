@@ -13,7 +13,7 @@ export default async function RolesSettingsPage() {
   if (!canManage) {
     return (
       <div className="flex flex-1 flex-col gap-4">
-        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Roles</h2>
+        <h2 className="text-lg font-medium text-slate-900">Roles</h2>
         <NoAccessNotice />
       </div>
     );
@@ -47,9 +47,7 @@ export default async function RolesSettingsPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">
-        Roles &amp; permissions
-      </h2>
+      <h2 className="text-lg font-medium text-slate-900">Roles &amp; permissions</h2>
 
       <Section title="Add a role">
         <form action={addRole} className="flex max-w-md items-end gap-3">
@@ -58,7 +56,7 @@ export default async function RolesSettingsPage() {
           </div>
           <button
             type="submit"
-            className="rounded-md bg-gradient-to-b from-zinc-800 to-zinc-950 px-3 py-1.5 text-sm font-medium text-white hover:from-zinc-700 hover:to-zinc-900 dark:from-zinc-100 dark:to-zinc-300 dark:text-zinc-900"
+            className="rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
           >
             Create role
           </button>
@@ -76,7 +74,7 @@ export default async function RolesSettingsPage() {
               {PERMISSION_CATALOG.map((entry) => (
                 <label
                   key={entry.key}
-                  className="flex items-start gap-2 text-sm font-normal text-zinc-700 dark:text-zinc-300"
+                  className="flex items-start gap-2 text-sm font-normal text-slate-700"
                 >
                   <input
                     type="checkbox"
@@ -85,10 +83,8 @@ export default async function RolesSettingsPage() {
                     className="mt-1"
                   />
                   <span>
-                    <span className="text-zinc-900 dark:text-zinc-50">{entry.key}</span>
-                    <span className="block text-xs text-zinc-500 dark:text-zinc-500">
-                      {entry.description}
-                    </span>
+                    <span className="text-slate-900">{entry.key}</span>
+                    <span className="block text-xs text-slate-500">{entry.description}</span>
                   </span>
                 </label>
               ))}
@@ -96,7 +92,7 @@ export default async function RolesSettingsPage() {
             <div>
               <button
                 type="submit"
-                className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-normal text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-normal text-slate-700 hover:bg-slate-100"
               >
                 Save permissions
               </button>
