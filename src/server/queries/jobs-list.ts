@@ -12,6 +12,8 @@ export interface JobListRow {
   collectionStatus: string;
   financialCloseStatus: string;
   commissionStatus: string;
+  productionPhase: string;
+  productionPhaseEnteredAt: Date;
   originalContractAmount: string;
   contractedAt: string;
 }
@@ -55,6 +57,8 @@ export async function listJobs(
       collectionStatus: jobs.collectionStatus,
       financialCloseStatus: jobs.financialCloseStatus,
       commissionStatus: jobs.commissionStatus,
+      productionPhase: jobs.productionPhase,
+      productionPhaseEnteredAt: jobs.productionPhaseEnteredAt,
       originalContractAmount: jobs.originalContractAmount,
       contractedAt: jobs.contractedAt,
     })

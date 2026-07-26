@@ -29,6 +29,7 @@ import {
   reverseOrCreditCost,
 } from '@/server/commands/cost-transactions';
 import { getEntityActivity } from '@/server/queries/activity';
+import { ProductionPhaseCard } from './production-phase-card';
 import { getJobFinancialSummary } from '@/server/queries/job-financial-summary';
 import {
   ActivityTimeline,
@@ -64,6 +65,11 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
   const path = `/dashboard/jobs/${jobId}`;
 
   const canView = await userHasPermission(db, session.user.id, PERMISSIONS.JOB_VIEWING);
+  const canManageProduction = await userHasPermission(
+    db,
+    session.user.id,
+    PERMISSIONS.CRM_MANAGEMENT,
+  );
   if (!canView) {
     return (
       <div>
@@ -401,6 +407,15 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
           <Card>
             <CardHeader title="Lifecycle" />
             <LifecycleTracker stages={OPERATIONAL_STAGES} current={job.operationalStatus} />
+          </Card>
+
+          <Card>
+            <CardHeader title="Production pipeline" />
+            <ProductionPhaseCard
+              jobId={job.id}
+              current={job.productionPhase}
+              canManage={canManageProduction}
+            />
           </Card>
 
           <Card>

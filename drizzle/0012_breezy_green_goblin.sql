@@ -1,0 +1,3 @@
+CREATE TYPE "public"."production_phase" AS ENUM('pre_claim', 'filing_claim', 'adjuster_meeting', 'negotiation', 'payment_structure', 'contracting', 'materials_scheduling', 'installation', 'final_payment', 'closed');--> statement-breakpoint
+ALTER TABLE "jobs" ADD COLUMN "production_phase" "production_phase" DEFAULT 'pre_claim' NOT NULL;--> statement-breakpoint
+ALTER TABLE "jobs" ADD COLUMN "production_phase_entered_at" timestamp with time zone DEFAULT now() NOT NULL;

@@ -22,6 +22,49 @@ export const JOB_OPERATIONAL_TONE: Record<string, BadgeTone> = {
   Reopened: 'amber',
 };
 
+// The sales/production pipeline, in order. `closed` is terminal. Used by the
+// jobs board (columns) and the job-detail phase stepper.
+export const PRODUCTION_PHASES = [
+  'pre_claim',
+  'filing_claim',
+  'adjuster_meeting',
+  'negotiation',
+  'payment_structure',
+  'contracting',
+  'materials_scheduling',
+  'installation',
+  'final_payment',
+  'closed',
+] as const;
+
+export type ProductionPhase = (typeof PRODUCTION_PHASES)[number];
+
+export const PRODUCTION_PHASE_LABELS: Record<ProductionPhase, string> = {
+  pre_claim: 'Pre-Claim',
+  filing_claim: 'Filing Claim',
+  adjuster_meeting: 'Adjuster Meeting',
+  negotiation: 'Negotiation',
+  payment_structure: 'Payment Structure',
+  contracting: 'Contracting',
+  materials_scheduling: 'Materials & Scheduling',
+  installation: 'Installation',
+  final_payment: 'Final Payment',
+  closed: 'Post-Job / Closed',
+};
+
+export const PRODUCTION_PHASE_TONE: Record<string, BadgeTone> = {
+  pre_claim: 'slate',
+  filing_claim: 'slate',
+  adjuster_meeting: 'blue',
+  negotiation: 'blue',
+  payment_structure: 'amber',
+  contracting: 'amber',
+  materials_scheduling: 'blue',
+  installation: 'blue',
+  final_payment: 'amber',
+  closed: 'teal',
+};
+
 export const JOB_COLLECTION_TONE: Record<string, BadgeTone> = {
   Expected: 'slate',
   Partial: 'blue',

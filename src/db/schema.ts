@@ -191,6 +191,22 @@ export const operationalStatusEnum = pgEnum('operational_status', [
   'Reopened',
 ]);
 
+// Sales/production pipeline (ported from RoofRunners OS' 10-phase board). This
+// is a DISTINCT dimension from the financial operationalStatus above — it tracks
+// where a job sits in the front-of-funnel workflow, not its money lifecycle.
+export const productionPhaseEnum = pgEnum('production_phase', [
+  'pre_claim',
+  'filing_claim',
+  'adjuster_meeting',
+  'negotiation',
+  'payment_structure',
+  'contracting',
+  'materials_scheduling',
+  'installation',
+  'final_payment',
+  'closed',
+]);
+
 export const collectionStatusEnum = pgEnum('collection_status', [
   'Expected',
   'Partial',
@@ -254,6 +270,12 @@ export const jobs = pgTable(
       .notNull()
       .default('NotReady'),
     commissionStatus: commissionStatusEnum('commission_status').notNull().default('NotEligible'),
+    // Sales/production pipeline position (distinct from operationalStatus). The
+    // entered-at stamp lets us show days-in-phase and flag stuck jobs.
+    productionPhase: productionPhaseEnum('production_phase').notNull().default('pre_claim'),
+    productionPhaseEnteredAt: timestamp('production_phase_entered_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
     recordState: recordStateEnum('record_state').notNull().default('Active'),
     actualCompletionDate: date('actual_completion_date'),
     // No FK: financial_close_versions.job_id already references jobs.id, and
