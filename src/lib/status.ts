@@ -63,6 +63,13 @@ export const ESTIMATE_STATUS_TONE: Record<string, BadgeTone> = {
   declined: 'red',
 };
 
+export const CONTRACT_STATUS_TONE: Record<string, BadgeTone> = {
+  draft: 'slate',
+  sent: 'amber',
+  signed: 'teal',
+  completed: 'teal',
+};
+
 export function toneFor(map: Record<string, BadgeTone>, value: string): BadgeTone {
   return map[value] ?? 'slate';
 }

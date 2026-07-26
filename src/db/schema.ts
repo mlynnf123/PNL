@@ -1233,3 +1233,71 @@ export const estimates = pgTable(
     uniqueIndex('estimates_org_number_unique').on(table.organizationId, table.estimateNumber),
   ],
 );
+
+// CRM — Contracts. Roofing contract with line items, a payment schedule, and
+// captured e-signatures (ported from RoofRunners OS). Line items, payment
+// schedule, and signatures are JSONB; the authoritative `total` is recomputed
+// server-side (src/lib/contract-math.ts). A signed contract can seed a job's
+// original-contract revenue (offered, not automatic).
+export const contractStatusEnum = pgEnum('contract_status', [
+  'draft',
+  'sent',
+  'signed',
+  'completed',
+]);
+
+export const contracts = pgTable(
+  'contracts',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    // Human-readable per-org number, displayed as CON-NNNN. Never reused.
+    contractNumber: integer('contract_number').notNull(),
+    title: text('title').notNull(),
+    status: contractStatusEnum('status').notNull().default('draft'),
+    customerName: text('customer_name'),
+    customerAddress: text('customer_address'),
+    customerCity: text('customer_city'),
+    customerState: text('customer_state'),
+    customerZip: text('customer_zip'),
+    customerPhone: text('customer_phone'),
+    customerEmail: text('customer_email'),
+    companyRepName: text('company_rep_name'),
+    companyRepTitle: text('company_rep_title'),
+    projectDescription: text('project_description'),
+    workLocation: text('work_location'),
+    startDate: date('start_date'),
+    completionDate: date('completion_date'),
+    // ContractLineItem[] — { id, description, quantity, unitPrice, total, category }.
+    lineItemsJson: jsonb('line_items_json')
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    // { depositAmount, progressPayments: [{ description, amount }], finalPayment }.
+    paymentScheduleJson: jsonb('payment_schedule_json')
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    // { company?: Sig, customer?: Sig } — Sig = { documentId, signerName, signedAt }.
+    signaturesJson: jsonb('signatures_json')
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    terms: text('terms'),
+    warrantyInfo: text('warranty_info'),
+    notes: text('notes'),
+    total: numeric('total', { precision: 12, scale: 2 }).notNull().default('0'),
+    leadId: uuid('lead_id').references(() => leads.id),
+    jobId: uuid('job_id').references(() => jobs.id),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    rowVersion: integer('row_version').notNull().default(1),
+  },
+  (table) => [
+    uniqueIndex('contracts_org_number_unique').on(table.organizationId, table.contractNumber),
+  ],
+);

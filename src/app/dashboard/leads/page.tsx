@@ -1,6 +1,7 @@
 import { db } from '@/db/client';
 import { requireSession } from '@/lib/require-session';
 import { PERMISSIONS, userHasPermission } from '@/lib/permissions';
+import { listContracts } from '@/server/queries/contracts';
 import { listEstimates } from '@/server/queries/estimates';
 import { listLeads } from '@/server/queries/leads';
 import { listUsersWithRoles } from '@/server/queries/settings-directory';
@@ -27,19 +28,24 @@ export default async function LeadsPage({
   }
 
   const canManage = await userHasPermission(db, session.user.id, PERMISSIONS.CRM_MANAGEMENT);
-  const [leads, users, estimates] = await Promise.all([
+  const [leads, users, estimates, contracts] = await Promise.all([
     listLeads(session.user.organizationId),
     listUsersWithRoles(session.user.organizationId),
     listEstimates(session.user.organizationId),
+    listContracts(session.user.organizationId),
   ]);
   const assignable = users
     .filter((u) => u.active)
     .map((u) => ({ id: u.id, displayName: u.displayName }));
 
-  // Group lead-linked estimates so each lead drawer can show its own.
+  // Group lead-linked estimates and contracts so each drawer shows its own.
   const estimatesByLead: Record<string, (typeof estimates)[number][]> = {};
   for (const e of estimates) {
     if (e.leadId) (estimatesByLead[e.leadId] ??= []).push(e);
+  }
+  const contractsByLead: Record<string, (typeof contracts)[number][]> = {};
+  for (const c of contracts) {
+    if (c.leadId) (contractsByLead[c.leadId] ??= []).push(c);
   }
 
   const { lead: openLeadId } = await searchParams;
@@ -50,6 +56,7 @@ export default async function LeadsPage({
       users={assignable}
       canManage={canManage}
       estimatesByLead={estimatesByLead}
+      contractsByLead={contractsByLead}
       openLeadId={openLeadId}
     />
   );

@@ -6,7 +6,13 @@ import { useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { Badge, Button, Drawer, FormField, Input, Modal, Select, Textarea } from '@/components/ui';
 import { formatCurrency, formatDate } from '@/lib/format';
-import { ESTIMATE_STATUS_TONE, LEAD_STATUS_TONE as STATUS_TONE, PRIORITY_TONE } from '@/lib/status';
+import {
+  CONTRACT_STATUS_TONE,
+  ESTIMATE_STATUS_TONE,
+  LEAD_STATUS_TONE as STATUS_TONE,
+  PRIORITY_TONE,
+} from '@/lib/status';
+import type { ContractListRow } from '@/server/queries/contracts';
 import type { EstimateListRow } from '@/server/queries/estimates';
 import type { LeadRow } from '@/server/queries/leads';
 import {
@@ -34,12 +40,14 @@ export function LeadsClient({
   users,
   canManage,
   estimatesByLead = {},
+  contractsByLead = {},
   openLeadId,
 }: {
   leads: LeadRow[];
   users: User[];
   canManage: boolean;
   estimatesByLead?: Record<string, EstimateListRow[]>;
+  contractsByLead?: Record<string, ContractListRow[]>;
   openLeadId?: string;
 }) {
   const router = useRouter();
@@ -381,6 +389,7 @@ export function LeadsClient({
         canManage={canManage}
         pending={isPending}
         estimates={detail ? (estimatesByLead[detail.id] ?? []) : []}
+        contracts={detail ? (contractsByLead[detail.id] ?? []) : []}
         onClose={() => setDetail(null)}
         onEdit={(lead) => {
           setDetail(null);
@@ -550,6 +559,7 @@ function LeadDetailDrawer({
   canManage,
   pending,
   estimates,
+  contracts,
   onClose,
   onEdit,
   onConvert,
@@ -558,6 +568,7 @@ function LeadDetailDrawer({
   canManage: boolean;
   pending: boolean;
   estimates: EstimateListRow[];
+  contracts: ContractListRow[];
   onClose: () => void;
   onEdit: (lead: LeadRow) => void;
   onConvert: (fundingType: 'insurance' | 'retail' | 'other') => void;
@@ -654,6 +665,42 @@ function LeadDetailDrawer({
                       <Badge tone={ESTIMATE_STATUS_TONE[e.status] ?? 'slate'}>{e.status}</Badge>
                     </span>
                     <span className="text-slate-600">{formatCurrency(e.total)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="border-t border-slate-200 pt-4">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-medium tracking-wider text-slate-400 uppercase">Contracts</p>
+            {canManage && (
+              <Link
+                href={`/dashboard/contracts/new?leadId=${lead.id}`}
+                className="text-sm font-medium text-teal-600 hover:underline"
+              >
+                New contract
+              </Link>
+            )}
+          </div>
+          {contracts.length === 0 ? (
+            <p className="text-sm text-slate-500">No contracts yet.</p>
+          ) : (
+            <ul className="space-y-1">
+              {contracts.map((c) => (
+                <li key={c.id}>
+                  <Link
+                    href={`/dashboard/contracts/${c.id}`}
+                    className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-slate-50"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="text-slate-800">
+                        CON-{String(c.contractNumber).padStart(4, '0')}
+                      </span>
+                      <Badge tone={CONTRACT_STATUS_TONE[c.status] ?? 'slate'}>{c.status}</Badge>
+                    </span>
+                    <span className="text-slate-600">{formatCurrency(c.total)}</span>
                   </Link>
                 </li>
               ))}

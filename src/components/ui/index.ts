@@ -12,3 +12,4 @@ export { Drawer } from './drawer';
 export { EmptyState } from './empty-state';
 export { LifecycleTracker } from './lifecycle-tracker';
 export { ActivityTimeline, type ActivityEntry } from './activity-timeline';
+export { SignaturePad, type SignaturePadHandle } from './signature-pad';
