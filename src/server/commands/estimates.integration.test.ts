@@ -11,7 +11,13 @@ import {
   grantPermission,
   resetDatabase,
 } from '@/test-support/fixtures';
-import { createEstimate, deleteEstimate, updateEstimate, updateEstimateStatus } from './estimates';
+import {
+  createEstimate,
+  deleteEstimate,
+  updateEstimate,
+  updateEstimateCover,
+  updateEstimateStatus,
+} from './estimates';
 
 async function crmActor() {
   const org = await createOrganization();
@@ -112,6 +118,30 @@ describe('estimate commands', () => {
       testDb,
     );
     expect(await getEstimate(e.id, org.id, testDb)).toBeNull();
+  });
+
+  it('EST-004: cover photo is set without bumping the row version', async () => {
+    const { org, actor } = await crmActor();
+    const e = await createEstimate(
+      { actorUserId: actor.id, organizationId: org.id, ...base, options: [option()] },
+      testDb,
+    );
+    expect((await getEstimate(e.id, org.id, testDb))?.rowVersion).toBe(1);
+
+    await updateEstimateCover(
+      {
+        actorUserId: actor.id,
+        organizationId: org.id,
+        estimateId: e.id,
+        coverPhotoKey: 'doc-123',
+      },
+      testDb,
+    );
+
+    const row = await getEstimate(e.id, org.id, testDb);
+    expect(row?.coverPhotoKey).toBe('doc-123');
+    // The builder keeps an open edit token; setting the cover must not invalidate it.
+    expect(row?.rowVersion).toBe(1);
   });
 
   it('AUTH-EST-001: a user without crm_management cannot create an estimate', async () => {

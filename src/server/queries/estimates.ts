@@ -26,6 +26,7 @@ export interface EstimateFull extends EstimateListRow {
   introLetter: string | null;
   repName: string | null;
   notes: string | null;
+  coverPhotoKey: string | null;
   options: EstimateOption[];
   leadId: string | null;
   rowVersion: number;
@@ -90,6 +91,7 @@ export async function getEstimate(
     introLetter: row.introLetter,
     repName: row.repName,
     notes: row.notes,
+    coverPhotoKey: row.coverPhotoKey,
     options: row.optionsJson as EstimateOption[],
     leadId: row.leadId,
     updatedAt: row.updatedAt,

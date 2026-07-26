@@ -13,7 +13,12 @@ import {
   optionTotal,
 } from '@/lib/estimate-math';
 import type { EstimateFull } from '@/server/queries/estimates';
-import { type ActionResult, createEstimateAction, updateEstimateAction } from './actions';
+import {
+  type ActionResult,
+  createEstimateAction,
+  updateEstimateAction,
+  uploadEstimateCoverAction,
+} from './actions';
 
 function blankOption(): EstimateOption {
   return {
@@ -70,6 +75,18 @@ export function EstimateBuilder({ initial }: { initial: EstimateFull | null }) {
           : o,
       ),
     );
+  }
+
+  function onUploadCover(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!initial) return;
+    const fd = new FormData(e.currentTarget);
+    setError('');
+    startTransition(async () => {
+      const res = await uploadEstimateCoverAction(initial.id, fd);
+      if (!res.ok) setError(res.error);
+      else router.refresh();
+    });
   }
 
   const grandTotal = estimateTotal(options);
@@ -187,6 +204,44 @@ export function EstimateBuilder({ initial }: { initial: EstimateFull | null }) {
             </FormField>
           </div>
         </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Cover photo"
+          action={
+            initial ? (
+              <Link
+                href={`/dashboard/estimates/${initial.id}/preview`}
+                className="text-sm font-medium text-teal-600 hover:underline"
+              >
+                Preview &amp; PDF
+              </Link>
+            ) : undefined
+          }
+        />
+        {initial ? (
+          <div className="space-y-3">
+            {initial.coverPhotoKey && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={`/api/documents/${initial.coverPhotoKey}`}
+                alt="Cover"
+                className="max-h-48 rounded-lg border border-slate-200 object-cover"
+              />
+            )}
+            <form onSubmit={onUploadCover} className="flex items-center gap-2">
+              <input type="file" name="file" accept="image/*" required className="text-sm" />
+              <Button type="submit" size="sm" variant="secondary" disabled={isPending}>
+                {initial.coverPhotoKey ? 'Replace' : 'Upload'}
+              </Button>
+            </form>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500">
+            Save the estimate first, then add a cover photo and export a PDF.
+          </p>
+        )}
       </Card>
 
       <Card>

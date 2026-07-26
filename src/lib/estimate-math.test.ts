@@ -50,8 +50,8 @@ describe('estimate math', () => {
   });
 
   it('EST-MATH-004: sanitize coerces numbers and trims', () => {
-    const [o] = sanitizeOptions([
-      // @ts-expect-error simulating loose client input
+    // Simulate loose client input (string numbers) reaching the server.
+    const loose = [
       {
         id: 'o1',
         title: '  Roof  ',
@@ -61,7 +61,8 @@ describe('estimate math', () => {
         taxRate: '5',
         items: [],
       },
-    ]);
+    ] as unknown as EstimateOption[];
+    const [o] = sanitizeOptions(loose);
     expect(o.title).toBe('Roof');
     expect(o.lumpTotal).toBe(10000);
     expect(o.discountAmount).toBe(0);

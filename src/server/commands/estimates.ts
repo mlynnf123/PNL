@@ -216,6 +216,46 @@ export async function updateEstimateStatus(input: EstimateStatusInput, db: DbCli
   });
 }
 
+// Sets the cover-photo reference (a documents.id served via /api/documents).
+// Deliberately does NOT bump rowVersion, so an open builder's optimistic-
+// concurrency token stays valid after a cover upload.
+export async function updateEstimateCover(
+  input: {
+    actorUserId: string;
+    organizationId: string;
+    estimateId: string;
+    coverPhotoKey: string | null;
+    correlationId?: string;
+  },
+  db: DbClient = defaultDb,
+) {
+  return db.transaction(async (tx) => {
+    await requirePermission(tx, input.actorUserId, PERMISSIONS.CRM_MANAGEMENT);
+
+    const [updated] = await tx
+      .update(estimates)
+      .set({ coverPhotoKey: input.coverPhotoKey, updatedAt: new Date() })
+      .where(
+        and(eq(estimates.id, input.estimateId), eq(estimates.organizationId, input.organizationId)),
+      )
+      .returning();
+    if (!updated) throw new EstimateNotFoundError(input.estimateId);
+
+    await recordAuditEvent(tx, {
+      organizationId: input.organizationId,
+      actorUserId: input.actorUserId,
+      action: 'estimate.cover_updated',
+      entityType: 'estimate',
+      entityId: updated.id,
+      newState: { coverPhotoKey: input.coverPhotoKey },
+      source: 'web',
+      correlationId: input.correlationId,
+    });
+
+    return updated;
+  });
+}
+
 export interface DeleteEstimateInput {
   actorUserId: string;
   organizationId: string;

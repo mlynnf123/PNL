@@ -4,11 +4,13 @@ import { revalidatePath } from 'next/cache';
 import { ConcurrencyConflictError } from '@/lib/concurrency';
 import { AuthorizationError } from '@/lib/permissions';
 import { requireSession } from '@/lib/require-session';
+import { uploadDocument } from '@/server/commands/documents';
 import {
   type EstimateFields,
   createEstimate,
   deleteEstimate,
   updateEstimate,
+  updateEstimateCover,
   updateEstimateStatus,
 } from '@/server/commands/estimates';
 
@@ -76,6 +78,39 @@ export async function updateEstimateStatusAction(
     });
     revalidatePath(PATH);
     return { ok: true };
+  } catch (err) {
+    return handle(err);
+  }
+}
+
+export async function uploadEstimateCoverAction(
+  estimateId: string,
+  formData: FormData,
+): Promise<ActionResult> {
+  const session = await requireSession();
+  const file = formData.get('file');
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, error: 'Choose an image to upload.' };
+  }
+  try {
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const doc = await uploadDocument({
+      actorUserId: session.user.id,
+      organizationId: session.user.organizationId,
+      entityType: 'estimate',
+      entityId: estimateId,
+      fileName: file.name,
+      contentType: file.type || 'application/octet-stream',
+      bytes,
+    });
+    await updateEstimateCover({
+      actorUserId: session.user.id,
+      organizationId: session.user.organizationId,
+      estimateId,
+      coverPhotoKey: doc.id,
+    });
+    revalidatePath(`${PATH}/${estimateId}`);
+    return { ok: true, id: doc.id };
   } catch (err) {
     return handle(err);
   }
