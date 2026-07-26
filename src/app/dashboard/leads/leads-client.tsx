@@ -3,9 +3,11 @@
 import { Pencil, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
+import Link from 'next/link';
 import { Badge, Button, Drawer, FormField, Input, Modal, Select, Textarea } from '@/components/ui';
 import { formatCurrency, formatDate } from '@/lib/format';
-import { LEAD_STATUS_TONE as STATUS_TONE, PRIORITY_TONE } from '@/lib/status';
+import { ESTIMATE_STATUS_TONE, LEAD_STATUS_TONE as STATUS_TONE, PRIORITY_TONE } from '@/lib/status';
+import type { EstimateListRow } from '@/server/queries/estimates';
 import type { LeadRow } from '@/server/queries/leads';
 import {
   type ActionResult,
@@ -31,10 +33,14 @@ export function LeadsClient({
   leads,
   users,
   canManage,
+  estimatesByLead = {},
+  openLeadId,
 }: {
   leads: LeadRow[];
   users: User[];
   canManage: boolean;
+  estimatesByLead?: Record<string, EstimateListRow[]>;
+  openLeadId?: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -44,7 +50,9 @@ export function LeadsClient({
   const [view, setView] = useState<'grid' | 'list'>('grid');
   // undefined = closed, null = create, LeadRow = edit
   const [formLead, setFormLead] = useState<LeadRow | null | undefined>(undefined);
-  const [detail, setDetail] = useState<LeadRow | null>(null);
+  const [detail, setDetail] = useState<LeadRow | null>(() =>
+    openLeadId ? (leads.find((l) => l.id === openLeadId) ?? null) : null,
+  );
   const [error, setError] = useState('');
 
   // Search + priority filtered (but NOT status) — the basis for the bucket counts.
@@ -372,6 +380,7 @@ export function LeadsClient({
         lead={detail}
         canManage={canManage}
         pending={isPending}
+        estimates={detail ? (estimatesByLead[detail.id] ?? []) : []}
         onClose={() => setDetail(null)}
         onEdit={(lead) => {
           setDetail(null);
@@ -540,6 +549,7 @@ function LeadDetailDrawer({
   lead,
   canManage,
   pending,
+  estimates,
   onClose,
   onEdit,
   onConvert,
@@ -547,6 +557,7 @@ function LeadDetailDrawer({
   lead: LeadRow | null;
   canManage: boolean;
   pending: boolean;
+  estimates: EstimateListRow[];
   onClose: () => void;
   onEdit: (lead: LeadRow) => void;
   onConvert: (fundingType: 'insurance' | 'retail' | 'other') => void;
@@ -613,6 +624,42 @@ function LeadDetailDrawer({
         {converted && lead.convertedJobId && (
           <p className="text-sm text-teal-700">Converted to a job.</p>
         )}
+
+        <div className="border-t border-slate-200 pt-4">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-medium tracking-wider text-slate-400 uppercase">Estimates</p>
+            {canManage && (
+              <Link
+                href={`/dashboard/estimates/new?leadId=${lead.id}`}
+                className="text-sm font-medium text-teal-600 hover:underline"
+              >
+                New estimate
+              </Link>
+            )}
+          </div>
+          {estimates.length === 0 ? (
+            <p className="text-sm text-slate-500">No estimates yet.</p>
+          ) : (
+            <ul className="space-y-1">
+              {estimates.map((e) => (
+                <li key={e.id}>
+                  <Link
+                    href={`/dashboard/estimates/${e.id}`}
+                    className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-slate-50"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="text-slate-800">
+                        EST-{String(e.estimateNumber).padStart(4, '0')}
+                      </span>
+                      <Badge tone={ESTIMATE_STATUS_TONE[e.status] ?? 'slate'}>{e.status}</Badge>
+                    </span>
+                    <span className="text-slate-600">{formatCurrency(e.total)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </Drawer>
   );

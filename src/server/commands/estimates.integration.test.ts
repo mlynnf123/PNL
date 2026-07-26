@@ -5,6 +5,7 @@ import { ConcurrencyConflictError } from '@/lib/concurrency';
 import { AuthorizationError } from '@/lib/permissions';
 import type { EstimateOption } from '@/lib/estimate-math';
 import { getEstimate, listEstimates } from '@/server/queries/estimates';
+import { createLead } from './leads';
 import {
   createOrganization,
   createUser,
@@ -142,6 +143,36 @@ describe('estimate commands', () => {
     expect(row?.coverPhotoKey).toBe('doc-123');
     // The builder keeps an open edit token; setting the cover must not invalidate it.
     expect(row?.rowVersion).toBe(1);
+  });
+
+  it('EST-005: an estimate can be linked to a lead and filtered by it', async () => {
+    const { org, actor } = await crmActor();
+    const lead = await createLead(
+      { actorUserId: actor.id, organizationId: org.id, customerName: 'Jane Roof' },
+      testDb,
+    );
+
+    const linked = await createEstimate(
+      {
+        actorUserId: actor.id,
+        organizationId: org.id,
+        ...base,
+        options: [option()],
+        leadId: lead.id,
+      },
+      testDb,
+    );
+    await createEstimate(
+      { actorUserId: actor.id, organizationId: org.id, ...base, options: [option()] },
+      testDb,
+    );
+
+    expect((await getEstimate(linked.id, org.id, testDb))?.leadId).toBe(lead.id);
+
+    const forLead = await listEstimates(org.id, { leadId: lead.id }, testDb);
+    expect(forLead).toHaveLength(1);
+    expect(forLead[0].id).toBe(linked.id);
+    expect(await listEstimates(org.id, {}, testDb)).toHaveLength(2);
   });
 
   it('AUTH-EST-001: a user without crm_management cannot create an estimate', async () => {

@@ -40,21 +40,72 @@ function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function EstimateBuilder({ initial }: { initial: EstimateFull | null }) {
+export interface EstimatePrefill {
+  leadId: string;
+  estimateName?: string;
+  customerName?: string;
+  customerAddress?: string;
+  customerCity?: string;
+  customerState?: string;
+  customerZip?: string;
+  customerPhone?: string;
+  customerEmail?: string;
+}
+
+export interface TemplatePick {
+  id: string;
+  name: string;
+  projectDescription: string | null;
+  lineItems: { id: string; description: string; total: number }[];
+}
+
+// Turn a saved document template into a single priced option.
+function optionFromTemplate(t: TemplatePick): EstimateOption {
+  const items: EstimateScopeItem[] = t.lineItems.map((li) => ({
+    id: crypto.randomUUID(),
+    label: li.description,
+    description: '',
+    lineTotal: li.total,
+  }));
+  return {
+    id: crypto.randomUUID(),
+    title: t.name,
+    summary: t.projectDescription ?? '',
+    items,
+    perLinePricing: items.length > 0,
+    lumpTotal: 0,
+    discountLabel: '',
+    discountAmount: 0,
+    taxRate: 0,
+  };
+}
+
+export function EstimateBuilder({
+  initial,
+  prefill = null,
+  templates = [],
+}: {
+  initial: EstimateFull | null;
+  prefill?: EstimatePrefill | null;
+  templates?: TemplatePick[];
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
 
-  const [name, setName] = useState(initial?.estimateName ?? '');
+  // Lead this estimate belongs to: from the saved record, or from a create-from-lead prefill.
+  const leadId = initial?.leadId ?? prefill?.leadId ?? null;
+
+  const [name, setName] = useState(initial?.estimateName ?? prefill?.estimateName ?? '');
   const [date, setDate] = useState(initial?.estimateDate ?? today());
   const [customer, setCustomer] = useState({
-    customerName: initial?.customerName ?? '',
-    customerAddress: initial?.customerAddress ?? '',
-    customerCity: initial?.customerCity ?? '',
-    customerState: initial?.customerState ?? '',
-    customerZip: initial?.customerZip ?? '',
-    customerPhone: initial?.customerPhone ?? '',
-    customerEmail: initial?.customerEmail ?? '',
+    customerName: initial?.customerName ?? prefill?.customerName ?? '',
+    customerAddress: initial?.customerAddress ?? prefill?.customerAddress ?? '',
+    customerCity: initial?.customerCity ?? prefill?.customerCity ?? '',
+    customerState: initial?.customerState ?? prefill?.customerState ?? '',
+    customerZip: initial?.customerZip ?? prefill?.customerZip ?? '',
+    customerPhone: initial?.customerPhone ?? prefill?.customerPhone ?? '',
+    customerEmail: initial?.customerEmail ?? prefill?.customerEmail ?? '',
   });
   const [helpWith, setHelpWith] = useState(initial?.helpWith ?? '');
   const [repName, setRepName] = useState(initial?.repName ?? '');
@@ -102,6 +153,7 @@ export function EstimateBuilder({ initial }: { initial: EstimateFull | null }) {
       introLetter,
       notes,
       options,
+      leadId,
     };
     startTransition(async () => {
       const res: ActionResult = initial
@@ -134,6 +186,16 @@ export function EstimateBuilder({ initial }: { initial: EstimateFull | null }) {
       {error && (
         <p className="rounded-lg border-l-2 border-red-500 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
+        </p>
+      )}
+
+      {leadId && (
+        <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+          Linked to{' '}
+          <Link href={`/dashboard/leads?lead=${leadId}`} className="text-teal-600 hover:underline">
+            a lead
+          </Link>
+          .
         </p>
       )}
 
@@ -253,13 +315,34 @@ export function EstimateBuilder({ initial }: { initial: EstimateFull | null }) {
         <CardHeader
           title="Options"
           action={
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => setOptions((prev) => [...prev, blankOption()])}
-            >
-              Add option
-            </Button>
+            <div className="flex items-center gap-2">
+              {templates.length > 0 && (
+                <select
+                  aria-label="Add option from template"
+                  value=""
+                  className={`${controlClass} w-auto`}
+                  onChange={(e) => {
+                    const t = templates.find((x) => x.id === e.target.value);
+                    if (t) setOptions((prev) => [...prev, optionFromTemplate(t)]);
+                    e.target.value = '';
+                  }}
+                >
+                  <option value="">Add from template…</option>
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setOptions((prev) => [...prev, blankOption()])}
+              >
+                Add option
+              </Button>
+            </div>
           }
         />
         <div className="space-y-5">

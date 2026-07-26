@@ -12,6 +12,7 @@ export interface EstimateListRow {
   status: string;
   total: string;
   estimateDate: string;
+  leadId: string | null;
   updatedAt: Date;
 }
 
@@ -34,11 +35,12 @@ export interface EstimateFull extends EstimateListRow {
 
 export async function listEstimates(
   organizationId: string,
-  filters: { status?: string; search?: string } = {},
+  filters: { status?: string; search?: string; leadId?: string } = {},
   db: DbOrTx = defaultDb,
 ): Promise<EstimateListRow[]> {
   const conditions: SQL[] = [eq(estimates.organizationId, organizationId)];
   if (filters.status) conditions.push(eq(estimates.status, filters.status as never));
+  if (filters.leadId) conditions.push(eq(estimates.leadId, filters.leadId));
   if (filters.search) {
     const term = `%${filters.search}%`;
     conditions.push(
@@ -55,6 +57,7 @@ export async function listEstimates(
       status: estimates.status,
       total: estimates.total,
       estimateDate: estimates.estimateDate,
+      leadId: estimates.leadId,
       updatedAt: estimates.updatedAt,
     })
     .from(estimates)

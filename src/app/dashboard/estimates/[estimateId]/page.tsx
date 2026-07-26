@@ -5,6 +5,7 @@ import { PERMISSIONS, userHasPermission } from '@/lib/permissions';
 import { getEstimate } from '@/server/queries/estimates';
 import { PageHeader } from '@/components/ui';
 import { EstimateBuilder } from '../estimate-builder';
+import { estimateTemplatePicks } from '../templates';
 
 export default async function EstimatePage({
   params,
@@ -31,5 +32,6 @@ export default async function EstimatePage({
     notFound();
   }
 
-  return <EstimateBuilder initial={estimate} />;
+  const templates = await estimateTemplatePicks(session.user.organizationId);
+  return <EstimateBuilder initial={estimate} templates={templates} />;
 }
