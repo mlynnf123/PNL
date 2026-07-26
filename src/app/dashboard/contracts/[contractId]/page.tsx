@@ -6,6 +6,7 @@ import { getContract } from '@/server/queries/contracts';
 import { PageHeader } from '@/components/ui';
 import { ContractBuilder } from '../contract-builder';
 import { jobPicks } from '../jobs';
+import { contractTemplatePicks } from '../templates';
 
 export default async function ContractPage({
   params,
@@ -34,7 +35,10 @@ export default async function ContractPage({
 
   // Only offer the revenue-seeding picker to users who can post financials.
   const canSeedRevenue = await userHasPermission(db, session.user.id, PERMISSIONS.FINANCIAL_ENTRY);
-  const jobs = canSeedRevenue ? await jobPicks(session.user.organizationId) : [];
+  const [jobs, templates] = await Promise.all([
+    canSeedRevenue ? jobPicks(session.user.organizationId) : Promise.resolve([]),
+    contractTemplatePicks(session.user.organizationId),
+  ]);
 
-  return <ContractBuilder initial={contract} jobs={jobs} />;
+  return <ContractBuilder initial={contract} jobs={jobs} templates={templates} />;
 }

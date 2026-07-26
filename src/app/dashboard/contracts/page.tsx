@@ -2,6 +2,7 @@ import { db } from '@/db/client';
 import { requireSession } from '@/lib/require-session';
 import { PERMISSIONS, userHasPermission } from '@/lib/permissions';
 import { listContracts } from '@/server/queries/contracts';
+import { listDocumentTemplates } from '@/server/queries/document-templates';
 import { PageHeader } from '@/components/ui';
 import { ContractsClient } from './contracts-client';
 
@@ -21,7 +22,10 @@ export default async function ContractsPage() {
   }
 
   const canManage = await userHasPermission(db, session.user.id, PERMISSIONS.CRM_MANAGEMENT);
-  const contracts = await listContracts(session.user.organizationId);
+  const [contracts, templates] = await Promise.all([
+    listContracts(session.user.organizationId),
+    listDocumentTemplates(session.user.organizationId, { type: 'contract' }),
+  ]);
 
-  return <ContractsClient contracts={contracts} canManage={canManage} />;
+  return <ContractsClient contracts={contracts} templates={templates} canManage={canManage} />;
 }

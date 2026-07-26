@@ -12,7 +12,9 @@ import {
   updateDocumentTemplate,
 } from '@/server/commands/document-templates';
 
-const PATH = '/dashboard/templates';
+// Templates are managed inline on the pages that consume them (Estimates and
+// Contracts), so both are revalidated after any change.
+const PATHS = ['/dashboard/estimates', '/dashboard/contracts'];
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -26,6 +28,10 @@ function handle(err: unknown): ActionResult {
   throw err;
 }
 
+function revalidate() {
+  for (const p of PATHS) revalidatePath(p);
+}
+
 export async function createTemplateAction(fields: TemplateFields): Promise<ActionResult> {
   const session = await requireSession();
   try {
@@ -34,7 +40,7 @@ export async function createTemplateAction(fields: TemplateFields): Promise<Acti
       organizationId: session.user.organizationId,
       ...fields,
     });
-    revalidatePath(PATH);
+    revalidate();
     return { ok: true };
   } catch (err) {
     return handle(err);
@@ -55,7 +61,7 @@ export async function updateTemplateAction(
       expectedRowVersion,
       ...fields,
     });
-    revalidatePath(PATH);
+    revalidate();
     return { ok: true };
   } catch (err) {
     return handle(err);
@@ -70,7 +76,7 @@ export async function duplicateTemplateAction(templateId: string): Promise<Actio
       organizationId: session.user.organizationId,
       templateId,
     });
-    revalidatePath(PATH);
+    revalidate();
     return { ok: true };
   } catch (err) {
     return handle(err);
@@ -85,7 +91,7 @@ export async function deleteTemplateAction(templateId: string): Promise<ActionRe
       organizationId: session.user.organizationId,
       templateId,
     });
-    revalidatePath(PATH);
+    revalidate();
     return { ok: true };
   } catch (err) {
     return handle(err);

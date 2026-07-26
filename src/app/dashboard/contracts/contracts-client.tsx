@@ -5,18 +5,22 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 import { Badge, EmptyState, LinkButton, PageHeader, StatCard } from '@/components/ui';
+import { TemplateManager } from '@/components/templates/template-manager';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { CONTRACT_STATUS_TONE, toneFor } from '@/lib/status';
 import type { ContractListRow } from '@/server/queries/contracts';
+import type { TemplateRow } from '@/server/queries/document-templates';
 import { type ActionResult, deleteContractAction, updateContractStatusAction } from './actions';
 
 const STATUSES = ['draft', 'sent', 'signed', 'completed'] as const;
 
 export function ContractsClient({
   contracts,
+  templates,
   canManage,
 }: {
   contracts: ContractListRow[];
+  templates: TemplateRow[];
   canManage: boolean;
 }) {
   const router = useRouter();
@@ -67,9 +71,10 @@ export function ContractsClient({
         title="Contracts"
         description={`${preStatus.length} contract${preStatus.length === 1 ? '' : 's'}`}
         action={
-          canManage ? (
-            <LinkButton href="/dashboard/contracts/new">New contract</LinkButton>
-          ) : undefined
+          <div className="flex items-center gap-2">
+            <TemplateManager templates={templates} canManage={canManage} type="contract" />
+            {canManage && <LinkButton href="/dashboard/contracts/new">New contract</LinkButton>}
+          </div>
         }
       />
 

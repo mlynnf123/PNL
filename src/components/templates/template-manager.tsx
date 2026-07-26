@@ -3,16 +3,7 @@
 import { Copy, Pencil, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
-import {
-  Badge,
-  Button,
-  EmptyState,
-  FormField,
-  Input,
-  Modal,
-  Select,
-  Textarea,
-} from '@/components/ui';
+import { Button, EmptyState, FormField, Input, Modal, Textarea } from '@/components/ui';
 import { formatCurrency } from '@/lib/format';
 import type {
   LineCategory,
@@ -45,23 +36,25 @@ function templateTotal(items: TemplateLineItem[]): number {
   return items.reduce((s, i) => s + (Number(i.total) || 0), 0);
 }
 
-export function TemplatesClient({
+// Inline template manager: a button that opens a modal to create/edit/duplicate/
+// delete the document templates of a single type (estimate or contract). Lives
+// on the Estimates and Contracts pages — there is no standalone Templates page.
+export function TemplateManager({
   templates,
   canManage,
+  type,
 }: {
   templates: TemplateRow[];
   canManage: boolean;
+  type: 'estimate' | 'contract';
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [typeFilter, setTypeFilter] = useState('all');
+  const [open, setOpen] = useState(false);
   const [form, setForm] = useState<TemplateRow | null | undefined>(undefined);
   const [error, setError] = useState('');
 
-  const filtered = useMemo(
-    () => templates.filter((t) => typeFilter === 'all' || t.type === typeFilter),
-    [templates, typeFilter],
-  );
+  const rows = useMemo(() => templates.filter((t) => t.type === type), [templates, type]);
 
   function run(action: Promise<ActionResult>, onOk?: () => void) {
     setError('');
@@ -78,110 +71,97 @@ export function TemplatesClient({
 
   return (
     <>
-      <div className="space-y-6">
-        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-          <h2 className="text-2xl font-medium tracking-tight text-slate-900">
-            Contract &amp; Estimate Templates
-          </h2>
-          <div className="flex items-center gap-3">
-            <select
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-            >
-              <option value="all">All Types</option>
-              <option value="estimate">Estimates</option>
-              <option value="contract">Contracts</option>
-            </select>
-            {canManage && <Button onClick={() => setForm(null)}>New Template</Button>}
-          </div>
-        </div>
+      <Button variant="secondary" onClick={() => setOpen(true)}>
+        Templates
+      </Button>
 
-        {error && (
-          <p className="rounded-lg border-l-2 border-red-500 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
-          </p>
-        )}
+      {open && form === undefined && (
+        <Modal open onClose={() => setOpen(false)} title={`${type} templates`} size="xl">
+          <div className="space-y-4">
+            {error && (
+              <p className="rounded-lg border-l-2 border-red-500 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {error}
+              </p>
+            )}
 
-        {filtered.length === 0 ? (
-          <EmptyState
-            title="No templates yet"
-            description="Create a reusable estimate or contract template to speed up new documents."
-            action={
-              canManage ? <Button onClick={() => setForm(null)}>New Template</Button> : undefined
-            }
-          />
-        ) : (
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((t) => (
-              <div
-                key={t.id}
-                className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
-              >
-                <div className="mb-3 flex items-start justify-between">
-                  <div>
-                    <h3 className="font-medium text-slate-900">{t.name}</h3>
-                    <div className="mt-2">
-                      <Badge tone={t.type === 'contract' ? 'slate' : 'teal'}>{t.type}</Badge>
-                    </div>
-                  </div>
-                  {canManage && (
-                    <div className="flex gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setForm(t)}
-                        title="Edit"
-                        className="p-1.5 text-slate-400 transition-colors hover:text-blue-600"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => run(duplicateTemplateAction(t.id))}
-                        title="Duplicate"
-                        className="p-1.5 text-slate-400 transition-colors hover:text-slate-700"
-                      >
-                        <Copy size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (confirm('Delete this template? This cannot be undone.')) {
-                            run(deleteTemplateAction(t.id));
-                          }
-                        }}
-                        title="Delete"
-                        className="p-1.5 text-slate-400 transition-colors hover:text-red-600"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-                {t.projectDescription && (
-                  <p className="mb-4 line-clamp-2 text-sm text-slate-600">{t.projectDescription}</p>
-                )}
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Line items</span>
-                    <span className="font-medium text-slate-900">{t.lineItems.length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Default total</span>
-                    <span className="font-medium text-teal-600">
-                      {formatCurrency(templateTotal(t.lineItems))}
-                    </span>
-                  </div>
-                </div>
+            {canManage && (
+              <div className="flex justify-end">
+                <Button onClick={() => setForm(null)}>New template</Button>
               </div>
-            ))}
+            )}
+
+            {rows.length === 0 ? (
+              <EmptyState
+                title="No templates yet"
+                description={`Create a reusable ${type} template to speed up new documents.`}
+                action={
+                  canManage ? (
+                    <Button onClick={() => setForm(null)}>New template</Button>
+                  ) : undefined
+                }
+              />
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {rows.map((t) => (
+                  <div key={t.id} className="rounded-xl border border-slate-200 bg-white p-4">
+                    <div className="mb-2 flex items-start justify-between">
+                      <h3 className="font-medium text-slate-900">{t.name}</h3>
+                      {canManage && (
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setForm(t)}
+                            title="Edit"
+                            className="p-1.5 text-slate-400 transition-colors hover:text-blue-600"
+                          >
+                            <Pencil size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => run(duplicateTemplateAction(t.id))}
+                            title="Duplicate"
+                            className="p-1.5 text-slate-400 transition-colors hover:text-slate-700"
+                          >
+                            <Copy size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm('Delete this template? This cannot be undone.')) {
+                                run(deleteTemplateAction(t.id));
+                              }
+                            }}
+                            title="Delete"
+                            className="p-1.5 text-slate-400 transition-colors hover:text-red-600"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {t.projectDescription && (
+                      <p className="mb-3 line-clamp-2 text-sm text-slate-600">
+                        {t.projectDescription}
+                      </p>
+                    )}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500">{t.lineItems.length} line items</span>
+                      <span className="font-medium text-teal-600">
+                        {formatCurrency(templateTotal(t.lineItems))}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </Modal>
+      )}
 
       {form !== undefined && (
         <TemplateModal
           template={form}
+          type={type}
           pending={isPending}
           onClose={() => setForm(undefined)}
           onSubmit={(fields) => {
@@ -198,19 +178,18 @@ export function TemplatesClient({
 
 function TemplateModal({
   template,
+  type,
   pending,
   onClose,
   onSubmit,
 }: {
   template: TemplateRow | null;
+  type: 'estimate' | 'contract';
   pending: boolean;
   onClose: () => void;
   onSubmit: (fields: TemplateFields) => void;
 }) {
   const [name, setName] = useState(template?.name ?? '');
-  const [type, setType] = useState<'contract' | 'estimate'>(
-    (template?.type as 'contract' | 'estimate') ?? 'estimate',
-  );
   const [projectDescription, setProjectDescription] = useState(template?.projectDescription ?? '');
   const [items, setItems] = useState<TemplateLineItem[]>(
     template?.lineItems.length ? template.lineItems : [blankLine()],
@@ -264,22 +243,9 @@ function TemplateModal({
       }
     >
       <div className="space-y-5">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="sm:col-span-2">
-            <FormField label="Template name">
-              <Input value={name} onChange={(e) => setName(e.target.value)} required />
-            </FormField>
-          </div>
-          <FormField label="Type">
-            <Select
-              value={type}
-              onChange={(e) => setType(e.target.value as 'contract' | 'estimate')}
-            >
-              <option value="estimate">Estimate</option>
-              <option value="contract">Contract</option>
-            </Select>
-          </FormField>
-        </div>
+        <FormField label="Template name">
+          <Input value={name} onChange={(e) => setName(e.target.value)} required />
+        </FormField>
 
         <FormField label="Project description">
           <Textarea

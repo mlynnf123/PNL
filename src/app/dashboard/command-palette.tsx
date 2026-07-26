@@ -13,15 +13,15 @@ const COMMANDS: Command[] = [
   { label: 'Home', hint: 'Go to', href: '/dashboard' },
   { label: 'Leads', hint: 'Go to', href: '/dashboard/leads' },
   { label: 'Estimates', hint: 'Go to', href: '/dashboard/estimates' },
+  { label: 'Contracts', hint: 'Go to', href: '/dashboard/contracts' },
   { label: 'Jobs', hint: 'Go to', href: '/dashboard/jobs' },
-  { label: 'Templates', hint: 'Go to', href: '/dashboard/templates' },
   { label: 'Import', hint: 'Go to', href: '/dashboard/import' },
   { label: 'Settings', hint: 'Go to', href: '/dashboard/settings' },
   { label: 'Audit log', hint: 'Go to', href: '/dashboard/settings/audit' },
   { label: 'New job', hint: 'Create', href: '/dashboard/jobs/new' },
   { label: 'New estimate', hint: 'Create', href: '/dashboard/estimates/new' },
+  { label: 'New contract', hint: 'Create', href: '/dashboard/contracts/new' },
   { label: 'New lead', hint: 'Create', href: '/dashboard/leads' },
-  { label: 'New template', hint: 'Create', href: '/dashboard/templates' },
 ];
 
 // Command palette (⌘K / Ctrl-K) — navigation jumps first (blueprint). Opens on

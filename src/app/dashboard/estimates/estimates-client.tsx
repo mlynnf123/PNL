@@ -5,8 +5,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 import { Badge, EmptyState, LinkButton, PageHeader, StatCard } from '@/components/ui';
+import { TemplateManager } from '@/components/templates/template-manager';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { ESTIMATE_STATUS_TONE, toneFor } from '@/lib/status';
+import type { TemplateRow } from '@/server/queries/document-templates';
 import type { EstimateListRow } from '@/server/queries/estimates';
 import { type ActionResult, deleteEstimateAction, updateEstimateStatusAction } from './actions';
 
@@ -14,9 +16,11 @@ const STATUSES = ['draft', 'sent', 'accepted', 'declined'] as const;
 
 export function EstimatesClient({
   estimates,
+  templates,
   canManage,
 }: {
   estimates: EstimateListRow[];
+  templates: TemplateRow[];
   canManage: boolean;
 }) {
   const router = useRouter();
@@ -67,9 +71,10 @@ export function EstimatesClient({
         title="Estimates"
         description={`${preStatus.length} estimate${preStatus.length === 1 ? '' : 's'}`}
         action={
-          canManage ? (
-            <LinkButton href="/dashboard/estimates/new">New estimate</LinkButton>
-          ) : undefined
+          <div className="flex items-center gap-2">
+            <TemplateManager templates={templates} canManage={canManage} type="estimate" />
+            {canManage && <LinkButton href="/dashboard/estimates/new">New estimate</LinkButton>}
+          </div>
         }
       />
 

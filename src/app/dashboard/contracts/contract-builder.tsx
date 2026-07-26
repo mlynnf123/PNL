@@ -50,6 +50,14 @@ export interface JobPick {
   address: string;
 }
 
+export interface ContractTemplatePick {
+  id: string;
+  name: string;
+  terms: string | null;
+  warrantyInfo: string | null;
+  lineItems: ContractLineItem[];
+}
+
 function blankLine(): ContractLineItem {
   return {
     id: crypto.randomUUID(),
@@ -71,10 +79,12 @@ export function ContractBuilder({
   initial,
   prefill = null,
   jobs = [],
+  templates = [],
 }: {
   initial: ContractFull | null;
   prefill?: ContractPrefill | null;
   jobs?: JobPick[];
+  templates?: ContractTemplatePick[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -110,6 +120,16 @@ export function ContractBuilder({
 
   function patchLine(idx: number, patch: Partial<ContractLineItem>) {
     setLineItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+  }
+
+  // Append a template's line items (fresh ids) and fill terms/warranty if empty.
+  function applyTemplate(t: ContractTemplatePick) {
+    setLineItems((prev) => [
+      ...prev.filter((it) => it.description.trim() !== '' || it.unitPrice !== 0),
+      ...t.lineItems.map((li) => ({ ...li, id: crypto.randomUUID() })),
+    ]);
+    if (!terms && t.terms) setTerms(t.terms);
+    if (!warrantyInfo && t.warrantyInfo) setWarrantyInfo(t.warrantyInfo);
   }
 
   const grandTotal = contractTotal(lineItems);
@@ -278,13 +298,34 @@ export function ContractBuilder({
         <CardHeader
           title="Line items"
           action={
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => setLineItems((prev) => [...prev, blankLine()])}
-            >
-              Add line
-            </Button>
+            <div className="flex items-center gap-2">
+              {templates.length > 0 && (
+                <select
+                  aria-label="Add lines from template"
+                  value=""
+                  className={`${controlClass} w-auto`}
+                  onChange={(e) => {
+                    const t = templates.find((x) => x.id === e.target.value);
+                    if (t) applyTemplate(t);
+                    e.target.value = '';
+                  }}
+                >
+                  <option value="">Add from template…</option>
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setLineItems((prev) => [...prev, blankLine()])}
+              >
+                Add line
+              </Button>
+            </div>
           }
         />
         <div className="space-y-2">

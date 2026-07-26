@@ -4,6 +4,7 @@ import { PERMISSIONS, userHasPermission } from '@/lib/permissions';
 import { getLead } from '@/server/queries/leads';
 import { PageHeader } from '@/components/ui';
 import { ContractBuilder, type ContractPrefill } from '../contract-builder';
+import { contractTemplatePicks } from '../templates';
 
 export default async function NewContractPage({
   searchParams,
@@ -40,5 +41,6 @@ export default async function NewContractPage({
     }
   }
 
-  return <ContractBuilder initial={null} prefill={prefill} />;
+  const templates = await contractTemplatePicks(session.user.organizationId);
+  return <ContractBuilder initial={null} prefill={prefill} templates={templates} />;
 }

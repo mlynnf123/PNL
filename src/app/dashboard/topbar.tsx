@@ -12,7 +12,6 @@ const NAV_ITEMS = [
   { href: '/dashboard/leads', label: 'Leads' },
   { href: '/dashboard/estimates', label: 'Estimates' },
   { href: '/dashboard/contracts', label: 'Contracts' },
-  { href: '/dashboard/templates', label: 'Templates' },
   { href: '/dashboard/jobs', label: 'Jobs' },
   { href: '/dashboard/import', label: 'Import' },
   { href: '/dashboard/settings', label: 'Settings' },

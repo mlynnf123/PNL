@@ -1,6 +1,7 @@
 import { db } from '@/db/client';
 import { requireSession } from '@/lib/require-session';
 import { PERMISSIONS, userHasPermission } from '@/lib/permissions';
+import { listDocumentTemplates } from '@/server/queries/document-templates';
 import { listEstimates } from '@/server/queries/estimates';
 import { PageHeader } from '@/components/ui';
 import { EstimatesClient } from './estimates-client';
@@ -21,7 +22,10 @@ export default async function EstimatesPage() {
   }
 
   const canManage = await userHasPermission(db, session.user.id, PERMISSIONS.CRM_MANAGEMENT);
-  const estimates = await listEstimates(session.user.organizationId);
+  const [estimates, templates] = await Promise.all([
+    listEstimates(session.user.organizationId),
+    listDocumentTemplates(session.user.organizationId, { type: 'estimate' }),
+  ]);
 
-  return <EstimatesClient estimates={estimates} canManage={canManage} />;
+  return <EstimatesClient estimates={estimates} templates={templates} canManage={canManage} />;
 }
