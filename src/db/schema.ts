@@ -3,6 +3,7 @@ import {
   type AnyPgColumn,
   boolean,
   date,
+  index,
   integer,
   jsonb,
   numeric,
@@ -1146,6 +1147,7 @@ export const documentEntityTypeEnum = pgEnum('document_entity_type', [
   'lead',
   'estimate',
   'contract',
+  'estimate_layout',
 ]);
 
 export const documents = pgTable('documents', {
@@ -1321,5 +1323,260 @@ export const contracts = pgTable(
   },
   (table) => [
     uniqueIndex('contracts_org_number_unique').on(table.organizationId, table.contractNumber),
+  ],
+);
+
+// ===========================================================================
+// EP-1 — Template-driven estimate engine (JobNimbus-style).
+// A reusable, versioned LAYOUT is an ordered stack of typed pages with default
+// content. Picking a layout instantiates an ESTIMATE DOCUMENT whose pages are
+// copied from the layout version (inherited until a rep overrides them). Sending
+// or signing freezes an immutable DOCUMENT VERSION (same append-only pattern as
+// financial_close_versions). Single-source rendering: editor, preview, PDF, and
+// signed archive all derive from one payload. Money is server-authoritative
+// (src/lib/estimate-doc-math.ts); page copy may carry {{merge tokens}} resolved
+// at render time (src/lib/estimate-tokens.ts).
+// ===========================================================================
+
+export const estimateDocKindEnum = pgEnum('estimate_doc_kind', [
+  'estimate_packet',
+  'legal_document',
+]);
+
+export const estimatePageTypeEnum = pgEnum('estimate_page_type', [
+  'cover',
+  'introduction',
+  'inspection',
+  'quote',
+  'authorization',
+  'terms',
+  'warranty',
+  'custom',
+  'legal_body',
+]);
+
+export const layoutStatusEnum = pgEnum('estimate_layout_status', ['draft', 'active', 'retired']);
+
+export const layoutVersionStatusEnum = pgEnum('estimate_layout_version_status', [
+  'draft',
+  'published',
+]);
+
+export const estimateDocStatusEnum = pgEnum('estimate_doc_status', [
+  'draft',
+  'sent',
+  'signed',
+  'declined',
+  'void',
+  'superseded',
+]);
+
+// A reusable layout: named, categorized, with a pointer to its current version.
+export const estimateLayouts = pgTable(
+  'estimate_layouts',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    name: text('name').notNull(),
+    docKind: estimateDocKindEnum('doc_kind').notNull().default('estimate_packet'),
+    // Free-form category (repair, full_replacement, commercial, tpo, metal,
+    // change_order, gutters, manufacturer, legal_warranty, legal_contract, …).
+    category: text('category'),
+    isDefault: boolean('is_default').notNull().default(false),
+    status: layoutStatusEnum('status').notNull().default('draft'),
+    // Points at the current published (or working draft) version. App-validated,
+    // no hard FK — same convention as jobs.current_financial_version_id.
+    currentVersionId: uuid('current_version_id'),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    rowVersion: integer('row_version').notNull().default(1),
+  },
+  (table) => [index('estimate_layouts_org_idx').on(table.organizationId)],
+);
+
+// An immutable-once-published snapshot of a layout's page stack. Editing a
+// published layout forks a new draft version (publish/discard).
+export const estimateLayoutVersions = pgTable(
+  'estimate_layout_versions',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    layoutId: uuid('layout_id')
+      .notNull()
+      .references(() => estimateLayouts.id),
+    versionNumber: integer('version_number').notNull(),
+    status: layoutVersionStatusEnum('status').notNull().default('draft'),
+    // Prior version this one superseded (app-validated chain, no hard FK).
+    priorVersionId: uuid('prior_version_id'),
+    publishedBy: uuid('published_by').references(() => users.id),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('estimate_layout_versions_layout_number_unique').on(
+      table.layoutId,
+      table.versionNumber,
+    ),
+  ],
+);
+
+// One ordered page in a layout version, with page-type config + default content.
+export const estimateLayoutPages = pgTable(
+  'estimate_layout_pages',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    layoutVersionId: uuid('layout_version_id')
+      .notNull()
+      .references(() => estimateLayoutVersions.id),
+    pageType: estimatePageTypeEnum('page_type').notNull(),
+    sortOrder: integer('sort_order').notNull(),
+    title: text('title'),
+    // Page-type configuration (e.g. quote display settings, terms source).
+    configJson: jsonb('config_json').notNull().default(sql`'{}'::jsonb`),
+    // Default content/copy (may contain {{merge tokens}}).
+    defaultContentJson: jsonb('default_content_json').notNull().default(sql`'{}'::jsonb`),
+  },
+  (table) => [index('estimate_layout_pages_version_idx').on(table.layoutVersionId)],
+);
+
+// Reusable per-page content blocks (Use Template / Save as Template).
+export const estimateContentTemplates = pgTable(
+  'estimate_content_templates',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    pageType: estimatePageTypeEnum('page_type').notNull(),
+    name: text('name').notNull(),
+    contentJson: jsonb('content_json').notNull().default(sql`'{}'::jsonb`),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    rowVersion: integer('row_version').notNull().default(1),
+  },
+  (table) => [
+    index('estimate_content_templates_org_type_idx').on(table.organizationId, table.pageType),
+  ],
+);
+
+// A customer-facing estimate instance, instantiated from a layout version.
+export const estimateDocuments = pgTable(
+  'estimate_documents',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    // Human-readable per-org number, displayed EST-NNNN. Never reused.
+    docNumber: integer('doc_number').notNull(),
+    docKind: estimateDocKindEnum('doc_kind').notNull().default('estimate_packet'),
+    name: text('name').notNull(),
+    docDate: date('doc_date').notNull(),
+    status: estimateDocStatusEnum('status').notNull().default('draft'),
+    // Customer snapshot (denormalized; may be prefilled from a lead/job).
+    customerName: text('customer_name'),
+    customerAddress: text('customer_address'),
+    customerCity: text('customer_city'),
+    customerState: text('customer_state'),
+    customerZip: text('customer_zip'),
+    customerPhone: text('customer_phone'),
+    customerEmail: text('customer_email'),
+    repName: text('rep_name'),
+    // Cover hero image (a documents.id, served via /api/documents/[id]).
+    coverPhotoKey: text('cover_photo_key'),
+    // The published layout version this document was instantiated from.
+    layoutVersionId: uuid('layout_version_id'),
+    // Server-recomputed grand total.
+    total: numeric('total', { precision: 12, scale: 2 }).notNull().default('0'),
+    // Latest frozen version (app-validated, no hard FK).
+    currentVersionId: uuid('current_version_id'),
+    leadId: uuid('lead_id').references(() => leads.id),
+    jobId: uuid('job_id').references(() => jobs.id),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    rowVersion: integer('row_version').notNull().default(1),
+  },
+  (table) => [
+    uniqueIndex('estimate_documents_org_number_unique').on(table.organizationId, table.docNumber),
+  ],
+);
+
+// One ordered page of an estimate document. Content is inherited from the layout
+// until a rep edits it (isOverridden). `included=false` = held in Excluded Pages.
+export const estimatePages = pgTable(
+  'estimate_pages',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    documentId: uuid('document_id')
+      .notNull()
+      .references(() => estimateDocuments.id),
+    pageType: estimatePageTypeEnum('page_type').notNull(),
+    sortOrder: integer('sort_order').notNull(),
+    title: text('title'),
+    included: boolean('included').notNull().default(true),
+    isOverridden: boolean('is_overridden').notNull().default(false),
+    contentJson: jsonb('content_json').notNull().default(sql`'{}'::jsonb`),
+  },
+  (table) => [index('estimate_pages_document_idx').on(table.documentId)],
+);
+
+// Immutable frozen snapshot of a document, created on send + sign. Append-only:
+// a sent/signed document forks a new draft revision instead of mutating history.
+export const estimateDocumentVersions = pgTable(
+  'estimate_document_versions',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    documentId: uuid('document_id')
+      .notNull()
+      .references(() => estimateDocuments.id),
+    versionNumber: integer('version_number').notNull(),
+    priorVersionId: uuid('prior_version_id'),
+    // Full reproducible snapshot: document + pages + resolved tokens + resolved
+    // totals + layout version id. Reproducible without current mutable settings.
+    frozenPayloadJson: jsonb('frozen_payload_json').notNull(),
+    reason: text('reason'),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('estimate_document_versions_doc_number_unique').on(
+      table.documentId,
+      table.versionNumber,
+    ),
   ],
 );

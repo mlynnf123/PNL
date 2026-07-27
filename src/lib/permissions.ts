@@ -21,6 +21,7 @@ export const PERMISSIONS = {
   JOB_VIEWING: 'job_viewing',
   CRM_VIEWING: 'crm_viewing',
   CRM_MANAGEMENT: 'crm_management',
+  ESTIMATE_LAYOUT_ADMIN: 'estimate_layout_admin',
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -57,6 +58,10 @@ export const PERMISSION_CATALOG: ReadonlyArray<{ key: PermissionKey; description
   {
     key: PERMISSIONS.CRM_MANAGEMENT,
     description: 'Create and edit leads, calls, estimates, and contracts',
+  },
+  {
+    key: PERMISSIONS.ESTIMATE_LAYOUT_ADMIN,
+    description: 'Design and publish reusable estimate/document layouts',
   },
 ];
 
