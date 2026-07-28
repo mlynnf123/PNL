@@ -151,7 +151,7 @@ export function sanitizeQuote(content: Partial<QuoteContent> | null | undefined)
           : null,
     };
   });
-  const d = raw.display ?? {};
+  const d: Partial<QuoteDisplay> = raw.display ?? {};
   return {
     options,
     display: {
