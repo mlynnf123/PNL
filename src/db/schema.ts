@@ -1448,9 +1448,13 @@ export const estimateLayoutPages = pgTable(
     sortOrder: integer('sort_order').notNull(),
     title: text('title'),
     // Page-type configuration (e.g. quote display settings, terms source).
-    configJson: jsonb('config_json').notNull().default(sql`'{}'::jsonb`),
+    configJson: jsonb('config_json')
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     // Default content/copy (may contain {{merge tokens}}).
-    defaultContentJson: jsonb('default_content_json').notNull().default(sql`'{}'::jsonb`),
+    defaultContentJson: jsonb('default_content_json')
+      .notNull()
+      .default(sql`'{}'::jsonb`),
   },
   (table) => [index('estimate_layout_pages_version_idx').on(table.layoutVersionId)],
 );
@@ -1467,7 +1471,9 @@ export const estimateContentTemplates = pgTable(
       .references(() => organizations.id),
     pageType: estimatePageTypeEnum('page_type').notNull(),
     name: text('name').notNull(),
-    contentJson: jsonb('content_json').notNull().default(sql`'{}'::jsonb`),
+    contentJson: jsonb('content_json')
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     createdBy: uuid('created_by')
       .notNull()
       .references(() => users.id),
@@ -1543,7 +1549,9 @@ export const estimatePages = pgTable(
     title: text('title'),
     included: boolean('included').notNull().default(true),
     isOverridden: boolean('is_overridden').notNull().default(false),
-    contentJson: jsonb('content_json').notNull().default(sql`'{}'::jsonb`),
+    contentJson: jsonb('content_json')
+      .notNull()
+      .default(sql`'{}'::jsonb`),
   },
   (table) => [index('estimate_pages_document_idx').on(table.documentId)],
 );
