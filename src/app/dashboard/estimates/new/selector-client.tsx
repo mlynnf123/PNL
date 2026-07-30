@@ -2,11 +2,16 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
-import { EmptyState, PageHeader } from '@/components/ui';
-import { PAGE_TYPE_LABELS, type PageType } from '@/lib/estimate-pages';
+import { useMemo, useState, useTransition } from 'react';
+import { Button, EmptyState, PageHeader } from '@/components/ui';
+import { estimateTypeFor } from '@/lib/estimate-types';
 import type { SelectableLayout } from '@/server/queries/estimate-layouts';
 import { createEstimateFromLayoutAction } from '../doc-actions';
+
+const ctrl =
+  'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500';
+
+const GROUP_ORDER = ['Residential', 'Commercial', 'Other'] as const;
 
 export function LayoutSelector({
   layouts,
@@ -24,16 +29,35 @@ export function LayoutSelector({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
-  const [busyId, setBusyId] = useState('');
+  const [layoutId, setLayoutId] = useState('');
 
-  function choose(layoutId: string) {
+  // Group the selectable layouts by their type group; label by type, falling
+  // back to the raw layout name for anything uncategorized.
+  const groups = useMemo(() => {
+    const map = new Map<string, { id: string; label: string }[]>();
+    for (const l of layouts) {
+      const t = estimateTypeFor(l.category);
+      const group = t?.group ?? 'Other';
+      const label = t?.label ?? l.name;
+      if (!map.has(group)) map.set(group, []);
+      map.get(group)!.push({ id: l.id, label });
+    }
+    return GROUP_ORDER.filter((g) => map.has(g)).map((g) => ({
+      group: g,
+      items: map.get(g)!.sort((a, b) => a.label.localeCompare(b.label)),
+    }));
+  }, [layouts]);
+
+  function create() {
+    if (!layoutId) {
+      setError('Choose a type first.');
+      return;
+    }
     setError('');
-    setBusyId(layoutId);
     startTransition(async () => {
       const res = await createEstimateFromLayoutAction(layoutId, { ...prefill });
       if (!res.ok) {
         setError(res.error);
-        setBusyId('');
       } else if (res.id) {
         router.push(`/dashboard/estimates/${res.id}`);
       }
@@ -43,8 +67,8 @@ export function LayoutSelector({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Choose a layout"
-        description="Pick the type of document you're building. It sets the starting pages and content."
+        title="New estimate or contract"
+        description="Choose the type — it sets the starting pages, pricing fields, and terms."
       />
 
       <Link href="/dashboard/estimates" className="text-sm text-slate-500 hover:text-slate-700">
@@ -63,25 +87,32 @@ export function LayoutSelector({
           description="An admin needs to design and publish a layout before you can build an estimate from it."
         />
       ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {layouts.map((l) => (
-            <button
-              key={l.id}
-              type="button"
+        <div className="max-w-md space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-slate-500">
+              Estimate / contract type
+            </span>
+            <select
+              className={ctrl}
+              value={layoutId}
+              onChange={(e) => setLayoutId(e.target.value)}
               disabled={isPending}
-              onClick={() => choose(l.id)}
-              className="rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition-shadow hover:shadow-md disabled:opacity-60"
             >
-              <div className="mb-2 flex items-center justify-between">
-                <h3 className="font-medium text-slate-900">{l.name}</h3>
-                {busyId === l.id && <span className="text-xs text-slate-400">Creating…</span>}
-              </div>
-              {l.category && <p className="mb-3 text-xs text-slate-400">{l.category}</p>}
-              <p className="text-sm text-slate-600">
-                {l.pageTypes.map((pt) => PAGE_TYPE_LABELS[pt as PageType]).join(' · ')}
-              </p>
-            </button>
-          ))}
+              <option value="">Select a type…</option>
+              {groups.map((g) => (
+                <optgroup key={g.group} label={g.group}>
+                  {g.items.map((it) => (
+                    <option key={it.id} value={it.id}>
+                      {it.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+          <Button onClick={create} disabled={isPending || !layoutId}>
+            {isPending ? 'Creating…' : 'Create'}
+          </Button>
         </div>
       )}
     </div>

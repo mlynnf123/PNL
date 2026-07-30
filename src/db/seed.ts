@@ -9,9 +9,6 @@ import {
   commissionRules,
   commissionRuleSets,
   completionChecklistTemplates,
-  estimateLayoutPages,
-  estimateLayoutVersions,
-  estimateLayouts,
   organizations,
   permissions,
   roles,
@@ -19,69 +16,10 @@ import {
   userRoles,
   users,
 } from './schema';
-import type { DbClient } from './client';
 import { DEFAULT_CHECKLIST_ITEMS } from '@/lib/completion-checklist';
-import { STANDARD_TERMS_BODY, type StackEntry, defaultContentFor } from '@/lib/estimate-pages';
 import { hashPassword } from '@/lib/password';
 import { PERMISSION_CATALOG, PERMISSIONS, type PermissionKey } from '@/lib/permissions';
-
-// Idempotent: publish a starter layout (skips if a layout with this name exists).
-async function seedLayout(
-  db: DbClient,
-  args: {
-    orgId: string;
-    createdBy: string;
-    name: string;
-    category: string;
-    pages: (StackEntry & { content?: unknown })[];
-  },
-) {
-  const [existing] = await db
-    .select()
-    .from(estimateLayouts)
-    .where(and(eq(estimateLayouts.organizationId, args.orgId), eq(estimateLayouts.name, args.name)))
-    .limit(1);
-  if (existing) return;
-
-  const [layout] = await db
-    .insert(estimateLayouts)
-    .values({
-      organizationId: args.orgId,
-      name: args.name,
-      docKind: 'estimate_packet',
-      category: args.category,
-      status: 'active',
-      createdBy: args.createdBy,
-    })
-    .returning();
-  const [version] = await db
-    .insert(estimateLayoutVersions)
-    .values({
-      organizationId: args.orgId,
-      layoutId: layout.id,
-      versionNumber: 1,
-      status: 'published',
-      publishedBy: args.createdBy,
-      publishedAt: new Date(),
-      createdBy: args.createdBy,
-    })
-    .returning();
-  for (let i = 0; i < args.pages.length; i++) {
-    const p = args.pages[i];
-    await db.insert(estimateLayoutPages).values({
-      layoutVersionId: version.id,
-      pageType: p.pageType,
-      sortOrder: i,
-      title: p.title,
-      defaultContentJson: (p.content ?? defaultContentFor(p.pageType)) as object,
-    });
-  }
-  await db
-    .update(estimateLayouts)
-    .set({ currentVersionId: version.id })
-    .where(eq(estimateLayouts.id, layout.id));
-  console.log(`Seeded layout "${args.name}"`);
-}
+import { ensureTypedEstimateLayouts } from './seed-layouts';
 
 // docs/04_WORKFLOWS_SCREENS_AND_PERMISSIONS.md SS14 permission matrix.
 // "Configurable" capabilities default to NOT granted for office/accounting
@@ -451,56 +389,8 @@ async function main() {
     console.log(`Created active commission rule set ${ruleSet.id}`);
   }
 
-  // Starter estimate layouts (published) so reps can build from them immediately.
-  const introBody =
-    'Hi {{customer.name}},\n\nThank you for the opportunity to quote on your project at {{property.address}}. Please find your estimate below along with the full scope of work.\n\nIf you have any questions, please give me a call. We always want to provide the best value to our clients.\n\nKind regards,\n{{rep.name}}';
-  const authContent = {
-    validityNote:
-      'Estimates valid for 30 days from date of estimate / A 50% deposit is required before any project begins',
-    optionalUpgrades: [],
-    selectedOptionId: null,
-    signature: null,
-    certification:
-      'By signing this form I agree to and confirm the following: I certify that I am the registered owner of the above project property, or have the legal permission to authorize the work as stated. I agree to pay the total project price and understand that this work will be completed in accordance with industry best practices.',
-  };
-  const termsContent = {
-    mode: 'richtext',
-    requireAck: false,
-    body: STANDARD_TERMS_BODY,
-  };
-  const warrantyContent = {
-    body: 'The work performed at {{property.address}} is backed by a workmanship warranty from JJ Roofing Pros LLC. This warranty guarantees that the labor is free from defects in workmanship for the full warranty term from the date the work is completed.',
-    thankYou: 'Thank you again for choosing JJ Roofing Pros to complete work on your property.',
-  };
-
-  await seedLayout(db, {
-    orgId: organization.id,
-    createdBy: ownerUser.id,
-    name: 'Repair Estimate',
-    category: 'repair',
-    pages: [
-      { pageType: 'cover', title: 'Cover' },
-      { pageType: 'introduction', title: 'Introduction', content: { body: introBody } },
-      { pageType: 'quote', title: 'Repair Estimate Details' },
-      { pageType: 'authorization', title: 'Authorization', content: authContent },
-      { pageType: 'terms', title: 'Terms and Conditions', content: termsContent },
-    ],
-  });
-  await seedLayout(db, {
-    orgId: organization.id,
-    createdBy: ownerUser.id,
-    name: 'Full Roof Replacement',
-    category: 'full_replacement',
-    pages: [
-      { pageType: 'cover', title: 'Cover' },
-      { pageType: 'introduction', title: 'Introduction', content: { body: introBody } },
-      { pageType: 'inspection', title: 'Inspection' },
-      { pageType: 'quote', title: 'Estimate Details' },
-      { pageType: 'authorization', title: 'Authorization', content: authContent },
-      { pageType: 'terms', title: 'Terms and Conditions', content: termsContent },
-      { pageType: 'warranty', title: 'Warranty', content: warrantyContent },
-    ],
-  });
+  // Starter estimate layouts (published) — one per job type. See estimate-types.ts.
+  await ensureTypedEstimateLayouts(db, { orgId: organization.id, createdBy: ownerUser.id });
 
   console.log('Seed complete.');
 }
