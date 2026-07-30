@@ -74,7 +74,8 @@ export function PageEditor({
             </Field>
           </div>
           <p className="text-xs text-slate-400">
-            The cover hero photo and company logo are set on the estimate itself.
+            The title page shows the JJ Roofing Pros logo, centered, with the customer&apos;s name,
+            email, and address pulled from the lead.
           </p>
         </div>
       );

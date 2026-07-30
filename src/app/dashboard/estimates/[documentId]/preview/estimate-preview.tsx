@@ -278,7 +278,7 @@ function Cover({
   ctx: TokenContext;
 }) {
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: 944 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ maxWidth: 360 }}>
           <div style={{ fontSize: 26, fontWeight: 800, color: INK }}>{doc.name}</div>
@@ -307,23 +307,26 @@ function Cover({
         </div>
       </div>
 
-      {doc.coverPhotoKey && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={`/api/documents/${doc.coverPhotoKey}`}
-          alt="Cover"
-          crossOrigin="anonymous"
-          style={{ width: '100%', height: 460, objectFit: 'cover', margin: '24px 0' }}
-        />
-      )}
-
+      {/* Large centered company logo (replaces the old hero photo). */}
       <div
         style={{
+          flex: 1,
           display: 'flex',
-          justifyContent: 'space-between',
-          marginTop: doc.coverPhotoKey ? 0 : 60,
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '56px 0',
         }}
       >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/jjrp-logo.png"
+          alt={COMPANY.name}
+          crossOrigin="anonymous"
+          style={{ width: 400, height: 400, objectFit: 'contain' }}
+        />
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         <div style={{ maxWidth: 300 }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: INK }}>We can help you with</div>
           <div style={{ height: 2, width: 40, marginTop: 4, background: BLUE }} />
@@ -339,13 +342,14 @@ function Cover({
             </div>
           )}
         </div>
+        {/* Customer identity — always sourced from the lead (name, email, address). */}
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 18, fontWeight: 800, color: INK, textTransform: 'uppercase' }}>
             {doc.customerName}
           </div>
-          {doc.customerPhone && (
+          {doc.customerEmail && (
             <div style={{ marginTop: 8, fontSize: 15, fontWeight: 700, color: INK }}>
-              {doc.customerPhone}
+              {doc.customerEmail}
             </div>
           )}
           {doc.customerAddress && (

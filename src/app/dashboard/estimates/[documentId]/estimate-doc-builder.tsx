@@ -19,7 +19,6 @@ import {
   setEstimatePageIncludedAction,
   updateEstimateMetaAction,
   updateEstimatePageAction,
-  uploadEstimateCoverAction,
 } from '../doc-actions';
 
 const ctrl =
@@ -269,7 +268,12 @@ export function EstimateDocBuilder({
                 )}
               </div>
 
-              {selectedPage.pageType === 'cover' && <CoverUpload doc={doc} editable={editable} />}
+              {selectedPage.pageType === 'cover' && (
+                <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
+                  The title page shows the JJ Roofing Pros logo and the customer&apos;s name, email,
+                  and address from the lead. No photo upload needed.
+                </p>
+              )}
 
               <div className="border-t border-slate-100 pt-4">
                 <PageEditor
@@ -405,46 +409,6 @@ function DetailsPanel({
           Save details
         </Button>
       )}
-    </div>
-  );
-}
-
-function CoverUpload({ doc, editable }: { doc: EstimateDocFull; editable: boolean }) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState('');
-  return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-      <p className="mb-2 text-xs font-medium text-slate-500">Cover hero photo</p>
-      {doc.coverPhotoKey && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={`/api/documents/${doc.coverPhotoKey}`}
-          alt="Cover"
-          className="mb-2 max-h-40 rounded-lg border border-slate-200 object-cover"
-        />
-      )}
-      {editable && (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const fd = new FormData(e.currentTarget);
-            setError('');
-            startTransition(async () => {
-              const res = await uploadEstimateCoverAction(doc.id, fd);
-              if (!res.ok) setError(res.error);
-              else router.refresh();
-            });
-          }}
-          className="flex items-center gap-2"
-        >
-          <input type="file" name="file" accept="image/*" required className="text-sm" />
-          <Button type="submit" size="sm" variant="secondary" disabled={isPending}>
-            {doc.coverPhotoKey ? 'Replace' : 'Upload'}
-          </Button>
-        </form>
-      )}
-      {error && <p className="mt-1 text-sm text-red-700">{error}</p>}
     </div>
   );
 }
