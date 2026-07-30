@@ -21,7 +21,7 @@ import {
 } from './schema';
 import type { DbClient } from './client';
 import { DEFAULT_CHECKLIST_ITEMS } from '@/lib/completion-checklist';
-import { type StackEntry, defaultContentFor } from '@/lib/estimate-pages';
+import { STANDARD_TERMS_BODY, type StackEntry, defaultContentFor } from '@/lib/estimate-pages';
 import { hashPassword } from '@/lib/password';
 import { PERMISSION_CATALOG, PERMISSIONS, type PermissionKey } from '@/lib/permissions';
 
@@ -466,7 +466,7 @@ async function main() {
   const termsContent = {
     mode: 'richtext',
     requireAck: false,
-    body: '• J&J Roofing Pros warrants workmanship for 90 days from date of completion.\n• 50% deposit required to schedule. Balance due upon completion.\n• Estimate valid for 30 days from date above.\n• If additional damage is discovered during the project, J&J will notify the owner before proceeding with any additional work.',
+    body: STANDARD_TERMS_BODY,
   };
   const warrantyContent = {
     body: 'The work performed at {{property.address}} is backed by a workmanship warranty from JJ Roofing Pros LLC. This warranty guarantees that the labor is free from defects in workmanship for the full warranty term from the date the work is completed.',
