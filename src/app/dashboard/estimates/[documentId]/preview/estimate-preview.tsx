@@ -35,7 +35,8 @@ const BORDER = '#e2e8f0';
 const PAGE_W = 816; // 8.5in @ 96dpi
 
 const COMPANY = {
-  name: 'JJ Roofing Pros',
+  name: 'JJ Roofing Pros', // brand name — titles/headers
+  legalName: 'J&J Roofing Pros, LLC', // legal entity — contract/legal copy only
   address: '14205 N Mopac Expressway Suite 570, Austin, TX 78728',
   phone: '(512) 729-5813',
   email: 'info@jjroofingpros.com',

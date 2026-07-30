@@ -22,7 +22,8 @@ export interface TokenContext {
     phone?: string | null;
   };
   company: {
-    name?: string | null;
+    name?: string | null; // brand name for titles/headers (JJ Roofing Pros)
+    legalName?: string | null; // legal entity for contract/legal copy (J&J Roofing Pros, LLC)
     address?: string | null;
     phone?: string | null;
     email?: string | null;
@@ -79,7 +80,8 @@ export const TOKEN_CATALOG: ReadonlyArray<{ group: string; tokens: TokenDef[] }>
   {
     group: 'Company',
     tokens: [
-      { token: 'company.name', label: 'Company name', sample: 'J&J Roofing Pros' },
+      { token: 'company.name', label: 'Company name', sample: 'JJ Roofing Pros' },
+      { token: 'company.legalName', label: 'Legal entity name', sample: 'J&J Roofing Pros, LLC' },
       { token: 'company.address', label: 'Company address', sample: '14205 N Mopac Expy Ste 570' },
       { token: 'company.phone', label: 'Company phone', sample: '(512) 729-5813' },
       { token: 'company.email', label: 'Company email', sample: 'info@jjroofingpros.com' },

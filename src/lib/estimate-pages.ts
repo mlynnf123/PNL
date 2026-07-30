@@ -116,7 +116,7 @@ export interface LegalBodyContent {
 // body so every estimate ships with real language; fully editable per estimate.
 // Company/customer/property values resolve from {{merge tokens}} at render time.
 // Renderer supports line breaks and **bold** only (see estimate-preview.tsx).
-export const STANDARD_TERMS_BODY = `**Agreement.** This document sets forth the agreement between {{company.name}} ("Company") and {{customer.name}} ("Customer") for the work to be completed at {{property.address}}, {{property.cityStateZip}}, and establishes the agreed scope, price, and payment schedule between the parties.
+export const STANDARD_TERMS_BODY = `**Agreement.** This document sets forth the agreement between {{company.legalName}} ("Company") and {{customer.name}} ("Customer") for the work to be completed at {{property.address}}, {{property.cityStateZip}}, and establishes the agreed scope, price, and payment schedule between the parties.
 
 **Payment Terms.** The first payment is due when materials are delivered and the crew has started work. Failure to make the first payment may result in a work stoppage, and Company is not liable for any damage that may occur as a result of a work stoppage caused by Customer's failure to make the initial payment, including but not limited to water damage, flooding, or theft of materials. Final payment is due upon completion of the roof; any additional trade payments are due upon completion of that trade. Payments not received within 30 days of completion are considered a failure to pay and are subject to the penalties below.
 
@@ -130,7 +130,7 @@ export const STANDARD_TERMS_BODY = `**Agreement.** This document sets forth the 
 
 **Failure to Pay.** Balances not paid when due are subject to a 10% penalty assessed against the remaining balance, revocation of any discounts at Company's sole discretion, and referral to a third-party collections agency. Failure to pay may also result in Theft of Service charges filed under Texas Penal Code § 31.04, in addition to any civil remedies.
 
-**Payment Methods.** Company accepts personal checks, money orders, cashier's checks, and credit cards, made payable to {{company.name}}. A 1% processing fee applies to credit card transactions. Returned checks are subject to a $50 returned-check fee and any applicable charges.
+**Payment Methods.** Company accepts personal checks, money orders, cashier's checks, and credit cards, made payable to {{company.legalName}}. A 1% processing fee applies to credit card transactions. Returned checks are subject to a $50 returned-check fee and any applicable charges.
 
 **Safety.** A Company representative is available upon request to inspect furnace vent connections that may become loose during the roofing process. It is Customer's responsibility to ensure these connections are secure to prevent carbon monoxide from entering the dwelling. Customer agrees to hold Company harmless from any liability associated with carbon monoxide or furnace vent connections.
 
