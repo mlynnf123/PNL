@@ -1,27 +1,25 @@
 'use client';
 
-import { Pencil, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 import { Badge, EmptyState, LinkButton, PageHeader, StatCard } from '@/components/ui';
-import { TemplateManager } from '@/components/templates/template-manager';
 import { formatCurrency, formatDate } from '@/lib/format';
-import { ESTIMATE_STATUS_TONE, toneFor } from '@/lib/status';
-import type { TemplateRow } from '@/server/queries/document-templates';
-import type { EstimateListRow } from '@/server/queries/estimates';
-import { type ActionResult, deleteEstimateAction, updateEstimateStatusAction } from './actions';
+import { ESTIMATE_DOC_STATUS_TONE, toneFor } from '@/lib/status';
+import type { EstimateDocListRow } from '@/server/queries/estimate-documents';
+import { type ActionResult, deleteEstimateDocumentAction } from './doc-actions';
 
-const STATUSES = ['draft', 'sent', 'accepted', 'declined'] as const;
+const STATUSES = ['draft', 'sent', 'signed', 'declined', 'void'] as const;
 
 export function EstimatesClient({
   estimates,
-  templates,
   canManage,
+  canAdminLayouts,
 }: {
-  estimates: EstimateListRow[];
-  templates: TemplateRow[];
+  estimates: EstimateDocListRow[];
   canManage: boolean;
+  canAdminLayouts: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -34,9 +32,9 @@ export function EstimatesClient({
     return estimates.filter(
       (e) =>
         !q ||
-        e.estimateName.toLowerCase().includes(q) ||
+        e.name.toLowerCase().includes(q) ||
         (e.customerName ?? '').toLowerCase().includes(q) ||
-        `est-${e.estimateNumber}`.includes(q),
+        `est-${e.docNumber}`.includes(q),
     );
   }, [estimates, search]);
 
@@ -51,9 +49,11 @@ export function EstimatesClient({
     [preStatus, bucket],
   );
 
-  const pipeline = preStatus.reduce((s, e) => s + Number(e.total || 0), 0);
-  const acceptedValue = preStatus
-    .filter((e) => e.status === 'accepted')
+  const pipeline = preStatus
+    .filter((e) => e.status === 'draft' || e.status === 'sent')
+    .reduce((s, e) => s + Number(e.total || 0), 0);
+  const signedValue = preStatus
+    .filter((e) => e.status === 'signed')
     .reduce((s, e) => s + Number(e.total || 0), 0);
 
   function run(action: Promise<ActionResult>) {
@@ -72,7 +72,11 @@ export function EstimatesClient({
         description={`${preStatus.length} estimate${preStatus.length === 1 ? '' : 's'}`}
         action={
           <div className="flex items-center gap-2">
-            <TemplateManager templates={templates} canManage={canManage} type="estimate" />
+            {canAdminLayouts && (
+              <LinkButton href="/dashboard/estimate-layouts" variant="secondary">
+                Layouts
+              </LinkButton>
+            )}
             {canManage && <LinkButton href="/dashboard/estimates/new">New estimate</LinkButton>}
           </div>
         }
@@ -80,8 +84,8 @@ export function EstimatesClient({
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Estimates" value={String(preStatus.length)} />
-        <StatCard label="Pipeline value" value={formatCurrency(pipeline)} />
-        <StatCard label="Accepted value" value={formatCurrency(acceptedValue)} />
+        <StatCard label="Open pipeline" value={formatCurrency(pipeline)} />
+        <StatCard label="Signed value" value={formatCurrency(signedValue)} />
       </div>
 
       {error && (
@@ -127,7 +131,7 @@ export function EstimatesClient({
       {rows.length === 0 ? (
         <EmptyState
           title="No estimates"
-          description="Create a multi-option proposal to send to a customer."
+          description="Start an estimate from a layout to build a customer-facing packet."
           action={
             canManage ? (
               <LinkButton href="/dashboard/estimates/new">New estimate</LinkButton>
@@ -161,63 +165,32 @@ export function EstimatesClient({
                         href={`/dashboard/estimates/${e.id}`}
                         className="font-medium text-slate-900 hover:text-teal-600"
                       >
-                        EST-{String(e.estimateNumber).padStart(4, '0')}
+                        EST-{String(e.docNumber).padStart(4, '0')}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-slate-700">{e.estimateName}</td>
+                    <td className="px-4 py-3 text-slate-700">{e.name}</td>
                     <td className="px-4 py-3 text-slate-600">{e.customerName ?? '—'}</td>
                     <td className="px-4 py-3">
-                      {canManage ? (
-                        <select
-                          value={e.status}
-                          onChange={(ev) =>
-                            run(
-                              updateEstimateStatusAction(
-                                e.id,
-                                ev.target.value as (typeof STATUSES)[number],
-                              ),
-                            )
-                          }
-                          className="rounded-lg border border-slate-300 p-1 text-xs capitalize outline-none"
-                        >
-                          {STATUSES.map((s) => (
-                            <option key={s} value={s}>
-                              {s}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <Badge tone={toneFor(ESTIMATE_STATUS_TONE, e.status)}>{e.status}</Badge>
-                      )}
+                      <Badge tone={toneFor(ESTIMATE_DOC_STATUS_TONE, e.status)}>{e.status}</Badge>
                     </td>
                     <td className="px-4 py-3 font-medium text-slate-900">
                       {formatCurrency(e.total)}
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-500">{formatDate(e.updatedAt)}</td>
                     <td className="px-4 py-3">
-                      {canManage && (
-                        <div className="flex items-center justify-end gap-2">
-                          <Link
-                            href={`/dashboard/estimates/${e.id}`}
-                            title="Edit"
-                            className="p-1 text-slate-400 hover:text-blue-600"
-                          >
-                            <Pencil size={16} />
-                          </Link>
-                          <button
-                            type="button"
-                            disabled={isPending}
-                            onClick={() => {
-                              if (confirm('Delete this estimate? This cannot be undone.')) {
-                                run(deleteEstimateAction(e.id));
-                              }
-                            }}
-                            title="Delete"
-                            className="p-1 text-slate-400 hover:text-red-600"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
+                      {canManage && e.status === 'draft' && (
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          onClick={() => {
+                            if (confirm('Delete this draft estimate? This cannot be undone.'))
+                              run(deleteEstimateDocumentAction(e.id));
+                          }}
+                          title="Delete"
+                          className="flex justify-end p-1 text-slate-400 hover:text-red-600"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       )}
                     </td>
                   </tr>

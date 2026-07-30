@@ -2,7 +2,7 @@ import { db } from '@/db/client';
 import { requireSession } from '@/lib/require-session';
 import { PERMISSIONS, userHasPermission } from '@/lib/permissions';
 import { listContracts } from '@/server/queries/contracts';
-import { listEstimates } from '@/server/queries/estimates';
+import { listEstimateDocuments } from '@/server/queries/estimate-documents';
 import { listLeads } from '@/server/queries/leads';
 import { listUsersWithRoles } from '@/server/queries/settings-directory';
 import { PageHeader } from '@/components/ui';
@@ -31,7 +31,7 @@ export default async function LeadsPage({
   const [leads, users, estimates, contracts] = await Promise.all([
     listLeads(session.user.organizationId),
     listUsersWithRoles(session.user.organizationId),
-    listEstimates(session.user.organizationId),
+    listEstimateDocuments(session.user.organizationId),
     listContracts(session.user.organizationId),
   ]);
   const assignable = users

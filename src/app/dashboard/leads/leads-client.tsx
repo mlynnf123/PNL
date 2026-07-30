@@ -8,12 +8,12 @@ import { Badge, Button, Drawer, FormField, Input, Modal, Select, Textarea } from
 import { formatCurrency, formatDate } from '@/lib/format';
 import {
   CONTRACT_STATUS_TONE,
-  ESTIMATE_STATUS_TONE,
+  ESTIMATE_DOC_STATUS_TONE,
   LEAD_STATUS_TONE as STATUS_TONE,
   PRIORITY_TONE,
 } from '@/lib/status';
 import type { ContractListRow } from '@/server/queries/contracts';
-import type { EstimateListRow } from '@/server/queries/estimates';
+import type { EstimateDocListRow } from '@/server/queries/estimate-documents';
 import type { LeadRow } from '@/server/queries/leads';
 import {
   type ActionResult,
@@ -46,7 +46,7 @@ export function LeadsClient({
   leads: LeadRow[];
   users: User[];
   canManage: boolean;
-  estimatesByLead?: Record<string, EstimateListRow[]>;
+  estimatesByLead?: Record<string, EstimateDocListRow[]>;
   contractsByLead?: Record<string, ContractListRow[]>;
   openLeadId?: string;
 }) {
@@ -567,7 +567,7 @@ function LeadDetailDrawer({
   lead: LeadRow | null;
   canManage: boolean;
   pending: boolean;
-  estimates: EstimateListRow[];
+  estimates: EstimateDocListRow[];
   contracts: ContractListRow[];
   onClose: () => void;
   onEdit: (lead: LeadRow) => void;
@@ -660,9 +660,9 @@ function LeadDetailDrawer({
                   >
                     <span className="flex items-center gap-2">
                       <span className="text-slate-800">
-                        EST-{String(e.estimateNumber).padStart(4, '0')}
+                        EST-{String(e.docNumber).padStart(4, '0')}
                       </span>
-                      <Badge tone={ESTIMATE_STATUS_TONE[e.status] ?? 'slate'}>{e.status}</Badge>
+                      <Badge tone={ESTIMATE_DOC_STATUS_TONE[e.status] ?? 'slate'}>{e.status}</Badge>
                     </span>
                     <span className="text-slate-600">{formatCurrency(e.total)}</span>
                   </Link>

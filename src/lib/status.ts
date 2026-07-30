@@ -106,6 +106,15 @@ export const ESTIMATE_STATUS_TONE: Record<string, BadgeTone> = {
   declined: 'red',
 };
 
+export const ESTIMATE_DOC_STATUS_TONE: Record<string, BadgeTone> = {
+  draft: 'slate',
+  sent: 'amber',
+  signed: 'teal',
+  declined: 'red',
+  void: 'slate',
+  superseded: 'slate',
+};
+
 export const CONTRACT_STATUS_TONE: Record<string, BadgeTone> = {
   draft: 'slate',
   sent: 'amber',
