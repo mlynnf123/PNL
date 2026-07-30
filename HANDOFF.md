@@ -40,23 +40,23 @@ the inspection editor stay deferred).
 ### EP-1 sub-steps (tasks #23–#30)
 
 - [x] **1. Schema + migration** — 5 enums + 7 tables, `estimate_layout` added to
-  documents enum, `estimate_layout_admin` permission + seed. Migration `0013`.
+      documents enum, `estimate_layout_admin` permission + seed. Migration `0013`.
 - [x] **2. Pure libs** — `src/lib/estimate-doc-math.ts` (options→sections→items
-  pricing, price-only, server-authoritative) + `src/lib/estimate-tokens.ts`
-  (`{{group.field}}` catalog + resolver with fallbacks). Unit tests pass.
+      pricing, price-only, server-authoritative) + `src/lib/estimate-tokens.ts`
+      (`{{group.field}}` catalog + resolver with fallbacks). Unit tests pass.
 - [ ] **3. Commands + queries + actions** — `estimate-layouts.ts` (create/edit-page/
-  reorder/publish/discard/duplicate/retire), `estimate-content-templates.ts`,
-  `estimate-documents.ts` (create-from-layout, updatePage, reorder, add/remove/
-  exclude, status, signInPerson, freezeVersion, void) + queries + server actions.
+      reorder/publish/discard/duplicate/retire), `estimate-content-templates.ts`,
+      `estimate-documents.ts` (create-from-layout, updatePage, reorder, add/remove/
+      exclude, status, signInPerson, freezeVersion, void) + queries + server actions.
 - [ ] **4. Shared per-page editors** + token picker (`src/components/estimate/`) —
-  used by BOTH the layout builder and the estimate builder.
+      used by BOTH the layout builder and the estimate builder.
 - [ ] **5. Layout builder UI** + layouts list + layout selector on create.
 - [ ] **6. Estimate page-rail builder** + Review & Share + in-person Sign Now +
-  immutable version-on-sign.
+      immutable version-on-sign.
 - [ ] **7. Branded blue page-aware PDF renderer** (per-page-type inline-hex blocks
-  matching the reference PDFs; one canvas per page; store PDF as a documents row).
+      matching the reference PDFs; one canvas per page; store PDF as a documents row).
 - [ ] **8. Seed starter layouts** (repair + full replacement) + integration/unit
-  tests + full-suite/build verification + live PDF diff.
+      tests + full-suite/build verification + live PDF diff.
 
 **Output style reference (the 4 real PDFs, in the user's Downloads):** photo-forward
 cover with a blue gradient accent rule; UPPERCASE section headings with a blue
