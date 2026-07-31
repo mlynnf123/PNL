@@ -39,6 +39,25 @@ function standardPacketPages(t: EstimateTypeDef): (StackEntry & { content?: unkn
   ];
 }
 
+// The full residential/insurance contract stack (mirrors the legacy paper
+// contract). Pages without explicit content inherit their defaults from
+// defaultContentFor (payment schedule, worksheet, disclosures, third-party auth
+// all ship with seeded defaults).
+function residentialContractPages(): (StackEntry & { content?: unknown })[] {
+  return [
+    { pageType: 'cover', title: 'Cover' },
+    { pageType: 'introduction', title: 'Introduction', content: { body: INTRO_BODY } },
+    { pageType: 'quote', title: 'Work & Materials' },
+    { pageType: 'payment_schedule', title: 'Payment Schedule' },
+    { pageType: 'insurance_worksheet', title: 'Contract Worksheet' },
+    { pageType: 'authorization', title: 'Authorization', content: AUTH_CONTENT },
+    { pageType: 'disclosures', title: 'Disclosures & Acknowledgements' },
+    { pageType: 'third_party_auth', title: 'Third-Party Authorization' },
+    { pageType: 'terms', title: 'Terms and Conditions' },
+    { pageType: 'warranty', title: 'Warranty', content: WARRANTY_CONTENT },
+  ];
+}
+
 // Idempotent: publish a starter layout (skips if a layout with this name exists).
 export async function seedLayout(
   db: DbClient,
@@ -97,19 +116,57 @@ export async function seedLayout(
   console.log(`Seeded layout "${args.name}"`);
 }
 
-// Ensure one active/published layout exists per ESTIMATE_TYPES entry. Idempotent.
+// Delete a layout (its versions + pages) by name. Estimate documents keep their
+// own snapshotted pages and only hold a soft reference to a layout version, so
+// this never orphans document data.
+async function deleteLayoutByName(db: DbClient, orgId: string, name: string) {
+  const [layout] = await db
+    .select()
+    .from(estimateLayouts)
+    .where(and(eq(estimateLayouts.organizationId, orgId), eq(estimateLayouts.name, name)))
+    .limit(1);
+  if (!layout) return;
+  const versions = await db
+    .select({ id: estimateLayoutVersions.id })
+    .from(estimateLayoutVersions)
+    .where(eq(estimateLayoutVersions.layoutId, layout.id));
+  for (const v of versions) {
+    await db.delete(estimateLayoutPages).where(eq(estimateLayoutPages.layoutVersionId, v.id));
+  }
+  await db
+    .update(estimateLayouts)
+    .set({ currentVersionId: null })
+    .where(eq(estimateLayouts.id, layout.id));
+  await db.delete(estimateLayoutVersions).where(eq(estimateLayoutVersions.layoutId, layout.id));
+  await db.delete(estimateLayouts).where(eq(estimateLayouts.id, layout.id));
+}
+
+// Ensure one active/published layout exists per ESTIMATE_TYPES entry. The
+// residential contract is rebuilt each run so its full page stack always
+// reflects the current definition; the others are created once (idempotent).
 export async function ensureTypedEstimateLayouts(
   db: DbClient,
   args: { orgId: string; createdBy: string },
 ) {
   for (const t of ESTIMATE_TYPES) {
-    await seedLayout(db, {
-      orgId: args.orgId,
-      createdBy: args.createdBy,
-      name: t.layoutName,
-      category: t.category,
-      pages: standardPacketPages(t),
-    });
+    if (t.category === 'residential_contract') {
+      await deleteLayoutByName(db, args.orgId, t.layoutName);
+      await seedLayout(db, {
+        orgId: args.orgId,
+        createdBy: args.createdBy,
+        name: t.layoutName,
+        category: t.category,
+        pages: residentialContractPages(),
+      });
+    } else {
+      await seedLayout(db, {
+        orgId: args.orgId,
+        createdBy: args.createdBy,
+        name: t.layoutName,
+        category: t.category,
+        pages: standardPacketPages(t),
+      });
+    }
   }
 }
 

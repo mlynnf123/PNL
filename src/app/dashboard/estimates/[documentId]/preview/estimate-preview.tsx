@@ -13,9 +13,13 @@ import type {
   AuthorizationContent,
   CoverContent,
   CustomContent,
+  DisclosuresContent,
+  InsuranceWorksheetContent,
   IntroContent,
   LegalBodyContent,
+  PaymentScheduleContent,
   TermsContent,
+  ThirdPartyAuthContent,
   WarrantyContent,
 } from '@/lib/estimate-pages';
 import { type TokenContext, resolveTokens } from '@/lib/estimate-tokens';
@@ -264,9 +268,232 @@ function PageBlock({
       );
     case 'legal_body':
       return <LegalBody content={page.contentJson as LegalBodyContent} ctx={ctx} />;
+    case 'payment_schedule':
+      return (
+        <PaymentSchedule
+          content={page.contentJson as PaymentScheduleContent}
+          title={title || 'Payment Schedule'}
+          ctx={ctx}
+        />
+      );
+    case 'insurance_worksheet':
+      return (
+        <InsuranceWorksheet
+          content={page.contentJson as InsuranceWorksheetContent}
+          title={title || 'Contract Worksheet'}
+          ctx={ctx}
+        />
+      );
+    case 'disclosures':
+      return (
+        <Disclosures
+          content={page.contentJson as DisclosuresContent}
+          title={title || 'Disclosures & Acknowledgements'}
+          ctx={ctx}
+        />
+      );
+    case 'third_party_auth':
+      return (
+        <ThirdPartyAuth
+          content={page.contentJson as ThirdPartyAuthContent}
+          title={title || 'Third-Party Authorization'}
+          ctx={ctx}
+        />
+      );
     case 'inspection':
       return <Heading>{title || 'Inspection'}</Heading>;
   }
+}
+
+function LabeledRow({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: 16,
+        padding: '9px 0',
+        borderBottom: `1px solid ${BORDER}`,
+      }}
+    >
+      <div style={{ color: MUTED, fontSize: 13, fontWeight: 700 }}>{label}</div>
+      <div style={{ color: INK, fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap' }}>
+        {value || '—'}
+      </div>
+    </div>
+  );
+}
+
+function PaymentSchedule({
+  content,
+  title,
+  ctx,
+}: {
+  content: PaymentScheduleContent;
+  title: string;
+  ctx: TokenContext;
+}) {
+  const items = content.items ?? [];
+  return (
+    <div>
+      <Heading>{title}</Heading>
+      {content.intro && (
+        <div style={{ marginBottom: 8 }}>
+          <RichText text={resolveTokens(content.intro, ctx)} />
+        </div>
+      )}
+      <div>
+        {items.map((it) => (
+          <div
+            key={it.id}
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: 16,
+              padding: '10px 0',
+              borderBottom: `1px solid ${BORDER}`,
+            }}
+          >
+            <div style={{ color: BODY, fontSize: 14 }}>{it.description}</div>
+            <div style={{ color: INK, fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap' }}>
+              {it.amount || ''}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function InsuranceWorksheet({
+  content,
+  title,
+  ctx,
+}: {
+  content: InsuranceWorksheetContent;
+  title: string;
+  ctx: TokenContext;
+}) {
+  return (
+    <div>
+      <Heading>{title}</Heading>
+      <div>
+        <LabeledRow label="Deductible" value={content.deductible} />
+        <LabeledRow label="Non-Recoverable Depreciation" value={content.nonRecoverableDepreciation} />
+        <LabeledRow label="Upgrades" value={content.upgrades} />
+        <LabeledRow label="Discounts" value={content.discounts} />
+        <LabeledRow label="Work Not Doing" value={content.workNotDoing} />
+        <LabeledRow
+          label="Remaining Balance (Deductible & Upgrades)"
+          value={content.remainingBalance}
+        />
+      </div>
+      {content.depreciationNote && (
+        <div style={{ marginTop: 20 }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: INK, marginBottom: 6 }}>
+            Recovering Withheld Depreciation &amp; Supplements
+          </div>
+          <RichText text={resolveTokens(content.depreciationNote, ctx)} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Disclosures({
+  content,
+  title,
+  ctx,
+}: {
+  content: DisclosuresContent;
+  title: string;
+  ctx: TokenContext;
+}) {
+  const clauses = content.clauses ?? [];
+  return (
+    <div>
+      <Heading>{title}</Heading>
+      {content.intro && (
+        <div style={{ marginBottom: 12 }}>
+          <RichText text={resolveTokens(content.intro, ctx)} />
+        </div>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {clauses.map((cl) => (
+          <div key={cl.id} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+            {cl.requiresInitial && (
+              <div
+                style={{
+                  flex: '0 0 auto',
+                  width: 56,
+                  height: 34,
+                  border: `1px solid ${INK}`,
+                  borderRadius: 3,
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  justifyContent: 'center',
+                }}
+              >
+                <span style={{ fontSize: 9, color: MUTED, marginBottom: 2 }}>Initial</span>
+              </div>
+            )}
+            <div style={{ color: BODY, fontSize: 13, lineHeight: 1.5 }}>
+              {resolveTokens(cl.text, ctx)}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ThirdPartyAuth({
+  content,
+  title,
+  ctx,
+}: {
+  content: ThirdPartyAuthContent;
+  title: string;
+  ctx: TokenContext;
+}) {
+  const auths = content.authorizations ?? [];
+  return (
+    <div>
+      <Heading>{title}</Heading>
+      <div style={{ marginBottom: 16 }}>
+        <LabeledRow label="Insurance Company" value={content.insuranceCompany} />
+        <LabeledRow label="Claim Number" value={content.claimNumber} />
+      </div>
+      <div style={{ fontSize: 14, color: BODY, marginBottom: 8 }}>
+        I/We authorize {resolveTokens('{{company.legalName}}', ctx)} the following regarding my
+        claim:
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+        {auths.map((a) => (
+          <div key={a.id} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <div
+              style={{
+                width: 14,
+                height: 14,
+                border: `1px solid ${INK}`,
+                borderRadius: 2,
+                flex: '0 0 auto',
+              }}
+            />
+            <div style={{ color: BODY, fontSize: 13 }}>{a.label}</div>
+          </div>
+        ))}
+      </div>
+      {content.overheadProfit && (
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: INK, marginBottom: 6 }}>
+            Overhead &amp; Profit
+          </div>
+          <RichText text={resolveTokens(content.overheadProfit, ctx)} />
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Cover({

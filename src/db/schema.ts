@@ -1353,6 +1353,11 @@ export const estimatePageTypeEnum = pgEnum('estimate_page_type', [
   'warranty',
   'custom',
   'legal_body',
+  // Residential/insurance contract pages (see estimate-pages.ts).
+  'payment_schedule',
+  'insurance_worksheet',
+  'disclosures',
+  'third_party_auth',
 ]);
 
 export const layoutStatusEnum = pgEnum('estimate_layout_status', ['draft', 'active', 'retired']);

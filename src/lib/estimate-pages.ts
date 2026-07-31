@@ -16,6 +16,10 @@ export const PAGE_TYPES = [
   'warranty',
   'custom',
   'legal_body',
+  'payment_schedule',
+  'insurance_worksheet',
+  'disclosures',
+  'third_party_auth',
 ] as const;
 
 export type PageType = (typeof PAGE_TYPES)[number];
@@ -31,6 +35,10 @@ export const PAGE_TYPE_LABELS: Record<PageType, string> = {
   warranty: 'Warranty',
   custom: 'Custom page',
   legal_body: 'Legal document',
+  payment_schedule: 'Payment schedule',
+  insurance_worksheet: 'Insurance worksheet',
+  disclosures: 'Disclosures & initials',
+  third_party_auth: 'Third-party authorization',
 };
 
 // --- Per-page content shapes -------------------------------------------------
@@ -110,6 +118,50 @@ export interface LegalBodyContent {
   body: string; // numbered legal sections, may contain tokens
 }
 
+// --- Residential / insurance contract pages ---------------------------------
+
+export interface PaymentScheduleItem {
+  id: string;
+  description: string;
+  amount?: string; // direct-entered dollar amount (string, no math)
+}
+export interface PaymentScheduleContent {
+  intro?: string;
+  items: PaymentScheduleItem[];
+}
+
+export interface InsuranceWorksheetContent {
+  deductible?: string;
+  nonRecoverableDepreciation?: string;
+  upgrades?: string;
+  discounts?: string;
+  workNotDoing?: string;
+  remainingBalance?: string;
+  depreciationNote?: string; // "Recovering withheld depreciation & supplements" copy
+}
+
+export interface DisclosureClause {
+  id: string;
+  text: string;
+  requiresInitial: boolean; // renders an initial box when true
+}
+export interface DisclosuresContent {
+  intro?: string;
+  clauses: DisclosureClause[];
+}
+
+export interface ThirdPartyAuthItem {
+  id: string;
+  label: string;
+  checked: boolean;
+}
+export interface ThirdPartyAuthContent {
+  insuranceCompany?: string;
+  claimNumber?: string;
+  authorizations: ThirdPartyAuthItem[];
+  overheadProfit?: string; // Overhead & Profit statement (may contain tokens)
+}
+
 // --- Defaults ----------------------------------------------------------------
 
 // Standard JJ Roofing Pros terms & conditions. Seeded as the default terms-page
@@ -171,6 +223,75 @@ export function defaultContentFor(pageType: PageType): unknown {
       return { body: '' } satisfies CustomContent;
     case 'legal_body':
       return { body: '' } satisfies LegalBodyContent;
+    case 'payment_schedule':
+      return {
+        items: [
+          { id: 'p1', description: 'First Payment (Due upon Start of Job / Material Delivery)' },
+          { id: 'p2', description: 'Second Payment (Due upon Completion of Roof)' },
+          {
+            id: 'p3',
+            description:
+              'Final Payment (Due upon Job Completion; final payment may increase based on approved supplements)',
+          },
+        ],
+      } satisfies PaymentScheduleContent;
+    case 'insurance_worksheet':
+      return {
+        upgrades: '',
+        workNotDoing: '',
+        depreciationNote:
+          'Your insurance company has depreciated items on your claim. To recover the depreciation, a final invoice is sent to your insurance company along with any approved supplemental items. All insurance-approved supplements and recoverable depreciation are due to the Company. Customer agrees to cooperate with any paperwork needed to seek approval; supplements denied by the insurer are not the responsibility of the Customer.',
+      } satisfies InsuranceWorksheetContent;
+    case 'disclosures':
+      return {
+        intro: 'Please review and initial each item below.',
+        clauses: [
+          {
+            id: 'd1',
+            requiresInitial: true,
+            text: 'I understand that this is a construction site and agree to use caution when entering and exiting the property, and to ensure the safety of family, friends, children, and pets on the premises. I accept the risks of falling debris and errant nails and release and hold the Company harmless for injury, property damage, or death arising from negligence on my part. I understand it is my responsibility to secure fragile items.',
+          },
+          {
+            id: 'd2',
+            requiresInitial: true,
+            text: 'All Company vehicles are rated for driveway usage; any damage or cracks resulting from routine driveway usage or parking to complete the job are not the responsibility of the Company.',
+          },
+          {
+            id: 'd3',
+            requiresInitial: true,
+            text: 'I understand that punctured lines are not the responsibility of the Company during installation. All code standards are followed by the Company. If an electric, HVAC, plumbing, or similar line is damaged during installation, it is the sole responsibility of the Customer to repair.',
+          },
+          {
+            id: 'd4',
+            requiresInitial: true,
+            text: 'Right of Rescission: Under Texas law, I may cancel this contract within three business days of the contract date. I confirm I have been informed of the three-day right of rescission and provided the cancellation information.',
+          },
+          {
+            id: 'd5',
+            requiresInitial: true,
+            text: 'I confirm that I have received the disclosures required by Texas Property Code § 53.255 for the execution of residential construction contracts.',
+          },
+        ],
+      } satisfies DisclosuresContent;
+    case 'third_party_auth':
+      return {
+        authorizations: [
+          { id: 'a1', label: 'Request Inspections', checked: false },
+          { id: 'a2', label: 'Discuss and Request Supplements', checked: false },
+          {
+            id: 'a3',
+            label: 'Issued payment discussions and all insurance paperwork discussions',
+            checked: false,
+          },
+          {
+            id: 'a4',
+            label: 'Request Claim Payment Status (Recoverable Depreciation & Supplements)',
+            checked: false,
+          },
+        ],
+        overheadProfit:
+          'Understanding the time, effort, and supervision necessary for the restoration of my property, I authorize {{company.legalName}} to act as my general contractor, managing and coordinating all subcontractors and work required to complete the repairs. As a general contractor coordinating the trades, they carry overhead costs beyond individual line items; therefore, overhead and profit should be included in my estimate.',
+      } satisfies ThirdPartyAuthContent;
   }
 }
 

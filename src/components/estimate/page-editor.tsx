@@ -5,10 +5,14 @@ import type {
   AuthorizationContent,
   CoverContent,
   CustomContent,
+  DisclosuresContent,
+  InsuranceWorksheetContent,
   IntroContent,
   LegalBodyContent,
   PageType,
+  PaymentScheduleContent,
   TermsContent,
+  ThirdPartyAuthContent,
   WarrantyContent,
 } from '@/lib/estimate-pages';
 import type { QuoteContent } from '@/lib/estimate-doc-math';
@@ -282,6 +286,268 @@ export function PageEditor({
           </Field>
           <Field label="Body (use numbered sections)">
             <TokenTextArea value={c.body ?? ''} onChange={(body) => set({ body })} rows={16} />
+          </Field>
+        </div>
+      );
+    }
+    case 'payment_schedule': {
+      const c = v as unknown as PaymentScheduleContent;
+      const items = c.items ?? [];
+      return (
+        <div className="space-y-4">
+          <Field label="Intro (optional)">
+            <input
+              className={ctrl}
+              value={c.intro ?? ''}
+              onChange={(e) => set({ intro: e.target.value })}
+            />
+          </Field>
+          <div>
+            <span className="mb-1 block text-xs font-medium text-slate-500">Payments</span>
+            <div className="space-y-1.5">
+              {items.map((it, i) => (
+                <div key={it.id} className="grid grid-cols-12 items-center gap-1.5">
+                  <input
+                    className={`${ctrl} col-span-9`}
+                    placeholder="Description"
+                    value={it.description}
+                    onChange={(e) =>
+                      set({
+                        items: items.map((x, j) =>
+                          j === i ? { ...x, description: e.target.value } : x,
+                        ),
+                      })
+                    }
+                  />
+                  <input
+                    className={`${ctrl} col-span-2 text-right`}
+                    placeholder="$"
+                    value={it.amount ?? ''}
+                    onChange={(e) =>
+                      set({
+                        items: items.map((x, j) =>
+                          j === i ? { ...x, amount: e.target.value } : x,
+                        ),
+                      })
+                    }
+                  />
+                  <button
+                    type="button"
+                    onClick={() => set({ items: items.filter((_, j) => j !== i) })}
+                    className="col-span-1 justify-self-end p-1 text-slate-400 hover:text-red-600"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() =>
+                  set({ items: [...items, { id: crypto.randomUUID(), description: '', amount: '' }] })
+                }
+                className="text-xs font-medium text-slate-600 underline hover:text-slate-900"
+              >
+                + payment
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    case 'insurance_worksheet': {
+      const c = v as InsuranceWorksheetContent;
+      return (
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Deductible">
+              <input
+                className={ctrl}
+                value={c.deductible ?? ''}
+                onChange={(e) => set({ deductible: e.target.value })}
+              />
+            </Field>
+            <Field label="Non-recoverable depreciation">
+              <input
+                className={ctrl}
+                value={c.nonRecoverableDepreciation ?? ''}
+                onChange={(e) => set({ nonRecoverableDepreciation: e.target.value })}
+              />
+            </Field>
+            <Field label="Discounts">
+              <input
+                className={ctrl}
+                value={c.discounts ?? ''}
+                onChange={(e) => set({ discounts: e.target.value })}
+              />
+            </Field>
+            <Field label="Remaining balance (deductible & upgrades)">
+              <input
+                className={ctrl}
+                value={c.remainingBalance ?? ''}
+                onChange={(e) => set({ remainingBalance: e.target.value })}
+              />
+            </Field>
+          </div>
+          <Field label="Upgrades">
+            <input
+              className={ctrl}
+              value={c.upgrades ?? ''}
+              onChange={(e) => set({ upgrades: e.target.value })}
+            />
+          </Field>
+          <Field label="Work not doing">
+            <input
+              className={ctrl}
+              value={c.workNotDoing ?? ''}
+              onChange={(e) => set({ workNotDoing: e.target.value })}
+            />
+          </Field>
+          <Field label="Recovering withheld depreciation & supplements (note)">
+            <TokenTextArea
+              value={c.depreciationNote ?? ''}
+              onChange={(depreciationNote) => set({ depreciationNote })}
+              rows={5}
+            />
+          </Field>
+        </div>
+      );
+    }
+    case 'disclosures': {
+      const c = v as unknown as DisclosuresContent;
+      const clauses = c.clauses ?? [];
+      return (
+        <div className="space-y-4">
+          <Field label="Intro">
+            <input
+              className={ctrl}
+              value={c.intro ?? ''}
+              onChange={(e) => set({ intro: e.target.value })}
+            />
+          </Field>
+          <div>
+            <span className="mb-1 block text-xs font-medium text-slate-500">Clauses</span>
+            <div className="space-y-2">
+              {clauses.map((cl, i) => (
+                <div key={cl.id} className="rounded-lg border border-slate-200 p-2">
+                  <TokenTextArea
+                    value={cl.text}
+                    onChange={(text) =>
+                      set({ clauses: clauses.map((x, j) => (j === i ? { ...x, text } : x)) })
+                    }
+                    rows={3}
+                  />
+                  <div className="mt-1 flex items-center justify-between">
+                    <label className="flex items-center gap-2 text-xs text-slate-600">
+                      <input
+                        type="checkbox"
+                        checked={cl.requiresInitial}
+                        onChange={(e) =>
+                          set({
+                            clauses: clauses.map((x, j) =>
+                              j === i ? { ...x, requiresInitial: e.target.checked } : x,
+                            ),
+                          })
+                        }
+                      />
+                      Requires initials
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => set({ clauses: clauses.filter((_, j) => j !== i) })}
+                      className="p-1 text-slate-400 hover:text-red-600"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() =>
+                  set({
+                    clauses: [
+                      ...clauses,
+                      { id: crypto.randomUUID(), text: '', requiresInitial: true },
+                    ],
+                  })
+                }
+                className="text-xs font-medium text-slate-600 underline hover:text-slate-900"
+              >
+                + clause
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    case 'third_party_auth': {
+      const c = v as unknown as ThirdPartyAuthContent;
+      const auths = c.authorizations ?? [];
+      return (
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Insurance company">
+              <input
+                className={ctrl}
+                value={c.insuranceCompany ?? ''}
+                onChange={(e) => set({ insuranceCompany: e.target.value })}
+              />
+            </Field>
+            <Field label="Claim number">
+              <input
+                className={ctrl}
+                value={c.claimNumber ?? ''}
+                onChange={(e) => set({ claimNumber: e.target.value })}
+              />
+            </Field>
+          </div>
+          <div>
+            <span className="mb-1 block text-xs font-medium text-slate-500">Authorizations</span>
+            <div className="space-y-1.5">
+              {auths.map((a, i) => (
+                <div key={a.id} className="grid grid-cols-12 items-center gap-1.5">
+                  <input
+                    className={`${ctrl} col-span-11`}
+                    value={a.label}
+                    onChange={(e) =>
+                      set({
+                        authorizations: auths.map((x, j) =>
+                          j === i ? { ...x, label: e.target.value } : x,
+                        ),
+                      })
+                    }
+                  />
+                  <button
+                    type="button"
+                    onClick={() => set({ authorizations: auths.filter((_, j) => j !== i) })}
+                    className="col-span-1 justify-self-end p-1 text-slate-400 hover:text-red-600"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() =>
+                  set({
+                    authorizations: [
+                      ...auths,
+                      { id: crypto.randomUUID(), label: '', checked: false },
+                    ],
+                  })
+                }
+                className="text-xs font-medium text-slate-600 underline hover:text-slate-900"
+              >
+                + authorization
+              </button>
+            </div>
+          </div>
+          <Field label="Overhead & profit statement">
+            <TokenTextArea
+              value={c.overheadProfit ?? ''}
+              onChange={(overheadProfit) => set({ overheadProfit })}
+              rows={5}
+            />
           </Field>
         </div>
       );
