@@ -343,7 +343,9 @@ export function PageEditor({
               <button
                 type="button"
                 onClick={() =>
-                  set({ items: [...items, { id: crypto.randomUUID(), description: '', amount: '' }] })
+                  set({
+                    items: [...items, { id: crypto.randomUUID(), description: '', amount: '' }],
+                  })
                 }
                 className="text-xs font-medium text-slate-600 underline hover:text-slate-900"
               >

@@ -379,7 +379,10 @@ function InsuranceWorksheet({
       <Heading>{title}</Heading>
       <div>
         <LabeledRow label="Deductible" value={content.deductible} />
-        <LabeledRow label="Non-Recoverable Depreciation" value={content.nonRecoverableDepreciation} />
+        <LabeledRow
+          label="Non-Recoverable Depreciation"
+          value={content.nonRecoverableDepreciation}
+        />
         <LabeledRow label="Upgrades" value={content.upgrades} />
         <LabeledRow label="Discounts" value={content.discounts} />
         <LabeledRow label="Work Not Doing" value={content.workNotDoing} />

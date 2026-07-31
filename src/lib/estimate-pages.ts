@@ -213,7 +213,11 @@ export function defaultContentFor(pageType: PageType): unknown {
         signature: null,
       } satisfies AuthorizationContent;
     case 'terms':
-      return { mode: 'richtext', body: STANDARD_TERMS_BODY, requireAck: false } satisfies TermsContent;
+      return {
+        mode: 'richtext',
+        body: STANDARD_TERMS_BODY,
+        requireAck: false,
+      } satisfies TermsContent;
     case 'warranty':
       return {
         body: '',

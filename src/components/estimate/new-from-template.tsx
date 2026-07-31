@@ -68,7 +68,10 @@ export function NewFromTemplate({
     <div className="relative" ref={ref}>
       <Button onClick={() => setOpen((o) => !o)} disabled={busy}>
         {busy ? 'Creating…' : label}
-        <ChevronDown size={14} className={open ? 'rotate-180 transition-transform' : 'transition-transform'} />
+        <ChevronDown
+          size={14}
+          className={open ? 'rotate-180 transition-transform' : 'transition-transform'}
+        />
       </Button>
       {open && (
         <div
@@ -81,7 +84,7 @@ export function NewFromTemplate({
           ) : (
             groups.map((g) => (
               <div key={g.group}>
-                <div className="px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-slate-400">
+                <div className="px-3 pt-2 pb-1 text-xs font-medium tracking-wide text-slate-400 uppercase">
                   {g.group}
                 </div>
                 {g.items.map((it) => (

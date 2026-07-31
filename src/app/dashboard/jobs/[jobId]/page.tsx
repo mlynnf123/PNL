@@ -11,7 +11,7 @@ import {
   revenueComponents,
 } from '@/db/schema';
 import { requireSession } from '@/lib/require-session';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency, formatDate } from '@/lib/format';
 import { PERMISSIONS, userHasPermission } from '@/lib/permissions';
 import {
   JOB_CLOSE_TONE,
@@ -29,6 +29,8 @@ import {
   reverseOrCreditCost,
 } from '@/server/commands/cost-transactions';
 import { getEntityActivity } from '@/server/queries/activity';
+import { listDocuments } from '@/server/queries/documents';
+import { deleteDocument, uploadDocument } from '@/server/commands/documents';
 import { ProductionPhaseCard } from './production-phase-card';
 import { getJobFinancialSummary } from '@/server/queries/job-financial-summary';
 import {
@@ -112,6 +114,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
   const alreadyReversed = new Set(
     collections.filter((c) => c.originalTransactionId).map((c) => c.originalTransactionId),
   );
+
+  const jobDocuments = await listDocuments('job', jobId, session.user.organizationId);
 
   async function approveRevenue(formData: FormData) {
     'use server';
@@ -198,6 +202,32 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
       description: String(formData.get('description')),
       incurredDate: String(formData.get('incurredDate')),
       reason: String(formData.get('reason')),
+    });
+    revalidatePath(path);
+  }
+
+  async function uploadJobDocument(formData: FormData) {
+    'use server';
+    const file = formData.get('file');
+    if (!(file instanceof File) || file.size === 0) return;
+    await uploadDocument({
+      actorUserId: session.user.id,
+      organizationId: session.user.organizationId,
+      entityType: 'job',
+      entityId: jobId,
+      fileName: file.name,
+      contentType: file.type || 'application/octet-stream',
+      bytes: Buffer.from(await file.arrayBuffer()),
+    });
+    revalidatePath(path);
+  }
+
+  async function deleteJobDocument(formData: FormData) {
+    'use server';
+    await deleteDocument({
+      actorUserId: session.user.id,
+      organizationId: session.user.organizationId,
+      documentId: String(formData.get('documentId')),
     });
     revalidatePath(path);
   }
@@ -380,6 +410,38 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
               <div className="flex items-end">
                 <SubmitButton>Add cost</SubmitButton>
               </div>
+            </form>
+          </Section>
+
+          <Section title="Documents">
+            <RowTable
+              headers={['File', 'Type', 'Added', '']}
+              rows={jobDocuments.map((d) => [
+                <a
+                  key="file"
+                  href={`/api/documents/${d.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-normal text-slate-900 hover:text-teal-600"
+                >
+                  {d.fileName}
+                </a>,
+                d.contentType,
+                formatDate(d.createdAt),
+                <form key="del" action={deleteJobDocument}>
+                  <input type="hidden" name="documentId" value={d.id} />
+                  <SmallButton>Delete</SmallButton>
+                </form>,
+              ])}
+            />
+            <form action={uploadJobDocument} className="flex flex-wrap items-end gap-3">
+              <input
+                type="file"
+                name="file"
+                required
+                className="text-sm font-normal text-slate-700"
+              />
+              <SubmitButton>Upload</SubmitButton>
             </form>
           </Section>
         </div>
