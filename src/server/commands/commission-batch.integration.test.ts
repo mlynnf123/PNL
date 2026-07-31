@@ -1,13 +1,17 @@
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { testDb } from '@/db/test-client';
-import { commissionAllocations, commissionRules, commissionRuleSets, jobs } from '@/db/schema';
-import { CommissionBlockedError } from '@/lib/commission-rules';
+import {
+  commissionAllocations,
+  jobCommissionSplits,
+  jobs,
+  organizations,
+  users,
+} from '@/db/schema';
 import { AuthorizationError, PERMISSIONS } from '@/lib/permissions';
 import {
   createCloseableJobFixture,
   createClosedJobFixture,
-  createCommissionRuleSetFixture,
   createOrganization,
   createUser,
   grantPermission,
@@ -19,42 +23,72 @@ import {
   CommissionReconciliationError,
   generateCommissionBatch,
   JobNotClosedError,
-  NoEffectiveRuleSetError,
   rejectCommissionBatch,
 } from './commission-batch';
+import { CommissionCapExceededError, setCommissionSplit } from './commission-splits';
 
-async function setupOwners(organizationId: string) {
-  const justin = await createUser(organizationId);
-  const ian = await createUser(organizationId);
-  const thirdOwner = await createUser(organizationId);
-  await createCommissionRuleSetFixture(organizationId, {
-    justinId: justin.id,
-    ianId: ian.id,
-    thirdOwnerId: thirdOwner.id,
-  });
-  return { justin, ian, thirdOwner };
+// A commission-eligible owner user (recipients must be owners).
+async function createOwner(organizationId: string, name = 'Owner') {
+  const u = await createUser(organizationId);
+  const [owner] = await testDb
+    .update(users)
+    .set({ userType: 'owner', displayName: name })
+    .where(eq(users.id, u.id))
+    .returning();
+  return owner;
 }
 
-describe('commission batch', () => {
+// Set the org's automatic universal-share recipient (Meranda) and return her.
+async function setMeranda(organizationId: string) {
+  const meranda = await createOwner(organizationId, 'Meranda');
+  await testDb
+    .update(organizations)
+    .set({ universalShareUserId: meranda.id })
+    .where(eq(organizations.id, organizationId));
+  return meranda;
+}
+
+async function grantGenPerms(orgId: string, userId: string) {
+  await grantPermission(orgId, userId, PERMISSIONS.FINANCIAL_ENTRY);
+  await grantPermission(orgId, userId, PERMISSIONS.COST_FINALIZATION);
+  await grantPermission(orgId, userId, PERMISSIONS.CLOSE_APPROVAL);
+}
+
+describe('commission batch (per-deal split model)', () => {
   beforeEach(async () => {
     await resetDatabase();
   });
 
-  it('COMM-STANDARD-REP-001: a standard rep sale allocates 40/10/10/10 and a 30% company residual', async () => {
+  it('GEN-SPLIT-001: authored split + Meranda 10% allocates and keeps a 30% company residual', async () => {
     const org = await createOrganization();
     const actor = await createUser(org.id);
-    await grantPermission(org.id, actor.id, PERMISSIONS.FINANCIAL_ENTRY);
-    await grantPermission(org.id, actor.id, PERMISSIONS.COST_FINALIZATION);
-    await grantPermission(org.id, actor.id, PERMISSIONS.CLOSE_APPROVAL);
-    const { justin, ian, thirdOwner } = await setupOwners(org.id);
-    const { job, salesRep } = await createClosedJobFixture(org.id, actor.id);
+    await grantGenPerms(org.id, actor.id);
+    await setMeranda(org.id);
+    const justin = await createOwner(org.id, 'Justin');
+    const ian = await createOwner(org.id, 'Ian');
+    const { job } = await createClosedJobFixture(org.id, actor.id); // dealOwner = actor
+
+    // The deal creator authors Justin 40% + Ian 20% (Meranda's 10% is automatic).
+    await setCommissionSplit(
+      {
+        actorUserId: actor.id,
+        organizationId: org.id,
+        jobId: job.id,
+        lines: [
+          { recipientUserId: justin.id, ratePct: 0.4 },
+          { recipientUserId: ian.id, ratePct: 0.2 },
+        ],
+      },
+      testDb,
+    );
 
     const batch = await generateCommissionBatch(
       { actorUserId: actor.id, organizationId: org.id, jobId: job.id },
       testDb,
     );
 
-    // Commissionable profit is $5000.00 (10000 collected - 2000 labor - 3000 material).
+    // Commissionable profit is $5000 (10000 collected − 2000 labor − 3000 material):
+    // Justin 2000 + Ian 1000 + Meranda 500 = 3500; company residual 1500 (30%).
     expect(batch.totalAllocatedAmount).toBe('3500.00');
     expect(batch.companyProfit).toBe('1500.00');
 
@@ -62,144 +96,77 @@ describe('commission batch', () => {
       .select()
       .from(commissionAllocations)
       .where(eq(commissionAllocations.batchId, batch.id));
-    expect(allocations).toHaveLength(4);
+    expect(allocations).toHaveLength(3);
+    expect(allocations.find((a) => a.recipientUserId === justin.id)?.earnedAmount).toBe('2000.00');
+    expect(allocations.find((a) => a.recipientUserId === ian.id)?.earnedAmount).toBe('1000.00');
+    const universal = allocations.find((a) => a.allocationType === 'universal_owner_share');
+    expect(universal?.recipientUserId).toBeDefined();
+    expect(universal?.earnedAmount).toBe('500.00');
 
-    const bySeller = allocations.find((a) => a.recipientUserId === salesRep.id);
-    expect(bySeller?.allocationType).toBe('primary_sales');
-    expect(bySeller?.earnedAmount).toBe('2000.00');
+    // Exact-cents reconciliation: Σ earned + company profit === commissionable profit.
+    const sumEarned = allocations.reduce((s, a) => s + Number(a.earnedAmount), 0);
+    expect(sumEarned + Number(batch.companyProfit)).toBeCloseTo(5000, 2);
 
-    const justinAlloc = allocations.find((a) => a.recipientUserId === justin.id);
-    expect(justinAlloc?.allocationType).toBe('owner_override');
-    expect(justinAlloc?.earnedAmount).toBe('500.00');
-
-    const ianAlloc = allocations.find((a) => a.recipientUserId === ian.id);
-    expect(ianAlloc?.allocationType).toBe('owner_override');
-    expect(ianAlloc?.earnedAmount).toBe('500.00');
-
-    const thirdOwnerAlloc = allocations.find((a) => a.recipientUserId === thirdOwner.id);
-    expect(thirdOwnerAlloc?.allocationType).toBe('universal_owner_share');
-    expect(thirdOwnerAlloc?.earnedAmount).toBe('500.00');
-
-    const [reloadedJob] = await testDb.select().from(jobs).where(eq(jobs.id, job.id)).limit(1);
-    expect(reloadedJob.commissionStatus).toBe('InReview');
+    const [reloaded] = await testDb.select().from(jobs).where(eq(jobs.id, job.id)).limit(1);
+    expect(reloaded.commissionStatus).toBe('InReview');
   });
 
-  it('COMM-OWNER-SELLER-001: Justin selling his own job gets 50 percent with no owner override', async () => {
+  it('GEN-SPLIT-002: with no authored split, only Meranda 10% is allocated', async () => {
     const org = await createOrganization();
     const actor = await createUser(org.id);
-    await grantPermission(org.id, actor.id, PERMISSIONS.FINANCIAL_ENTRY);
-    await grantPermission(org.id, actor.id, PERMISSIONS.COST_FINALIZATION);
-    await grantPermission(org.id, actor.id, PERMISSIONS.CLOSE_APPROVAL);
-    const { justin, ian, thirdOwner } = await setupOwners(org.id);
-    const { job } = await createClosedJobFixture(org.id, actor.id, justin.id);
+    await grantGenPerms(org.id, actor.id);
+    await setMeranda(org.id);
+    const { job } = await createClosedJobFixture(org.id, actor.id);
 
     const batch = await generateCommissionBatch(
       { actorUserId: actor.id, organizationId: org.id, jobId: job.id },
       testDb,
     );
 
-    expect(batch.totalAllocatedAmount).toBe('3000.00');
-    expect(batch.companyProfit).toBe('2000.00');
-
+    expect(batch.totalAllocatedAmount).toBe('500.00');
+    expect(batch.companyProfit).toBe('4500.00');
     const allocations = await testDb
       .select()
       .from(commissionAllocations)
       .where(eq(commissionAllocations.batchId, batch.id));
-    expect(allocations).toHaveLength(2);
-    expect(allocations.some((a) => a.recipientUserId === ian.id)).toBe(false);
-
-    const justinAlloc = allocations.find((a) => a.recipientUserId === justin.id);
-    expect(justinAlloc?.allocationType).toBe('primary_sales');
-    expect(justinAlloc?.earnedAmount).toBe('2500.00');
-
-    const thirdOwnerAlloc = allocations.find((a) => a.recipientUserId === thirdOwner.id);
-    expect(thirdOwnerAlloc?.allocationType).toBe('universal_owner_share');
-    expect(thirdOwnerAlloc?.earnedAmount).toBe('500.00');
+    expect(allocations).toHaveLength(1);
+    expect(allocations[0].allocationType).toBe('universal_owner_share');
   });
 
-  it('COMM-OWNER-SELLER-002: Ian selling his own job mirrors Justin — 50 percent, no owner override', async () => {
+  it('GEN-SPLIT-CAP-001: generation refuses a split whose total exceeds the 70% cap', async () => {
     const org = await createOrganization();
     const actor = await createUser(org.id);
-    await grantPermission(org.id, actor.id, PERMISSIONS.FINANCIAL_ENTRY);
-    await grantPermission(org.id, actor.id, PERMISSIONS.COST_FINALIZATION);
-    await grantPermission(org.id, actor.id, PERMISSIONS.CLOSE_APPROVAL);
-    const { justin, ian, thirdOwner } = await setupOwners(org.id);
-    const { job } = await createClosedJobFixture(org.id, actor.id, ian.id);
+    await grantGenPerms(org.id, actor.id);
+    await setMeranda(org.id);
+    const justin = await createOwner(org.id, 'Justin');
+    const { job } = await createClosedJobFixture(org.id, actor.id);
 
-    const batch = await generateCommissionBatch(
-      { actorUserId: actor.id, organizationId: org.id, jobId: job.id },
-      testDb,
-    );
-
-    const allocations = await testDb
-      .select()
-      .from(commissionAllocations)
-      .where(eq(commissionAllocations.batchId, batch.id));
-    expect(allocations).toHaveLength(2);
-    expect(allocations.some((a) => a.recipientUserId === justin.id)).toBe(false);
-
-    const ianAlloc = allocations.find((a) => a.recipientUserId === ian.id);
-    expect(ianAlloc?.allocationType).toBe('primary_sales');
-    expect(ianAlloc?.earnedAmount).toBe('2500.00');
-
-    const thirdOwnerAlloc = allocations.find((a) => a.recipientUserId === thirdOwner.id);
-    expect(thirdOwnerAlloc?.earnedAmount).toBe('500.00');
-  });
-
-  it('COMM-BLOCKED-001: Charlie is flagged blocked and generation refuses to compute an allocation', async () => {
-    const org = await createOrganization();
-    const actor = await createUser(org.id);
-    await grantPermission(org.id, actor.id, PERMISSIONS.FINANCIAL_ENTRY);
-    await grantPermission(org.id, actor.id, PERMISSIONS.COST_FINALIZATION);
-    await grantPermission(org.id, actor.id, PERMISSIONS.CLOSE_APPROVAL);
-    const charlie = await createUser(org.id);
-
-    const [ruleSet] = await testDb
-      .insert(commissionRuleSets)
-      .values({
-        organizationId: org.id,
-        name: 'Charlie blocked test rule set',
-        versionNumber: 1,
-        effectiveFrom: '2020-01-01',
-        status: 'Active',
-      })
-      .returning();
-    await testDb.insert(commissionRules).values({
-      ruleSetId: ruleSet.id,
-      priority: 1,
-      sellerMatchType: 'named_user',
-      sellerUserId: charlie.id,
-      allocationType: 'primary_sales',
-      rate: '0.5000',
-      conditionsJson: { blocked: true, reason: 'BLOCKED_PENDING_BUSINESS_CONFIRMATION' },
+    // Insert an over-cap line directly (bypassing setCommissionSplit's guard) to
+    // prove the engine's own defensive backstop.
+    await testDb.insert(jobCommissionSplits).values({
+      organizationId: org.id,
+      jobId: job.id,
+      recipientUserId: justin.id,
+      ratePct: '0.6500',
+      createdBy: actor.id,
     });
-
-    const { job } = await createClosedJobFixture(org.id, actor.id, charlie.id);
 
     await expect(
       generateCommissionBatch(
         { actorUserId: actor.id, organizationId: org.id, jobId: job.id },
         testDb,
       ),
-    ).rejects.toBeInstanceOf(CommissionBlockedError);
-
-    const allocations = await testDb.select().from(commissionAllocations);
-    expect(allocations).toHaveLength(0);
-
-    const [reloadedJob] = await testDb.select().from(jobs).where(eq(jobs.id, job.id)).limit(1);
-    expect(reloadedJob.commissionStatus).toBe('NotEligible');
+    ).rejects.toBeInstanceOf(CommissionCapExceededError);
+    expect(await testDb.select().from(commissionAllocations)).toHaveLength(0);
   });
 
   it('COMM-BATCH-002: generation refuses a job that is not financially closed', async () => {
     const org = await createOrganization();
     const actor = await createUser(org.id);
-    await grantPermission(org.id, actor.id, PERMISSIONS.FINANCIAL_ENTRY);
-    await grantPermission(org.id, actor.id, PERMISSIONS.COST_FINALIZATION);
-    await grantPermission(org.id, actor.id, PERMISSIONS.CLOSE_APPROVAL);
-    await setupOwners(org.id);
+    await grantGenPerms(org.id, actor.id);
+    await setMeranda(org.id);
     const salesRep = await createUser(org.id);
     const { job } = await createCloseableJobFixture(org.id, actor.id, salesRep.id);
-    // createCloseableJobFixture does not itself submit/approve the close.
 
     await expect(
       generateCommissionBatch(
@@ -209,36 +176,17 @@ describe('commission batch', () => {
     ).rejects.toBeInstanceOf(JobNotClosedError);
   });
 
-  it('COMM-BATCH-003: generation refuses when no rule set is effective for the job', async () => {
-    const org = await createOrganization();
-    const actor = await createUser(org.id);
-    await grantPermission(org.id, actor.id, PERMISSIONS.FINANCIAL_ENTRY);
-    await grantPermission(org.id, actor.id, PERMISSIONS.COST_FINALIZATION);
-    await grantPermission(org.id, actor.id, PERMISSIONS.CLOSE_APPROVAL);
-    const { job } = await createClosedJobFixture(org.id, actor.id);
-
-    await expect(
-      generateCommissionBatch(
-        { actorUserId: actor.id, organizationId: org.id, jobId: job.id },
-        testDb,
-      ),
-    ).rejects.toBeInstanceOf(NoEffectiveRuleSetError);
-  });
-
   it('COMM-BATCH-004: generation refuses a second batch for the same close version', async () => {
     const org = await createOrganization();
     const actor = await createUser(org.id);
-    await grantPermission(org.id, actor.id, PERMISSIONS.FINANCIAL_ENTRY);
-    await grantPermission(org.id, actor.id, PERMISSIONS.COST_FINALIZATION);
-    await grantPermission(org.id, actor.id, PERMISSIONS.CLOSE_APPROVAL);
-    await setupOwners(org.id);
+    await grantGenPerms(org.id, actor.id);
+    await setMeranda(org.id);
     const { job } = await createClosedJobFixture(org.id, actor.id);
 
     await generateCommissionBatch(
       { actorUserId: actor.id, organizationId: org.id, jobId: job.id },
       testDb,
     );
-
     await expect(
       generateCommissionBatch(
         { actorUserId: actor.id, organizationId: org.id, jobId: job.id },
@@ -250,11 +198,9 @@ describe('commission batch', () => {
   it('COMM-APPROVE-001: approving a batch that reconciles to commissionable profit succeeds', async () => {
     const org = await createOrganization();
     const actor = await createUser(org.id);
-    await grantPermission(org.id, actor.id, PERMISSIONS.FINANCIAL_ENTRY);
-    await grantPermission(org.id, actor.id, PERMISSIONS.COST_FINALIZATION);
-    await grantPermission(org.id, actor.id, PERMISSIONS.CLOSE_APPROVAL);
+    await grantGenPerms(org.id, actor.id);
     await grantPermission(org.id, actor.id, PERMISSIONS.COMMISSION_APPROVAL);
-    await setupOwners(org.id);
+    await setMeranda(org.id);
     const { job } = await createClosedJobFixture(org.id, actor.id);
 
     const batch = await generateCommissionBatch(
@@ -267,26 +213,23 @@ describe('commission batch', () => {
     );
 
     expect(approved.status).toBe('Approved');
-    const [reloadedJob] = await testDb.select().from(jobs).where(eq(jobs.id, job.id)).limit(1);
-    expect(reloadedJob.commissionStatus).toBe('Approved');
+    const [reloaded] = await testDb.select().from(jobs).where(eq(jobs.id, job.id)).limit(1);
+    expect(reloaded.commissionStatus).toBe('Approved');
   });
 
-  it('COMM-APPROVE-002: approval re-validates reconciliation and refuses if allocations were tampered with', async () => {
+  it('COMM-APPROVE-002: approval re-validates reconciliation and refuses tampered allocations', async () => {
     const org = await createOrganization();
     const actor = await createUser(org.id);
-    await grantPermission(org.id, actor.id, PERMISSIONS.FINANCIAL_ENTRY);
-    await grantPermission(org.id, actor.id, PERMISSIONS.COST_FINALIZATION);
-    await grantPermission(org.id, actor.id, PERMISSIONS.CLOSE_APPROVAL);
+    await grantGenPerms(org.id, actor.id);
     await grantPermission(org.id, actor.id, PERMISSIONS.COMMISSION_APPROVAL);
-    await setupOwners(org.id);
+    await setMeranda(org.id);
     const { job } = await createClosedJobFixture(org.id, actor.id);
 
     const batch = await generateCommissionBatch(
       { actorUserId: actor.id, organizationId: org.id, jobId: job.id },
       testDb,
     );
-
-    const [firstAllocation] = await testDb
+    const [alloc] = await testDb
       .select()
       .from(commissionAllocations)
       .where(eq(commissionAllocations.batchId, batch.id))
@@ -294,7 +237,7 @@ describe('commission batch', () => {
     await testDb
       .update(commissionAllocations)
       .set({ earnedAmount: '999999.99' })
-      .where(eq(commissionAllocations.id, firstAllocation.id));
+      .where(eq(commissionAllocations.id, alloc.id));
 
     await expect(
       approveCommissionBatch(
@@ -307,11 +250,9 @@ describe('commission batch', () => {
   it('COMM-REJECT-001: rejecting a proposed batch requires a reason and records it', async () => {
     const org = await createOrganization();
     const actor = await createUser(org.id);
-    await grantPermission(org.id, actor.id, PERMISSIONS.FINANCIAL_ENTRY);
-    await grantPermission(org.id, actor.id, PERMISSIONS.COST_FINALIZATION);
-    await grantPermission(org.id, actor.id, PERMISSIONS.CLOSE_APPROVAL);
+    await grantGenPerms(org.id, actor.id);
     await grantPermission(org.id, actor.id, PERMISSIONS.COMMISSION_APPROVAL);
-    await setupOwners(org.id);
+    await setMeranda(org.id);
     const { job } = await createClosedJobFixture(org.id, actor.id);
 
     const batch = await generateCommissionBatch(
@@ -319,25 +260,17 @@ describe('commission batch', () => {
       testDb,
     );
     const rejected = await rejectCommissionBatch(
-      {
-        actorUserId: actor.id,
-        organizationId: org.id,
-        batchId: batch.id,
-        reason: 'Wrong seller assignment',
-      },
+      { actorUserId: actor.id, organizationId: org.id, batchId: batch.id, reason: 'Wrong split' },
       testDb,
     );
-
     expect(rejected.status).toBe('Rejected');
   });
 
   it('AUTH-COMM-001: an actor without close_approval permission cannot generate a batch', async () => {
     const org = await createOrganization();
     const owner = await createUser(org.id);
-    await grantPermission(org.id, owner.id, PERMISSIONS.FINANCIAL_ENTRY);
-    await grantPermission(org.id, owner.id, PERMISSIONS.COST_FINALIZATION);
-    await grantPermission(org.id, owner.id, PERMISSIONS.CLOSE_APPROVAL);
-    await setupOwners(org.id);
+    await grantGenPerms(org.id, owner.id);
+    await setMeranda(org.id);
     const { job } = await createClosedJobFixture(org.id, owner.id);
     const actor = await createUser(org.id);
 
@@ -352,10 +285,8 @@ describe('commission batch', () => {
   it('AUTH-COMM-002: an actor without commission_approval permission cannot approve a batch', async () => {
     const org = await createOrganization();
     const owner = await createUser(org.id);
-    await grantPermission(org.id, owner.id, PERMISSIONS.FINANCIAL_ENTRY);
-    await grantPermission(org.id, owner.id, PERMISSIONS.COST_FINALIZATION);
-    await grantPermission(org.id, owner.id, PERMISSIONS.CLOSE_APPROVAL);
-    await setupOwners(org.id);
+    await grantGenPerms(org.id, owner.id);
+    await setMeranda(org.id);
     const { job } = await createClosedJobFixture(org.id, owner.id);
     const batch = await generateCommissionBatch(
       { actorUserId: owner.id, organizationId: org.id, jobId: job.id },

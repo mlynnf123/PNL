@@ -99,6 +99,30 @@ export async function grantPermission(
   await testDb.insert(userRoles).values({ userId, roleId: role.id });
 }
 
+// Promote an existing user to a commission-eligible owner.
+export async function makeOwner(userId: string) {
+  const [owner] = await testDb
+    .update(users)
+    .set({ userType: 'owner' })
+    .where(eq(users.id, userId))
+    .returning();
+  return owner;
+}
+
+// Create a commission-eligible owner user.
+export async function createOwner(organizationId: string) {
+  const u = await createUser(organizationId);
+  return makeOwner(u.id);
+}
+
+// Set the org's automatic universal-share recipient (Meranda in production).
+export async function setUniversalShareRecipient(organizationId: string, userId: string) {
+  await testDb
+    .update(organizations)
+    .set({ universalShareUserId: userId })
+    .where(eq(organizations.id, organizationId));
+}
+
 // A user with FINANCIAL_ENTRY (and, when needed, COST_FINALIZATION) plus a
 // freshly created job — the common starting point for most Phase 2 tests.
 // Pass sellerUserId (e.g. a named owner-seller fixture) to control who's

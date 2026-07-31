@@ -1,19 +1,22 @@
-import { and, eq, isNull, or, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { db as defaultDb } from '@/db/client';
 import type { DbClient } from '@/db/client';
 import {
   commissionAllocationBatches,
   commissionAllocations,
-  commissionRules,
-  commissionRuleSets,
   financialCloseVersions,
-  jobAssignments,
+  jobCommissionSplits,
   jobs,
+  organizations,
 } from '@/db/schema';
 import { recordAuditEvent } from '@/lib/audit';
-import { matchCommissionRules } from '@/lib/commission-rules';
 import { updateJob } from '@/lib/concurrency';
 import { PERMISSIONS, requirePermission } from '@/lib/permissions';
+import {
+  CommissionCapExceededError,
+  MAX_TOTAL_COMMISSION_RATE,
+  UNIVERSAL_SHARE_RATE,
+} from './commission-splits';
 
 export class JobNotFoundError extends Error {
   constructor(id: string) {
@@ -78,10 +81,10 @@ export interface GenerateCommissionBatchInput {
   correlationId?: string;
 }
 
-// docs/04_WORKFLOWS_SCREENS_AND_PERMISSIONS.md SS8: commission is generated
-// only from an approved Financial Close Version. The governing date used to
-// pick the effective rule set is job.contractedAt — a placeholder pending
-// docs/07 D-003, not a production decision (see ADR in docs/07).
+// docs/04 SS8: commission is generated only from an approved Financial Close
+// Version. Owner-only, per-deal model (docs/07 D-001..D-004): allocations come
+// from the deal's authored split lines (jobCommissionSplits) plus the automatic
+// universal owner share (Meranda's 10%). No rule-set matching or seller lookup.
 export async function generateCommissionBatch(
   input: GenerateCommissionBatchInput,
   db: DbClient = defaultDb,
@@ -117,76 +120,71 @@ export async function generateCommissionBatch(
       .where(eq(financialCloseVersions.id, job.currentFinancialVersionId))
       .limit(1);
 
-    const [assignment] = await tx
+    // The deal's authored split lines (owner recipients) + the automatic
+    // universal owner share (Meranda's 10%).
+    const splitLines = await tx
       .select()
-      .from(jobAssignments)
-      .where(
-        and(
-          eq(jobAssignments.jobId, input.jobId),
-          eq(jobAssignments.assignmentType, 'primary_sales_rep'),
-        ),
-      )
+      .from(jobCommissionSplits)
+      .where(eq(jobCommissionSplits.jobId, input.jobId));
+
+    const [org] = await tx
+      .select({ universalShareUserId: organizations.universalShareUserId })
+      .from(organizations)
+      .where(eq(organizations.id, input.organizationId))
       .limit(1);
-    if (!assignment) {
-      throw new NoPrimarySalesRepError(input.jobId);
+
+    const pending: {
+      recipientUserId: string;
+      allocationType: 'owner_override' | 'universal_owner_share';
+      sourceSplitId: string | null;
+      rate: string;
+    }[] = splitLines.map((l) => ({
+      recipientUserId: l.recipientUserId,
+      allocationType: 'owner_override' as const,
+      sourceSplitId: l.id,
+      rate: l.ratePct,
+    }));
+
+    if (org?.universalShareUserId) {
+      pending.push({
+        recipientUserId: org.universalShareUserId,
+        allocationType: 'universal_owner_share',
+        sourceSplitId: null,
+        rate: UNIVERSAL_SHARE_RATE.toFixed(4),
+      });
     }
 
-    const governingDate = job.contractedAt;
-
-    const [ruleSet] = await tx
-      .select()
-      .from(commissionRuleSets)
-      .where(
-        and(
-          eq(commissionRuleSets.organizationId, input.organizationId),
-          eq(commissionRuleSets.status, 'Active'),
-          sql`${commissionRuleSets.effectiveFrom} <= ${governingDate}`,
-          or(
-            isNull(commissionRuleSets.effectiveTo),
-            sql`${commissionRuleSets.effectiveTo} >= ${governingDate}`,
-          ),
-        ),
-      )
-      .limit(1);
-    if (!ruleSet) {
-      throw new NoEffectiveRuleSetError(input.jobId);
+    // Defensive cap: authored + universal 10% <= 70%, so the company keeps
+    // >= 30%. Also enforced when the split is authored (setCommissionSplit).
+    const authoredTotal = splitLines.reduce((sum, l) => sum + Number(l.ratePct), 0);
+    if (authoredTotal + UNIVERSAL_SHARE_RATE > MAX_TOTAL_COMMISSION_RATE + 1e-9) {
+      throw new CommissionCapExceededError(authoredTotal);
     }
-
-    const rules = await tx
-      .select()
-      .from(commissionRules)
-      .where(eq(commissionRules.ruleSetId, ruleSet.id));
-
-    // Throws CommissionBlockedError for a rule flagged blocked (e.g. Charlie,
-    // D-001) — propagates out of this transaction, creating nothing.
-    const matched = matchCommissionRules(assignment.userId, rules);
 
     const [batch] = await tx
       .insert(commissionAllocationBatches)
       .values({
         jobId: input.jobId,
         financialCloseVersionId: job.currentFinancialVersionId,
-        ruleSetId: ruleSet.id,
         status: 'Proposed',
         totalAllocatedAmount: '0.00',
         companyProfit: version.commissionableProfit,
       })
       .returning();
 
-    for (const allocation of matched) {
+    for (const a of pending) {
       const rows = await tx.execute<{ earned: string }>(sql`
-        SELECT (${version.commissionableProfit}::numeric * ${allocation.rate}::numeric)::numeric(12,2) AS earned
+        SELECT (${version.commissionableProfit}::numeric * ${a.rate}::numeric)::numeric(12,2) AS earned
       `);
-      const earnedAmount = rows[0].earned;
-
       await tx.insert(commissionAllocations).values({
         batchId: batch.id,
-        recipientUserId: allocation.recipientUserId,
-        allocationType: allocation.allocationType,
-        sourceRuleId: allocation.sourceRuleId,
-        rate: allocation.rate,
+        recipientUserId: a.recipientUserId,
+        allocationType: a.allocationType,
+        sourceRuleId: null,
+        sourceSplitId: a.sourceSplitId,
+        rate: a.rate,
         basisAmount: version.commissionableProfit,
-        earnedAmount,
+        earnedAmount: rows[0].earned,
       });
     }
 
@@ -219,7 +217,7 @@ export async function generateCommissionBatch(
       entityId: updatedBatch.id,
       jobId: input.jobId,
       newState: {
-        ruleSetId: ruleSet.id,
+        allocationCount: pending.length,
         totalAllocatedAmount: updatedBatch.totalAllocatedAmount,
         companyProfit: updatedBatch.companyProfit,
       },

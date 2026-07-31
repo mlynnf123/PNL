@@ -8,10 +8,13 @@ import {
   createCommissionRuleSetFixture,
   createJobFixture,
   createOrganization,
+  createOwner,
   createUser,
   grantPermission,
   resetDatabase,
+  setUniversalShareRecipient,
 } from '@/test-support/fixtures';
+import { setCommissionSplit } from '../commands/commission-splits';
 import {
   approveOperationalCompletion,
   requestOperationalCompletion,
@@ -172,15 +175,21 @@ describe('dashboard queues', () => {
     await grantPermission(org.id, actor.id, PERMISSIONS.CLOSE_APPROVAL);
     await grantPermission(org.id, actor.id, PERMISSIONS.COMMISSION_APPROVAL);
     await grantPermission(org.id, actor.id, PERMISSIONS.PAYMENT_POSTING);
-    const justin = await createUser(org.id);
-    const ian = await createUser(org.id);
-    const thirdOwner = await createUser(org.id);
-    await createCommissionRuleSetFixture(org.id, {
-      justinId: justin.id,
-      ianId: ian.id,
-      thirdOwnerId: thirdOwner.id,
-    });
+    const justin = await createOwner(org.id);
+    const thirdOwner = await createOwner(org.id);
+    // Third owner is the automatic universal-share (10%) recipient.
+    await setUniversalShareRecipient(org.id, thirdOwner.id);
     const { job } = await createClosedJobFixture(org.id, actor.id, justin.id);
+    // Justin gets a 50% split ($2500); thirdOwner gets the automatic 10% ($500).
+    await setCommissionSplit(
+      {
+        actorUserId: actor.id,
+        organizationId: org.id,
+        jobId: job.id,
+        lines: [{ recipientUserId: justin.id, ratePct: 0.5 }],
+      },
+      testDb,
+    );
     const batch = await generateCommissionBatch(
       { actorUserId: actor.id, organizationId: org.id, jobId: job.id },
       testDb,

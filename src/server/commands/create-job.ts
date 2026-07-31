@@ -27,6 +27,7 @@ export interface GeneratedJobFields {
   originalContractAmount: string;
   contractedAt: string;
   actorUserId: string;
+  dealOwnerUserId: string;
 }
 
 // docs/07 D-010: JJ-YYYY-NNNN, generated server-side, never reused. Two jobs
@@ -64,6 +65,7 @@ export async function insertJobWithGeneratedNumber(tx: TxHandle, input: Generate
             claimNumber: input.claimNumber ?? undefined,
             originalContractAmount: input.originalContractAmount,
             contractedAt: input.contractedAt,
+            dealOwnerUserId: input.dealOwnerUserId,
             createdBy: input.actorUserId,
             updatedBy: input.actorUserId,
           })
@@ -105,6 +107,10 @@ export interface CreateJobInput {
   originalContractAmount: string;
   contractedAt: string;
   primarySalesRepUserId: string;
+  // The deal creator who owns the commission split. Defaults to the actor;
+  // convertLeadToJob passes the lead's creator so the split is owned by whoever
+  // input the lead.
+  dealOwnerUserId?: string;
   correlationId?: string;
 }
 
@@ -144,6 +150,7 @@ export async function createJob(input: CreateJobInput, db: DbClient = defaultDb)
       originalContractAmount: input.originalContractAmount,
       contractedAt: input.contractedAt,
       actorUserId: input.actorUserId,
+      dealOwnerUserId: input.dealOwnerUserId ?? input.actorUserId,
     });
 
     await tx.insert(jobAssignments).values({

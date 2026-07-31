@@ -15,11 +15,9 @@ const MANAGE_CARDS = [
     title: 'Roles & permissions',
     body: 'Define roles and choose the permissions each one grants.',
   },
-  {
-    href: '/dashboard/settings/commission-rules',
-    title: 'Commission rules',
-    body: 'Draft, review, and activate effective-dated commission rule sets.',
-  },
+  // Commission rules are deprecated — commission is now a per-deal split
+  // authored on each job (see the job's Commission tab). The old rule-set
+  // editor route still exists but is unlinked.
 ];
 
 const AUDIT_CARD = {

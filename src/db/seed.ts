@@ -6,8 +6,6 @@ config({ path: '.env.local' });
 
 import { and, eq } from 'drizzle-orm';
 import {
-  commissionRules,
-  commissionRuleSets,
   completionChecklistTemplates,
   organizations,
   permissions,
@@ -225,10 +223,10 @@ async function main() {
       roleName: 'owner_approver',
     },
     {
-      email: 'third-owner@jjroofing.example',
-      displayName: 'Third Owner (pending D-004)',
+      email: 'meranda@jjroofingpros.com',
+      displayName: 'Meranda',
       userType: 'owner',
-      roleName: 'owner_approver',
+      roleName: 'owner_admin',
     },
     {
       email: 'charlie@jjroofing.example',
@@ -284,110 +282,15 @@ async function main() {
       .onConflictDoNothing({ target: [userRoles.userId, userRoles.roleId] });
   }
 
-  const justinId = namedUserIdByEmail.get('justin@jjroofing.example')!;
-  const ianId = namedUserIdByEmail.get('ian@jjroofing.example')!;
-  const thirdOwnerId = namedUserIdByEmail.get('third-owner@jjroofing.example')!;
-
-  const ruleSetName = 'Confirmed commission patterns v1';
-  const [existingRuleSet] = await db
-    .select()
-    .from(commissionRuleSets)
-    .where(
-      and(
-        eq(commissionRuleSets.organizationId, organization.id),
-        eq(commissionRuleSets.name, ruleSetName),
-      ),
-    )
-    .limit(1);
-
-  if (!existingRuleSet) {
-    const [ruleSet] = await db
-      .insert(commissionRuleSets)
-      .values({
-        organizationId: organization.id,
-        name: ruleSetName,
-        versionNumber: 1,
-        effectiveFrom: '2020-01-01',
-        status: 'Active',
-        approvedBy: ownerUser.id,
-        approvedAt: new Date(),
-        notes: 'docs/01 SS7 confirmed patterns only — no Charlie rule pending D-001.',
-      })
-      .returning();
-
-    // docs/01 SS7: standard rep 40% seller + 10%/10%/10% owner overrides.
-    await db.insert(commissionRules).values([
-      {
-        ruleSetId: ruleSet.id,
-        priority: 1,
-        sellerMatchType: 'standard_rep',
-        allocationType: 'primary_sales',
-        rate: '0.4000',
-      },
-      {
-        ruleSetId: ruleSet.id,
-        priority: 2,
-        sellerMatchType: 'standard_rep',
-        allocationType: 'owner_override',
-        recipientUserId: justinId,
-        rate: '0.1000',
-      },
-      {
-        ruleSetId: ruleSet.id,
-        priority: 3,
-        sellerMatchType: 'standard_rep',
-        allocationType: 'owner_override',
-        recipientUserId: ianId,
-        rate: '0.1000',
-      },
-      {
-        ruleSetId: ruleSet.id,
-        priority: 4,
-        sellerMatchType: 'standard_rep',
-        allocationType: 'universal_owner_share',
-        recipientUserId: thirdOwnerId,
-        rate: '0.1000',
-      },
-      // Justin sells his own job: 50% seller + universal 10%, no owner overrides.
-      {
-        ruleSetId: ruleSet.id,
-        priority: 1,
-        sellerMatchType: 'owner_seller',
-        sellerUserId: justinId,
-        allocationType: 'primary_sales',
-        rate: '0.5000',
-      },
-      {
-        ruleSetId: ruleSet.id,
-        priority: 2,
-        sellerMatchType: 'owner_seller',
-        sellerUserId: justinId,
-        allocationType: 'universal_owner_share',
-        recipientUserId: thirdOwnerId,
-        rate: '0.1000',
-      },
-      // Ian sells his own job: mirrors Justin.
-      {
-        ruleSetId: ruleSet.id,
-        priority: 1,
-        sellerMatchType: 'owner_seller',
-        sellerUserId: ianId,
-        allocationType: 'primary_sales',
-        rate: '0.5000',
-      },
-      {
-        ruleSetId: ruleSet.id,
-        priority: 2,
-        sellerMatchType: 'owner_seller',
-        sellerUserId: ianId,
-        allocationType: 'universal_owner_share',
-        recipientUserId: thirdOwnerId,
-        rate: '0.1000',
-      },
-    ]);
-
-    console.log(`Created active commission rule set ${ruleSet.id}`);
-  }
+  // Owner-only commission model (docs/07 D-001..D-004): no rule sets. Meranda
+  // receives the automatic universal 10% share; per-deal splits are authored on
+  // each job by the deal's creator (see commission-splits.ts).
+  const merandaId = namedUserIdByEmail.get('meranda@jjroofingpros.com')!;
+  await db
+    .update(organizations)
+    .set({ universalShareUserId: merandaId })
+    .where(eq(organizations.id, organization.id));
+  console.log('Set universal commission-share recipient to Meranda');
 
   // Starter estimate layouts (published) — one per job type. See estimate-types.ts.
   await ensureTypedEstimateLayouts(db, { orgId: organization.id, createdBy: ownerUser.id });

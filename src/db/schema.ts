@@ -26,6 +26,11 @@ export const organizations = pgTable('organizations', {
   defaultCurrency: text('default_currency').notNull().default('USD'),
   timeZone: text('time_zone').notNull(),
   active: boolean('active').notNull().default(true),
+  // Owner who receives the automatic universal commission share (Meranda's 10%).
+  // Nullable; configurable per org rather than hardcoded. Soft pointer (no hard
+  // FK) to avoid an organizations<->users reference cycle — validated at the app
+  // layer, same convention as jobs.current_financial_version_id.
+  universalShareUserId: uuid('universal_share_user_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -283,6 +288,9 @@ export const jobs = pgTable(
     // Drizzle/Postgres don't need this pointer to be a hard FK to be useful —
     // it's validated at the application layer, same as audit_events.job_id.
     currentFinancialVersionId: uuid('current_financial_version_id'),
+    // The deal creator (person who input the lead) who owns the commission split
+    // and is the only non-admin allowed to edit it. Carried from leads.created_by.
+    dealOwnerUserId: uuid('deal_owner_user_id').references(() => users.id),
     createdBy: uuid('created_by')
       .notNull()
       .references(() => users.id),
@@ -795,9 +803,8 @@ export const commissionAllocationBatches = pgTable('commission_allocation_batche
   financialCloseVersionId: uuid('financial_close_version_id')
     .notNull()
     .references(() => financialCloseVersions.id),
-  ruleSetId: uuid('rule_set_id')
-    .notNull()
-    .references(() => commissionRuleSets.id),
+  // Legacy rule-set source — nullable now that per-deal splits drive generation.
+  ruleSetId: uuid('rule_set_id').references(() => commissionRuleSets.id),
   status: commissionBatchStatusEnum('status').notNull().default('Proposed'),
   totalAllocatedAmount: numeric('total_allocated_amount', { precision: 12, scale: 2 }).notNull(),
   companyProfit: numeric('company_profit', { precision: 12, scale: 2 }).notNull(),
@@ -805,6 +812,41 @@ export const commissionAllocationBatches = pgTable('commission_allocation_batche
   approvedBy: uuid('approved_by').references(() => users.id),
   approvedAt: timestamp('approved_at', { withTimezone: true }),
 });
+
+// Per-deal commission split lines authored by the deal owner (creator). The
+// automatic universal share (Meranda's 10%) is NOT stored here — it is applied
+// at generation from organizations.universal_share_user_id.
+export const jobCommissionSplits = pgTable(
+  'job_commission_splits',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => jobs.id),
+    recipientUserId: uuid('recipient_user_id')
+      .notNull()
+      .references(() => users.id),
+    ratePct: numeric('rate_pct', { precision: 5, scale: 4 }).notNull(),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    rowVersion: integer('row_version').notNull().default(1),
+  },
+  (table) => [
+    uniqueIndex('job_commission_splits_job_recipient_unique').on(
+      table.jobId,
+      table.recipientUserId,
+    ),
+    index('job_commission_splits_job_idx').on(table.jobId),
+  ],
+);
 
 export const commissionAllocations = pgTable('commission_allocations', {
   id: uuid('id')
@@ -817,9 +859,11 @@ export const commissionAllocations = pgTable('commission_allocations', {
     .notNull()
     .references(() => users.id),
   allocationType: commissionAllocationTypeEnum('allocation_type').notNull(),
-  sourceRuleId: uuid('source_rule_id')
-    .notNull()
-    .references(() => commissionRules.id),
+  // Legacy rule-set source — nullable now that per-deal splits drive generation.
+  sourceRuleId: uuid('source_rule_id').references(() => commissionRules.id),
+  // The per-deal split line this allocation came from (null for the automatic
+  // universal share, which has no stored line).
+  sourceSplitId: uuid('source_split_id').references(() => jobCommissionSplits.id),
   rate: numeric('rate', { precision: 5, scale: 4 }).notNull(),
   basisAmount: numeric('basis_amount', { precision: 12, scale: 2 }).notNull(),
   earnedAmount: numeric('earned_amount', { precision: 12, scale: 2 }).notNull(),

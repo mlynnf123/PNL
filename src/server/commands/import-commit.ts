@@ -256,6 +256,9 @@ export async function commitImportBatch(input: CommitImportBatchInput, db: DbCli
         originalContractAmount: payout,
         contractedAt: asOf,
         actorUserId: input.actorUserId,
+        // Imported historical jobs have no lead creator; the importing owner
+        // owns any commission split.
+        dealOwnerUserId: input.actorUserId,
       });
       await link(row.id, 'job', job.id, 'job');
 

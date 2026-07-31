@@ -291,6 +291,8 @@ export async function convertLeadToJob(input: ConvertLeadInput, db: DbClient = d
         originalContractAmount: lead.estimatedValue,
         contractedAt: input.contractedAt ?? todayDateString(),
         primarySalesRepUserId: lead.assignedTo ?? input.actorUserId,
+        // The person who input the lead owns the deal's commission split.
+        dealOwnerUserId: lead.createdBy,
         correlationId: input.correlationId,
       },
       tx as unknown as DbClient,

@@ -3,31 +3,21 @@ import { testDb } from '@/db/test-client';
 import { AuthorizationError, PERMISSIONS } from '@/lib/permissions';
 import {
   createClosedJobFixture,
-  createCommissionRuleSetFixture,
   createOrganization,
+  createOwner,
   createUser,
   grantPermission,
+  makeOwner,
   resetDatabase,
 } from '@/test-support/fixtures';
 import { getRepCommissionBalance } from '@/server/queries/rep-commission-balance';
 import { approveCommissionBatch, generateCommissionBatch } from './commission-batch';
+import { setCommissionSplit } from './commission-splits';
 import {
   postCommissionTransaction,
   reverseCommissionTransaction,
   SameApproverError,
 } from './commission-transactions';
-
-async function setupOwners(organizationId: string) {
-  const justin = await createUser(organizationId);
-  const ian = await createUser(organizationId);
-  const thirdOwner = await createUser(organizationId);
-  await createCommissionRuleSetFixture(organizationId, {
-    justinId: justin.id,
-    ianId: ian.id,
-    thirdOwnerId: thirdOwner.id,
-  });
-  return { justin, ian, thirdOwner };
-}
 
 describe('commission transactions', () => {
   beforeEach(async () => {
@@ -42,8 +32,18 @@ describe('commission transactions', () => {
     await grantPermission(org.id, actor.id, PERMISSIONS.CLOSE_APPROVAL);
     await grantPermission(org.id, actor.id, PERMISSIONS.COMMISSION_APPROVAL);
     await grantPermission(org.id, actor.id, PERMISSIONS.PAYMENT_POSTING);
-    await setupOwners(org.id);
     const { job, salesRep } = await createClosedJobFixture(org.id, actor.id);
+    // The deal creator (actor) authors an owner split: salesRep 40% of $5000 = $2000.
+    await makeOwner(salesRep.id);
+    await setCommissionSplit(
+      {
+        actorUserId: actor.id,
+        organizationId: org.id,
+        jobId: job.id,
+        lines: [{ recipientUserId: salesRep.id, ratePct: 0.4 }],
+      },
+      testDb,
+    );
     const batch = await generateCommissionBatch(
       { actorUserId: actor.id, organizationId: org.id, jobId: job.id },
       testDb,
@@ -105,10 +105,19 @@ describe('commission transactions', () => {
     await grantPermission(org.id, actor.id, PERMISSIONS.CLOSE_APPROVAL);
     await grantPermission(org.id, actor.id, PERMISSIONS.COMMISSION_APPROVAL);
     await grantPermission(org.id, actor.id, PERMISSIONS.PAYMENT_POSTING);
-    const { justin } = await setupOwners(org.id);
+    const justin = await createOwner(org.id);
 
-    // First job: Justin sells, 50% of $5000 commissionable profit = $2500 approved.
+    // First job: Justin gets a 50% split of $5000 commissionable profit = $2500 approved.
     const { job: jobOne } = await createClosedJobFixture(org.id, actor.id, justin.id);
+    await setCommissionSplit(
+      {
+        actorUserId: actor.id,
+        organizationId: org.id,
+        jobId: jobOne.id,
+        lines: [{ recipientUserId: justin.id, ratePct: 0.5 }],
+      },
+      testDb,
+    );
     const batchOne = await generateCommissionBatch(
       { actorUserId: actor.id, organizationId: org.id, jobId: jobOne.id },
       testDb,
@@ -137,8 +146,17 @@ describe('commission transactions', () => {
     expect(balanceAfterOverpay.transactionsTotal).toBe('-3200.00');
     expect(balanceAfterOverpay.balance).toBe('-700.00');
 
-    // Second job: Justin sells again, another $2500 approved.
+    // Second job: Justin gets another 50% split = another $2500 approved.
     const { job: jobTwo } = await createClosedJobFixture(org.id, actor.id, justin.id);
+    await setCommissionSplit(
+      {
+        actorUserId: actor.id,
+        organizationId: org.id,
+        jobId: jobTwo.id,
+        lines: [{ recipientUserId: justin.id, ratePct: 0.5 }],
+      },
+      testDb,
+    );
     const batchTwo = await generateCommissionBatch(
       { actorUserId: actor.id, organizationId: org.id, jobId: jobTwo.id },
       testDb,

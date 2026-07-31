@@ -22,7 +22,12 @@ import {
   postCommissionTransaction,
   reverseCommissionTransaction,
 } from '@/server/commands/commission-transactions';
+import { setCommissionSplit } from '@/server/commands/commission-splits';
 import { getRepCommissionBalance } from '@/server/queries/rep-commission-balance';
+import {
+  getCommissionSplit,
+  listCommissionEligibleOwners,
+} from '@/server/queries/commission-splits';
 import {
   Field,
   NoAccessNotice,
@@ -77,6 +82,22 @@ export default async function JobCommissionPage({
     )
     .limit(1);
 
+  const split = await getCommissionSplit(jobId, session.user.organizationId, db);
+  const eligibleOwners = await listCommissionEligibleOwners(session.user.organizationId, db);
+  const canManageAllSplits = await userHasPermission(
+    db,
+    session.user.id,
+    PERMISSIONS.SETTINGS_MANAGEMENT,
+  );
+  const canEditSplit = job.dealOwnerUserId === session.user.id || canManageAllSplits;
+  const universalRecipientId = split?.universalRecipientUserId ?? null;
+  // The universal recipient (Meranda) is shown as an automatic 10% row, not an
+  // editable authored input.
+  const inputOwners = eligibleOwners.filter((o) => o.id !== universalRecipientId);
+  const authoredPctByOwner = new Map(
+    (split?.lines ?? []).map((l) => [l.recipientUserId, Math.round(l.ratePct * 100)]),
+  );
+
   const [latestBatch] = await db
     .select()
     .from(commissionAllocationBatches)
@@ -115,6 +136,23 @@ export default async function JobCommissionPage({
       actorUserId: session.user.id,
       organizationId: session.user.organizationId,
       jobId,
+    });
+    revalidatePath(path);
+  }
+
+  async function saveSplit(formData: FormData) {
+    'use server';
+    const lines = inputOwners
+      .map((o) => ({
+        recipientUserId: o.id,
+        ratePct: Number(formData.get(`rate_${o.id}`) || 0) / 100,
+      }))
+      .filter((l) => l.ratePct > 0);
+    await setCommissionSplit({
+      actorUserId: session.user.id,
+      organizationId: session.user.organizationId,
+      jobId,
+      lines,
     });
     revalidatePath(path);
   }
@@ -205,6 +243,64 @@ export default async function JobCommissionPage({
           <p className="font-normal text-slate-900">{job.commissionStatus}</p>
         </div>
       </div>
+
+      <Section title="Commission split">
+        <p className="text-sm font-normal text-slate-600">
+          Owner-only. {split?.universalRecipientName ?? 'The universal owner'} automatically receives
+          10% of every deal. Authored shares plus that 10% may not exceed 70%, so the company always
+          keeps at least 30%.
+        </p>
+
+        <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+          <span className="font-normal text-slate-700">
+            {split?.universalRecipientName ?? 'Universal owner'} — automatic
+          </span>
+          <span className="font-medium text-slate-900">10%</span>
+        </div>
+
+        {canEditSplit ? (
+          <form action={saveSplit} className="flex flex-col gap-3">
+            {inputOwners.map((o) => (
+              <div key={o.id} className="flex items-center gap-3">
+                <span className="w-44 text-sm font-normal text-slate-700">{o.displayName}</span>
+                <input
+                  name={`rate_${o.id}`}
+                  type="number"
+                  min="0"
+                  max="60"
+                  step="1"
+                  defaultValue={authoredPctByOwner.get(o.id) ?? ''}
+                  placeholder="0"
+                  className="w-24 rounded-md border border-slate-300 px-2 py-1 text-sm font-normal text-slate-900"
+                />
+                <span className="text-sm font-normal text-slate-500">%</span>
+              </div>
+            ))}
+            {inputOwners.length === 0 && (
+              <p className="text-sm font-normal text-slate-500">
+                No other eligible owners to assign a share to.
+              </p>
+            )}
+            <div>
+              <SubmitButton>Save split</SubmitButton>
+            </div>
+          </form>
+        ) : (
+          <>
+            <RowTable
+              headers={['Owner', 'Share']}
+              rows={(split?.lines ?? []).map((l) => [
+                l.recipientName,
+                `${Math.round(l.ratePct * 100)}%`,
+              ])}
+            />
+            <p className="text-xs font-normal text-slate-500">
+              Only {split?.dealOwnerName ?? 'the deal creator'} or an owner-admin can edit this
+              split.
+            </p>
+          </>
+        )}
+      </Section>
 
       <Section title="Allocation batch">
         {!latestBatch && !canGenerate && (
