@@ -5,19 +5,27 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 import { Badge, EmptyState, LinkButton, PageHeader, StatCard } from '@/components/ui';
+import { NewFromTemplate } from '@/components/estimate/new-from-template';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { ESTIMATE_DOC_STATUS_TONE, toneFor } from '@/lib/status';
 import type { EstimateDocListRow } from '@/server/queries/estimate-documents';
-import { type ActionResult, deleteEstimateDocumentAction } from './doc-actions';
+import type { SelectableLayout } from '@/server/queries/estimate-layouts';
+import {
+  type ActionResult,
+  createEstimateFromLayoutAction,
+  deleteEstimateDocumentAction,
+} from './doc-actions';
 
 const STATUSES = ['draft', 'sent', 'signed', 'declined', 'void'] as const;
 
 export function EstimatesClient({
   estimates,
+  layouts,
   canManage,
   canAdminLayouts,
 }: {
   estimates: EstimateDocListRow[];
+  layouts: SelectableLayout[];
   canManage: boolean;
   canAdminLayouts: boolean;
 }) {
@@ -65,6 +73,15 @@ export function EstimatesClient({
     });
   }
 
+  function createFromLayout(layoutId: string) {
+    setError('');
+    startTransition(async () => {
+      const res = await createEstimateFromLayoutAction(layoutId, {});
+      if (!res.ok) setError(res.error);
+      else if (res.id) router.push(`/dashboard/estimates/${res.id}`);
+    });
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -77,7 +94,16 @@ export function EstimatesClient({
                 Layouts
               </LinkButton>
             )}
-            {canManage && <LinkButton href="/dashboard/estimates/new">New estimate</LinkButton>}
+            {canManage && (
+              <NewFromTemplate
+                layouts={layouts}
+                label="New estimate"
+                onChoose={createFromLayout}
+                busy={isPending}
+                canCreateTemplate={canAdminLayouts}
+                newTemplateHref="/dashboard/estimate-layouts"
+              />
+            )}
           </div>
         }
       />

@@ -2,6 +2,7 @@ import { db } from '@/db/client';
 import { requireSession } from '@/lib/require-session';
 import { PERMISSIONS, userHasPermission } from '@/lib/permissions';
 import { listEstimateDocuments } from '@/server/queries/estimate-documents';
+import { listSelectableLayouts } from '@/server/queries/estimate-layouts';
 import { PageHeader } from '@/components/ui';
 import { EstimatesClient } from './estimates-client';
 
@@ -19,15 +20,17 @@ export default async function EstimatesPage() {
     );
   }
 
-  const [canManage, canAdminLayouts, estimates] = await Promise.all([
+  const [canManage, canAdminLayouts, estimates, layouts] = await Promise.all([
     userHasPermission(db, session.user.id, PERMISSIONS.CRM_MANAGEMENT),
     userHasPermission(db, session.user.id, PERMISSIONS.ESTIMATE_LAYOUT_ADMIN),
     listEstimateDocuments(session.user.organizationId),
+    listSelectableLayouts(session.user.organizationId),
   ]);
 
   return (
     <EstimatesClient
       estimates={estimates}
+      layouts={layouts}
       canManage={canManage}
       canAdminLayouts={canAdminLayouts}
     />
