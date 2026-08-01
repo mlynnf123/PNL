@@ -4,6 +4,7 @@ import { formatCurrency } from '@/lib/format';
 import { PERMISSIONS, userHasPermission } from '@/lib/permissions';
 import Link from 'next/link';
 import { listJobs } from '@/server/queries/jobs-list';
+import { getJobsLastEdited } from '@/server/queries/jobs-last-edited';
 import { Card, LinkButton, PageHeader, StatCard } from '@/components/ui';
 import { JobsBoard } from './jobs-board';
 import { JobsFilters } from './jobs-filters';
@@ -54,6 +55,16 @@ export default async function JobsPage({
     from,
     to,
   });
+  const lastEditedMap = await getJobsLastEdited(
+    session.user.organizationId,
+    rows.map((r) => r.id),
+  );
+  const lastEdited = Object.fromEntries(
+    [...lastEditedMap].map(([id, v]) => [
+      id,
+      { actorName: v.actorName, occurredAt: v.occurredAt.toISOString(), action: v.action },
+    ]),
+  );
 
   // Preserve the active filters when switching views.
   const qs = new URLSearchParams();
@@ -124,7 +135,7 @@ export default async function JobsPage({
           <Card>
             <JobsFilters />
           </Card>
-          <JobsQueue rows={rows} />
+          <JobsQueue rows={rows} lastEdited={lastEdited} />
         </>
       )}
     </div>

@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Badge, Drawer, EmptyState, LinkButton } from '@/components/ui';
-import { formatCurrency, formatDate } from '@/lib/format';
+import { formatCurrency, formatDate, formatRelative } from '@/lib/format';
 import {
   JOB_CLOSE_TONE,
   JOB_COLLECTION_TONE,
@@ -13,12 +13,41 @@ import {
   toneFor,
 } from '@/lib/status';
 import type { JobListRow } from '@/server/queries/jobs-list';
+import { getJobHistoryAction } from './history-actions';
+import type { JobHistoryRow, LastEditView } from './jobs-history-types';
 
 const CLOSE_ORDER = ['Ready', 'InReview', 'Reopened', 'NotReady', 'Closed'];
 
-export function JobsQueue({ rows }: { rows: JobListRow[] }) {
+export function JobsQueue({
+  rows,
+  lastEdited,
+}: {
+  rows: JobListRow[];
+  lastEdited: Record<string, LastEditView>;
+}) {
   const [bucket, setBucket] = useState<string>('all');
   const [preview, setPreview] = useState<JobListRow | null>(null);
+  const [history, setHistory] = useState<JobHistoryRow[] | null>(null);
+
+  function openPreview(row: JobListRow) {
+    setPreview(row);
+    setHistory(null);
+  }
+  function closePreview() {
+    setPreview(null);
+    setHistory(null);
+  }
+
+  useEffect(() => {
+    if (!preview) return;
+    let cancelled = false;
+    getJobHistoryAction(preview.id).then((h) => {
+      if (!cancelled) setHistory(h);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [preview]);
 
   const counts = useMemo(() => {
     const map = new Map<string, number>();
@@ -90,6 +119,7 @@ export function JobsQueue({ rows }: { rows: JobListRow[] }) {
                   'Operational',
                   'Collection',
                   'Close',
+                  'Last edited',
                 ].map((h) => (
                   <th
                     key={h}
@@ -104,7 +134,7 @@ export function JobsQueue({ rows }: { rows: JobListRow[] }) {
               {displayed.map((row) => (
                 <tr
                   key={row.id}
-                  onClick={() => setPreview(row)}
+                  onClick={() => openPreview(row)}
                   className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-slate-50"
                 >
                   <td className="px-4 py-3">
@@ -136,6 +166,13 @@ export function JobsQueue({ rows }: { rows: JobListRow[] }) {
                       {humanizeStatus(row.financialCloseStatus)}
                     </Badge>
                   </td>
+                  <td className="px-4 py-3 text-xs whitespace-nowrap text-slate-500">
+                    {lastEdited[row.id]
+                      ? `${lastEdited[row.id].actorName ?? 'system'} · ${formatRelative(
+                          lastEdited[row.id].occurredAt,
+                        )}`
+                      : '—'}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -146,7 +183,7 @@ export function JobsQueue({ rows }: { rows: JobListRow[] }) {
       {/* Preview sheet: scan -> preview -> commit */}
       <Drawer
         open={!!preview}
-        onClose={() => setPreview(null)}
+        onClose={closePreview}
         title={preview ? preview.jobNumber : ''}
         footer={
           preview ? (
@@ -175,6 +212,30 @@ export function JobsQueue({ rows }: { rows: JobListRow[] }) {
             <Detail label="Funding" value={humanizeStatus(preview.fundingType)} />
             <Detail label="Contracted" value={formatDate(preview.contractedAt)} />
             <Detail label="Collection" value={humanizeStatus(preview.collectionStatus)} />
+
+            <div>
+              <p className="mb-2 text-xs font-medium tracking-wider text-slate-400 uppercase">
+                History
+              </p>
+              {history === null && <p className="text-slate-400">Loading…</p>}
+              {history && history.length === 0 && (
+                <p className="text-slate-400">No recorded changes yet.</p>
+              )}
+              {history && history.length > 0 && (
+                <ol className="space-y-3">
+                  {history.map((h) => (
+                    <li key={h.id} className="border-l-2 border-slate-200 pl-3">
+                      <div className="text-slate-800">{humanizeAudit(h.action)}</div>
+                      <div className="text-xs text-slate-500">
+                        {h.actorName ?? 'system'} · {formatRelative(h.occurredAt)}
+                      </div>
+                      <Delta row={h} />
+                      {h.reason && <div className="mt-0.5 text-xs text-slate-400">{h.reason}</div>}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
           </div>
         )}
       </Drawer>
@@ -187,6 +248,40 @@ function Detail({ label, value }: { label: string; value: string }) {
     <div>
       <p className="text-xs font-medium tracking-wider text-slate-400 uppercase">{label}</p>
       <p className="mt-0.5 text-slate-800">{value}</p>
+    </div>
+  );
+}
+
+function humanizeAudit(s: string): string {
+  return s
+    .replace(/[._]/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function fmtVal(v: unknown): string {
+  return v === null || v === undefined || v === '' ? '—' : String(v);
+}
+
+// The old→new field deltas an audit event recorded.
+function Delta({ row }: { row: JobHistoryRow }) {
+  const prev = row.previousState ?? {};
+  const next = row.newState ?? {};
+  const keys = Array.from(new Set([...Object.keys(prev), ...Object.keys(next)]));
+  if (keys.length === 0) return null;
+  return (
+    <div className="mt-1 space-y-0.5 text-xs">
+      {keys.map((k) => {
+        const before = (prev as Record<string, unknown>)[k];
+        const after = (next as Record<string, unknown>)[k];
+        const isNew = !(k in prev);
+        return (
+          <div key={k} className="text-slate-500">
+            {humanizeAudit(k)}:{' '}
+            {!isNew && <span className="text-slate-400 line-through">{fmtVal(before)}</span>}{' '}
+            <span className="text-slate-700">{fmtVal(after)}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
