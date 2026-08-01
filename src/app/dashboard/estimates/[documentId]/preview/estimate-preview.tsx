@@ -7,6 +7,7 @@ import {
   type QuoteOption,
   lineItemTotal,
   optionTotal,
+  quoteTotal,
   sectionSubtotal,
 } from '@/lib/estimate-doc-math';
 import type {
@@ -600,7 +601,14 @@ function Quote({ content, title }: { content: QuoteContent; title: string }) {
   const options = content.options ?? [];
   const d = content.display ?? { showLineTotal: true, showSectionTotal: true };
   const multi = options.length > 1;
-  const subtotal = options.reduce((n, o) => n + optionTotal(o), 0);
+  const selectOne = (d.selectionPolicy ?? 'one') === 'one';
+  // Server-authoritative total (matches doc.total): sums options only for a
+  // "combine/multi" quote; for "select one" it is a single option's total.
+  // Summing mutually-exclusive options was the divergence bug.
+  const total = quoteTotal(content);
+  // For select-one with multiple options, each option is priced on its own
+  // header — a combined grand total would be meaningless (and wrong).
+  const showCombinedTotal = !(selectOne && multi);
 
   return (
     <div>
@@ -645,38 +653,48 @@ function Quote({ content, title }: { content: QuoteContent; title: string }) {
           </table>
         </div>
       ))}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}>
-        <table>
-          <tbody>
-            <tr>
-              <td
-                style={{ padding: '4px 24px', textAlign: 'right', fontWeight: 700, color: MUTED }}
-              >
-                Estimate subtotal
-              </td>
-              <td style={{ padding: '4px 0', textAlign: 'right', color: BODY, minWidth: 100 }}>
-                {formatCurrency(subtotal)}
-              </td>
-            </tr>
-            <tr>
-              <td style={{ padding: '4px 24px', textAlign: 'right', fontWeight: 800, color: INK }}>
-                Total
-              </td>
-              <td
-                style={{
-                  padding: '4px 0',
-                  textAlign: 'right',
-                  fontWeight: 800,
-                  color: INK,
-                  minWidth: 100,
-                }}
-              >
-                {formatCurrency(subtotal)}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      {showCombinedTotal ? (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}>
+          <table>
+            <tbody>
+              <tr>
+                <td
+                  style={{ padding: '4px 24px', textAlign: 'right', fontWeight: 700, color: MUTED }}
+                >
+                  Estimate subtotal
+                </td>
+                <td style={{ padding: '4px 0', textAlign: 'right', color: BODY, minWidth: 100 }}>
+                  {formatCurrency(total)}
+                </td>
+              </tr>
+              <tr>
+                <td
+                  style={{ padding: '4px 24px', textAlign: 'right', fontWeight: 800, color: INK }}
+                >
+                  Total
+                </td>
+                <td
+                  style={{
+                    padding: '4px 0',
+                    textAlign: 'right',
+                    fontWeight: 800,
+                    color: INK,
+                    minWidth: 100,
+                  }}
+                >
+                  {formatCurrency(total)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div
+          style={{ marginTop: 14, textAlign: 'right', fontSize: 13, fontWeight: 700, color: MUTED }}
+        >
+          Choose one option above — each is priced separately.
+        </div>
+      )}
     </div>
   );
 }
