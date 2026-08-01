@@ -7,6 +7,7 @@ import {
   collectionTransactions,
   costTransactions,
   customers,
+  jobAdjustments,
   jobs,
   revenueComponents,
 } from '@/db/schema';
@@ -28,6 +29,11 @@ import {
   postCostTransaction,
   reverseOrCreditCost,
 } from '@/server/commands/cost-transactions';
+import {
+  addJobAdjustment,
+  approveJobAdjustment,
+  voidJobAdjustment,
+} from '@/server/commands/job-adjustments';
 import { getEntityActivity } from '@/server/queries/activity';
 import { listDocuments } from '@/server/queries/documents';
 import { deleteDocument, uploadDocument } from '@/server/commands/documents';
@@ -110,6 +116,11 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
     .from(costTransactions)
     .where(eq(costTransactions.jobId, jobId))
     .orderBy(asc(costTransactions.incurredDate));
+  const adjustments = await db
+    .select()
+    .from(jobAdjustments)
+    .where(eq(jobAdjustments.jobId, jobId))
+    .orderBy(asc(jobAdjustments.createdAt));
 
   const alreadyReversed = new Set(
     collections.filter((c) => c.originalTransactionId).map((c) => c.originalTransactionId),
@@ -202,6 +213,39 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
       description: String(formData.get('description')),
       incurredDate: String(formData.get('incurredDate')),
       reason: String(formData.get('reason')),
+    });
+    revalidatePath(path);
+  }
+
+  async function addAdjustment(formData: FormData) {
+    'use server';
+    await addJobAdjustment({
+      actorUserId: session.user.id,
+      organizationId: session.user.organizationId,
+      jobId,
+      adjustmentType: formData.get('adjustmentType') as never,
+      description: String(formData.get('description')),
+      amount: String(formData.get('amount')),
+    });
+    revalidatePath(path);
+  }
+
+  async function approveAdjustment(formData: FormData) {
+    'use server';
+    await approveJobAdjustment({
+      actorUserId: session.user.id,
+      organizationId: session.user.organizationId,
+      adjustmentId: String(formData.get('adjustmentId')),
+    });
+    revalidatePath(path);
+  }
+
+  async function voidAdjustment(formData: FormData) {
+    'use server';
+    await voidJobAdjustment({
+      actorUserId: session.user.id,
+      organizationId: session.user.organizationId,
+      adjustmentId: String(formData.get('adjustmentId')),
     });
     revalidatePath(path);
   }
@@ -409,6 +453,56 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
               <Field label="Incurred date" name="incurredDate" type="date" required />
               <div className="flex items-end">
                 <SubmitButton>Add cost</SubmitButton>
+              </div>
+            </form>
+          </Section>
+
+          <Section title="Fees &amp; adjustments">
+            <RowTable
+              headers={['Fee type', 'Description', 'Amount', 'Status', '']}
+              rows={adjustments.map((a) => [
+                humanizeStatus(a.adjustmentType),
+                a.description,
+                formatCurrency(a.amount, true),
+                a.status,
+                <div key="actions" className="flex gap-2">
+                  {a.status === 'Draft' && (
+                    <form action={approveAdjustment}>
+                      <input type="hidden" name="adjustmentId" value={a.id} />
+                      <SmallButton>Approve</SmallButton>
+                    </form>
+                  )}
+                  {a.status !== 'Voided' && (
+                    <form action={voidAdjustment}>
+                      <input type="hidden" name="adjustmentId" value={a.id} />
+                      <SmallButton>Void</SmallButton>
+                    </form>
+                  )}
+                </div>,
+              ])}
+            />
+            <p className="text-xs font-normal text-slate-500">
+              Approved fees reduce commissionable profit. Finalize the &ldquo;adjustments&rdquo;
+              category before closing.
+            </p>
+            <form action={addAdjustment} className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <SelectField
+                label="Fee type"
+                name="adjustmentType"
+                options={[
+                  'supp_x_fee',
+                  'referral_fee',
+                  'sales_rep_fee',
+                  'owner_override_fee',
+                  'deductible_adjustment',
+                  'warranty_charge',
+                  'other',
+                ]}
+              />
+              <Field label="Description" name="description" required />
+              <Field label="Amount" name="amount" type="number" step="0.01" required />
+              <div className="flex items-end">
+                <SubmitButton>Add fee</SubmitButton>
               </div>
             </form>
           </Section>
