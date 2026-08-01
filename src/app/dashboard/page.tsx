@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { db } from '@/db/client';
@@ -5,6 +6,8 @@ import { requireSession } from '@/lib/require-session';
 import { formatCurrency } from '@/lib/format';
 import { PERMISSIONS, userHasPermission } from '@/lib/permissions';
 import { getDashboardQueues } from '@/server/queries/dashboard-queues';
+import { getOutstandingCollectionsReport } from '@/server/queries/outstanding-collections-report';
+import { getCompanyProfitReport } from '@/server/queries/company-profit-report';
 import { Badge, Card, CardHeader, EmptyState, PageHeader, StatCard } from '@/components/ui';
 
 interface JobItem {
@@ -29,14 +32,43 @@ export default async function DashboardPage() {
           You don&apos;t have access to jobs yet. Ask an owner to grant you access.
         </p>
       ) : (
-        <DashboardBody organizationId={session.user.organizationId} />
+        <DashboardBody
+          organizationId={session.user.organizationId}
+          viewerUserId={session.user.id}
+        />
       )}
     </div>
   );
 }
 
-async function DashboardBody({ organizationId }: { organizationId: string }) {
+async function DashboardBody({
+  organizationId,
+  viewerUserId,
+}: {
+  organizationId: string;
+  viewerUserId: string;
+}) {
   const q = await getDashboardQueues(organizationId);
+
+  // Business metrics — live and exact, from the same data the reports use.
+  const outstanding = await getOutstandingCollectionsReport(organizationId, db);
+  const outstandingTotal = outstanding.reduce((s, r) => s + Number(r.remainingToCollect), 0);
+  const [{ inProgress }] = await db.execute<{ inProgress: number }>(sql`
+    SELECT COUNT(*)::int AS "inProgress"
+    FROM jobs
+    WHERE organization_id = ${organizationId}
+      AND record_state = 'Active'
+      AND financial_close_status <> 'Closed'
+  `);
+  const canViewProfit = await userHasPermission(
+    db,
+    viewerUserId,
+    PERMISSIONS.COMPANY_PROFIT_VIEWING,
+  );
+  const companyProfit = canViewProfit
+    ? await getCompanyProfitReport(organizationId, viewerUserId, db)
+    : null;
+  const payableTotal = q.commissionPayable.reduce((s, p) => s + Number(p.balance || 0), 0);
 
   const attention: { title: string; tone: 'red' | 'amber'; items: JobItem[] }[] = [
     { title: 'Close blocked', tone: 'red', items: q.closeBlocked },
@@ -52,10 +84,23 @@ async function DashboardBody({ organizationId }: { organizationId: string }) {
     { title: 'Commission ready', items: q.commissionReady },
   ];
 
-  const payableTotal = q.commissionPayable.reduce((s, p) => s + Number(p.balance || 0), 0);
-
   return (
     <div className="space-y-8">
+      {/* Business metrics */}
+      <div
+        className={`grid gap-4 sm:grid-cols-2 ${canViewProfit ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}
+      >
+        <StatCard label="Jobs in progress" value={String(inProgress)} />
+        <StatCard label="Open receivables" value={formatCurrency(outstandingTotal)} />
+        {canViewProfit && companyProfit && (
+          <StatCard
+            label="Company profit (approved)"
+            value={formatCurrency(companyProfit.totalCompanyProfit)}
+          />
+        )}
+        <StatCard label="Commission payable" value={formatCurrency(payableTotal)} />
+      </div>
+
       {/* What needs attention now */}
       {attentionCount === 0 ? (
         <EmptyState
@@ -71,14 +116,6 @@ async function DashboardBody({ organizationId }: { organizationId: string }) {
             ))}
         </div>
       )}
-
-      {/* Supporting metrics */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Needs attention" value={String(attentionCount)} />
-        <StatCard label="Ready to close" value={String(q.readyToClose.length)} />
-        <StatCard label="Commission payable" value={formatCurrency(payableTotal)} />
-        <StatCard label="Reopened jobs" value={String(q.reopenedJobs.length)} />
-      </div>
 
       {/* In-flight work */}
       <div>
@@ -132,7 +169,7 @@ function QueueCard({
     <Card>
       <CardHeader title={title} action={badge} />
       {items.length === 0 ? (
-        <p className="text-sm text-slate-500">Clear.</p>
+        <p className="text-sm text-slate-500">Nothing pending.</p>
       ) : (
         <ul className="divide-y divide-slate-100">
           {items.slice(0, 6).map((item) => (
