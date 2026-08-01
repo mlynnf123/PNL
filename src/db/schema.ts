@@ -492,9 +492,10 @@ export const jobAdjustmentStatusEnum = pgEnum('job_adjustment_status', [
   'Voided',
 ]);
 
-// Schema only for now — no command uses this table yet. It's here so the
-// data model matches docs/03 SS5; the pre-commission adjustment workflow
-// gets built out when Phase 4's commission math needs it.
+// Named pre-commission fees/adjustments (SupX fee, referral, sales-rep fee,
+// override, etc.). Approved rows reduce commissionable profit (financial-close)
+// and ride the `adjustments` finalization category. Managed via
+// src/server/commands/job-adjustments.ts.
 export const jobAdjustments = pgTable('job_adjustments', {
   id: uuid('id')
     .primaryKey()
@@ -515,6 +516,34 @@ export const jobAdjustments = pgTable('job_adjustments', {
     .references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+// Setter / lead-acquisition spend, tracked per rep (mirrors the "Setter Costs"
+// workbook tab). Separate from per-job P&L; netted from company profit in
+// reports. Managed via src/server/commands/setter-costs.ts.
+export const setterCostStatusEnum = pgEnum('setter_cost_status', ['Active', 'Voided']);
+
+export const setterCosts = pgTable(
+  'setter_costs',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    purchasePlace: text('purchase_place').notNull(),
+    incurredDate: date('incurred_date').notNull(),
+    amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+    salesRepUserId: uuid('sales_rep_user_id').references(() => users.id),
+    purchasedBy: text('purchased_by'),
+    status: setterCostStatusEnum('status').notNull().default('Active'),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('setter_costs_org_idx').on(table.organizationId)],
+);
 
 // docs/03_DATA_MODEL.md SS6 Operational completion
 

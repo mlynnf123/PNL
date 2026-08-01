@@ -94,8 +94,8 @@ async function DashboardBody({
         <StatCard label="Open receivables" value={formatCurrency(outstandingTotal)} />
         {canViewProfit && companyProfit && (
           <StatCard
-            label="Company profit (approved)"
-            value={formatCurrency(companyProfit.totalCompanyProfit)}
+            label="Company profit (net)"
+            value={formatCurrency(companyProfit.netCompanyProfit)}
           />
         )}
         <StatCard label="Commission payable" value={formatCurrency(payableTotal)} />

@@ -2,9 +2,12 @@ import { sql } from 'drizzle-orm';
 import { db as defaultDb } from '@/db/client';
 import type { DbOrTx } from '@/db/client';
 import { PERMISSIONS, requirePermission } from '@/lib/permissions';
+import { getSetterCostTotal } from './setter-costs';
 
 export interface CompanyProfitReport {
-  totalCompanyProfit: string;
+  totalCompanyProfit: string; // gross — approved commission batches' company residual
+  setterCostTotal: string; // active setter/lead spend (overhead)
+  netCompanyProfit: string; // gross − setter spend
   approvedBatchCount: number;
 }
 
@@ -35,9 +38,15 @@ export async function getCompanyProfitReport(
   `);
 
   const [row] = rows;
+  const setterCostTotal = await getSetterCostTotal(organizationId, db);
+  const netCompanyProfit = (
+    Number(row.total_company_profit) - Number(setterCostTotal)
+  ).toFixed(2);
 
   return {
     totalCompanyProfit: row.total_company_profit,
+    setterCostTotal,
+    netCompanyProfit,
     approvedBatchCount: row.approved_batch_count,
   };
 }

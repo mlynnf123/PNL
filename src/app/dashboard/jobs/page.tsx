@@ -48,6 +48,7 @@ export default async function JobsPage({
 
   const canManage = await userHasPermission(db, session.user.id, PERMISSIONS.CRM_MANAGEMENT);
   const canImport = await userHasPermission(db, session.user.id, PERMISSIONS.SETTINGS_MANAGEMENT);
+  const canFinancial = await userHasPermission(db, session.user.id, PERMISSIONS.FINANCIAL_ENTRY);
   const rows = await listJobs(session.user.organizationId, {
     search: params.search || undefined,
     from,
@@ -76,9 +77,14 @@ export default async function JobsPage({
         action={<LinkButton href="/dashboard/jobs/new">New job</LinkButton>}
       />
 
-      {canImport && (
-        <div>
-          <ImportWizard />
+      {(canImport || canFinancial) && (
+        <div className="flex items-center gap-2">
+          {canImport && <ImportWizard />}
+          {canFinancial && (
+            <LinkButton href="/dashboard/setter-costs" variant="secondary">
+              Setter costs
+            </LinkButton>
+          )}
         </div>
       )}
 
