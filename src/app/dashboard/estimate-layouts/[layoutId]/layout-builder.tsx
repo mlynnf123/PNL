@@ -61,7 +61,7 @@ export function LayoutBuilder({ layout }: { layout: LayoutForEdit }) {
             ← Layouts
           </Link>
           <div className="mt-1 flex items-center gap-2">
-            <h2 className="text-2xl font-medium tracking-tight text-slate-900">{layout.name}</h2>
+            <h2 className="text-2xl font-[550] tracking-[0.015em] text-slate-900">{layout.name}</h2>
             <Badge tone={layout.status === 'active' ? 'teal' : 'slate'}>{layout.status}</Badge>
             {layout.currentVersionNumber != null && (
               <Badge tone={isDraft ? 'amber' : 'slate'}>

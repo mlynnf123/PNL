@@ -27,7 +27,7 @@ export default async function SetterCostsPage() {
   if (!canManage) {
     return (
       <div className="flex flex-1 flex-col gap-4">
-        <h2 className="text-lg font-medium text-slate-900">Setter costs</h2>
+        <h2 className="text-lg font-[550] tracking-[0.015em] text-slate-900">Setter costs</h2>
         <NoAccessNotice />
       </div>
     );

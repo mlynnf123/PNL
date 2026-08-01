@@ -80,7 +80,7 @@ export function EstimateDocBuilder({
             ← Estimates
           </Link>
           <div className="mt-1 flex items-center gap-2">
-            <h2 className="text-2xl font-medium tracking-tight text-slate-900">{number}</h2>
+            <h2 className="text-2xl font-[550] tracking-[0.015em] text-slate-900">{number}</h2>
             <Badge tone={toneFor(ESTIMATE_DOC_STATUS_TONE, doc.status)}>{doc.status}</Badge>
             <span className="text-sm text-slate-500">{formatCurrency(doc.total)}</span>
           </div>

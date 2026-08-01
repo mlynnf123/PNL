@@ -13,7 +13,7 @@ export default async function RolesSettingsPage() {
   if (!canManage) {
     return (
       <div className="flex flex-1 flex-col gap-4">
-        <h2 className="text-lg font-medium text-slate-900">Roles</h2>
+        <h2 className="text-lg font-[550] tracking-[0.015em] text-slate-900">Roles</h2>
         <NoAccessNotice />
       </div>
     );
@@ -47,7 +47,7 @@ export default async function RolesSettingsPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <h2 className="text-lg font-medium text-slate-900">Roles &amp; permissions</h2>
+      <h2 className="text-lg font-[550] tracking-[0.015em] text-slate-900">Roles &amp; permissions</h2>
 
       <Section title="Add a role">
         <form action={addRole} className="flex max-w-md items-end gap-3">

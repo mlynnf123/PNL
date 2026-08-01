@@ -46,7 +46,7 @@ export default async function ImportBatchPage({
   if (!canManage) {
     return (
       <div className="flex flex-1 flex-col gap-4">
-        <h2 className="text-lg font-medium text-slate-900">Import batch</h2>
+        <h2 className="text-lg font-[550] tracking-[0.015em] text-slate-900">Import batch</h2>
         <NoAccessNotice />
       </div>
     );
@@ -126,7 +126,7 @@ export default async function ImportBatchPage({
     <div className="flex flex-1 flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-medium text-slate-900">{batch.fileName}</h2>
+          <h2 className="text-lg font-[550] tracking-[0.015em] text-slate-900">{batch.fileName}</h2>
           <p className="text-xs font-normal text-slate-500">
             {batch.sheetName} · as of {batch.sourceAsOfDate} · {batch.rowCount} rows
           </p>

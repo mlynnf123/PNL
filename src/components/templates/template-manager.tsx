@@ -105,7 +105,7 @@ export function TemplateManager({
                 {rows.map((t) => (
                   <div key={t.id} className="rounded-xl border border-slate-200 bg-white p-4">
                     <div className="mb-2 flex items-start justify-between">
-                      <h3 className="font-medium text-slate-900">{t.name}</h3>
+                      <h3 className="font-[550] tracking-[0.015em] text-slate-900">{t.name}</h3>
                       {canManage && (
                         <div className="flex gap-1">
                           <button
