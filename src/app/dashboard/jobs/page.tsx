@@ -8,6 +8,7 @@ import { Card, LinkButton, PageHeader, StatCard } from '@/components/ui';
 import { JobsBoard } from './jobs-board';
 import { JobsFilters } from './jobs-filters';
 import { JobsQueue } from './jobs-queue';
+import { ImportWizard } from './import-wizard';
 
 function last30(): string {
   const d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -46,6 +47,7 @@ export default async function JobsPage({
   const to = params.to || undefined;
 
   const canManage = await userHasPermission(db, session.user.id, PERMISSIONS.CRM_MANAGEMENT);
+  const canImport = await userHasPermission(db, session.user.id, PERMISSIONS.SETTINGS_MANAGEMENT);
   const rows = await listJobs(session.user.organizationId, {
     search: params.search || undefined,
     from,
@@ -73,6 +75,12 @@ export default async function JobsPage({
         description={`${rangeLabel} · ${rows.length} job${rows.length === 1 ? '' : 's'}`}
         action={<LinkButton href="/dashboard/jobs/new">New job</LinkButton>}
       />
+
+      {canImport && (
+        <div>
+          <ImportWizard />
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Jobs in range" value={String(rows.length)} />
