@@ -26,16 +26,17 @@ import { type TokenContext, resolveTokens } from '@/lib/estimate-tokens';
 import { formatCurrency } from '@/lib/format';
 import type { EstimateDocFull, EstimatePageRow } from '@/server/queries/estimate-documents';
 
-// Customer-facing brand palette (JJ blue), independent of the app's slate/teal
+// Customer-facing brand palette — JJ royal blue, matching the design system
+// (see the Brand & Design System reference). Independent of the app's slate/teal
 // chrome. Inline hex so html2canvas-pro never parses Tailwind theme tokens.
-const INK = '#33373b';
-const BODY = '#3f3f46';
-const MUTED = '#71717a';
-const BLUE = '#6f8fca';
-const NAVY = '#1f2b45';
-const LIGHT = '#eef1f7';
-const ALT = '#f6f8fc';
-const BORDER = '#e2e8f0';
+const INK = '#14161d'; // headings / logo black
+const BODY = '#2c3140'; // body copy (blue-biased neutral)
+const MUTED = '#5a6478'; // captions / meta
+const BLUE = '#0c2a86'; // JJ royal blue — the one bold accent
+const NAVY = '#071c5e'; // royal deep — the dark end of accent rules
+const LIGHT = '#eef1fb'; // royal tint — table headers, rule tail
+const ALT = '#f4f6fc'; // zebra / raised surface
+const BORDER = '#e1e6f2'; // hairlines / borders
 const PAGE_W = 816; // 8.5in @ 96dpi
 
 const COMPANY = {
