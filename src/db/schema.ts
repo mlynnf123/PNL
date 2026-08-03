@@ -186,6 +186,29 @@ export const customers = pgTable('customers', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Lead-stage enums — declared here (above jobs) because the unified jobs table
+// now carries these front-of-funnel fields. Still used by the (retired,
+// read-only) leads table until it is dropped.
+export const leadSourceEnum = pgEnum('lead_source', [
+  'referral',
+  'online',
+  'advertisement',
+  'cold_call',
+  'other',
+]);
+
+export const leadStatusEnum = pgEnum('lead_status', [
+  'new',
+  'contacted',
+  'quoted',
+  'converted',
+  'lost',
+]);
+
+export const leadPriorityEnum = pgEnum('lead_priority', ['low', 'medium', 'high']);
+
+export const preferredContactEnum = pgEnum('preferred_contact', ['phone', 'email', 'text']);
+
 export const fundingTypeEnum = pgEnum('funding_type', ['insurance', 'retail', 'other']);
 
 export const operationalStatusEnum = pgEnum('operational_status', [
@@ -197,9 +220,15 @@ export const operationalStatusEnum = pgEnum('operational_status', [
   'Reopened',
 ]);
 
-// Sales/production pipeline (ported from RoofRunners OS' 10-phase board). This
-// is a DISTINCT dimension from the financial operationalStatus above — it tracks
-// where a job sits in the front-of-funnel workflow, not its money lifecycle.
+// Unified deal pipeline — one stage spine spanning lead → closed. The lead
+// segment (lead_new..estimate) is the front of funnel; `signed` is the anchor
+// where a record becomes a contracted job (JJ number + contract fields
+// required); the original production phases are the post-sign work segment;
+// `lost` is a terminal off-ramp. This is a DISTINCT dimension from the financial
+// operationalStatus above. Display order lives in src/lib/status.ts
+// (PIPELINE_STAGES), so the Postgres enum add-order below doesn't matter; the
+// legacy `pre_claim` value is retained (Postgres can't drop enum values) but no
+// longer used — existing pre_claim rows migrate to `signed`.
 export const productionPhaseEnum = pgEnum('production_phase', [
   'pre_claim',
   'filing_claim',
@@ -211,6 +240,13 @@ export const productionPhaseEnum = pgEnum('production_phase', [
   'installation',
   'final_payment',
   'closed',
+  // Lead segment + anchor + off-ramp (appended; order set in status.ts).
+  'lead_new',
+  'contacted',
+  'inspection',
+  'estimate',
+  'signed',
+  'lost',
 ]);
 
 export const collectionStatusEnum = pgEnum('collection_status', [
@@ -252,38 +288,58 @@ export const jobs = pgTable(
     organizationId: uuid('organization_id')
       .notNull()
       .references(() => organizations.id),
-    // Permanent public identifier, e.g. JJ-2026-0041 (docs/07 D-010). Never reused.
-    jobNumber: text('job_number').notNull(),
-    customerId: uuid('customer_id')
-      .notNull()
-      .references(() => customers.id),
-    propertyAddressLine1: text('property_address_line1').notNull(),
+    // Permanent public identifier, e.g. JJ-2026-0041 (docs/07 D-010). Never
+    // reused. NULL for pre-signed (lead-stage) records; assigned when the deal
+    // reaches `signed`. Uniqueness is enforced by a partial index (below).
+    jobNumber: text('job_number'),
+    // NULL until `signed` — a real customers row is created when the deal is
+    // contracted; pre-sign contact lives in the prospect* fields below.
+    customerId: uuid('customer_id').references(() => customers.id),
+    // Structured property address — established at inspection/sign. NULL early;
+    // the single-line prospectAddress holds what was captured on first contact.
+    propertyAddressLine1: text('property_address_line1'),
     propertyAddressLine2: text('property_address_line2'),
-    propertyCity: text('property_city').notNull(),
-    propertyState: text('property_state').notNull(),
-    propertyPostalCode: text('property_postal_code').notNull(),
-    fundingType: fundingTypeEnum('funding_type').notNull(),
+    propertyCity: text('property_city'),
+    propertyState: text('property_state'),
+    propertyPostalCode: text('property_postal_code'),
+    // NULL until known; required from `signed` onward (enforced in setJobStage).
+    fundingType: fundingTypeEnum('funding_type'),
     insurerName: text('insurer_name'),
     claimNumber: text('claim_number'),
     originalContractAmount: numeric('original_contract_amount', {
       precision: 12,
       scale: 2,
-    }).notNull(),
-    contractedAt: date('contracted_at').notNull(),
+    }),
+    contractedAt: date('contracted_at'),
     operationalStatus: operationalStatusEnum('operational_status').notNull().default('Contracted'),
     collectionStatus: collectionStatusEnum('collection_status').notNull().default('Expected'),
     financialCloseStatus: financialCloseStatusEnum('financial_close_status')
       .notNull()
       .default('NotReady'),
     commissionStatus: commissionStatusEnum('commission_status').notNull().default('NotEligible'),
-    // Sales/production pipeline position (distinct from operationalStatus). The
-    // entered-at stamp lets us show days-in-phase and flag stuck jobs.
-    productionPhase: productionPhaseEnum('production_phase').notNull().default('pre_claim'),
+    // Unified pipeline stage (distinct from operationalStatus). New records start
+    // at `lead_new`. The entered-at stamp drives days-in-stage / stuck flags.
+    productionPhase: productionPhaseEnum('production_phase').notNull().default('lead_new'),
     productionPhaseEnteredAt: timestamp('production_phase_entered_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
     recordState: recordStateEnum('record_state').notNull().default('Active'),
     actualCompletionDate: date('actual_completion_date'),
+    // --- Lead-stage carryover (denormalized front-of-funnel fields, all NULL
+    // once the record is a full job). Mirrors the retired `leads` table. ---
+    prospectName: text('prospect_name'),
+    prospectPhone: text('prospect_phone'),
+    prospectEmail: text('prospect_email'),
+    prospectAddress: text('prospect_address'),
+    source: leadSourceEnum('source'),
+    priority: leadPriorityEnum('priority'),
+    preferredContact: preferredContactEnum('preferred_contact'),
+    estimatedValue: numeric('estimated_value', { precision: 12, scale: 2 }),
+    description: text('description'),
+    notes: text('notes'),
+    assignedTo: uuid('assigned_to').references(() => users.id),
+    lastContactDate: date('last_contact_date'),
+    nextFollowUp: date('next_follow_up'),
     // No FK: financial_close_versions.job_id already references jobs.id, and
     // Drizzle/Postgres don't need this pointer to be a hard FK to be useful —
     // it's validated at the application layer, same as audit_events.job_id.
@@ -302,7 +358,13 @@ export const jobs = pgTable(
     // Optimistic concurrency (docs/02 SS3, docs/03 SS1) — bump on every mutable update.
     rowVersion: integer('row_version').notNull().default(1),
   },
-  (table) => [uniqueIndex('jobs_org_job_number_unique').on(table.organizationId, table.jobNumber)],
+  (table) => [
+    // Partial unique index — job numbers are unique per org, but only among
+    // records that have one (pre-signed lead-stage records have NULL).
+    uniqueIndex('jobs_org_job_number_unique')
+      .on(table.organizationId, table.jobNumber)
+      .where(sql`${table.jobNumber} is not null`),
+  ],
 );
 
 export const assignmentTypeEnum = pgEnum('assignment_type', [
@@ -1106,25 +1168,8 @@ export const importRecordLinks = pgTable(
 // crm_management), audited, optimistic-concurrency on update. A lead is the
 // front-of-funnel record that can convert into a financial job.
 
-export const leadSourceEnum = pgEnum('lead_source', [
-  'referral',
-  'online',
-  'advertisement',
-  'cold_call',
-  'other',
-]);
-
-export const leadStatusEnum = pgEnum('lead_status', [
-  'new',
-  'contacted',
-  'quoted',
-  'converted',
-  'lost',
-]);
-
-export const leadPriorityEnum = pgEnum('lead_priority', ['low', 'medium', 'high']);
-
-export const preferredContactEnum = pgEnum('preferred_contact', ['phone', 'email', 'text']);
+// leadSourceEnum, leadStatusEnum, leadPriorityEnum, preferredContactEnum are
+// declared above the jobs table (jobs now carries these lead-stage fields).
 
 export const leads = pgTable('leads', {
   id: uuid('id')
@@ -1199,7 +1244,9 @@ export const calls = pgTable('calls', {
   appointmentBooked: boolean('appointment_booked').notNull().default(false),
   // { date, time, address, serviceType, notes? } | null.
   appointmentDetails: jsonb('appointment_details'),
+  // leadId retained during the leads→jobs transition; jobId is the unified link.
   leadId: uuid('lead_id').references(() => leads.id),
+  jobId: uuid('job_id').references(() => jobs.id),
   notes: text('notes'),
   // Voice-agent fields, nullable until the ingestion phase populates them.
   agentId: text('agent_id'),
@@ -1318,7 +1365,9 @@ export const estimates = pgTable(
       .notNull()
       .default(sql`'[]'::jsonb`),
     total: numeric('total', { precision: 12, scale: 2 }).notNull().default('0'),
+    // leadId retained during the leads→jobs transition; jobId is the unified link.
     leadId: uuid('lead_id').references(() => leads.id),
+    jobId: uuid('job_id').references(() => jobs.id),
     createdBy: uuid('created_by')
       .notNull()
       .references(() => users.id),

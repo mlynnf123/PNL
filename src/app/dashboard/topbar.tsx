@@ -4,15 +4,14 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 
-// Adopted from the reference app's top navigation (RoofRunners OS Layout.tsx):
-// a sticky slate header with centered content. CRM items (Leads, Calls,
-// Estimates, Contracts, Templates) are added to this list as their phases land.
+// Unified navigation. The old Leads / Jobs / Contracts split collapsed into one
+// "Pipeline" (a deal is a single record from first contact to close, on the
+// jobs table); Contracts folded into Estimates (a signed estimate is the
+// contract). The Pipeline route is /dashboard/jobs.
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Dashboard' },
-  { href: '/dashboard/leads', label: 'Leads' },
+  { href: '/dashboard/jobs', label: 'Pipeline' },
   { href: '/dashboard/estimates', label: 'Estimates' },
-  { href: '/dashboard/contracts', label: 'Contracts' },
-  { href: '/dashboard/jobs', label: 'Jobs' },
   { href: '/dashboard/settings', label: 'Settings' },
 ];
 

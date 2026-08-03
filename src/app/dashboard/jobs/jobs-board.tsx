@@ -2,11 +2,11 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState, useTransition } from 'react';
+import { type ReactNode, useMemo, useState, useTransition } from 'react';
 import { formatCurrency } from '@/lib/format';
-import { PRODUCTION_PHASES, PRODUCTION_PHASE_LABELS, type ProductionPhase } from '@/lib/status';
+import { PIPELINE_STAGES, PIPELINE_STAGE_LABELS, type PipelineStage } from '@/lib/status';
 import type { JobListRow } from '@/server/queries/jobs-list';
-import { setJobProductionPhaseAction } from './actions';
+import { setJobStageAction } from './actions';
 
 // Jobs older than this in a single phase read as stalled.
 const STUCK_DAYS = 14;
@@ -20,24 +20,50 @@ export function JobsBoard({ rows, canManage }: { rows: JobListRow[]; canManage: 
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
   const [dragOver, setDragOver] = useState<string | null>(null);
+  // When a pre-signed record is moved to Signed, collect the contract details.
+  const [signRow, setSignRow] = useState<JobListRow | null>(null);
 
   const byPhase = useMemo(() => {
     const map = new Map<string, JobListRow[]>();
-    for (const p of PRODUCTION_PHASES) map.set(p, []);
+    for (const p of PIPELINE_STAGES) map.set(p, []);
     for (const r of rows) {
-      const key = map.has(r.productionPhase) ? r.productionPhase : 'pre_claim';
+      const key = map.has(r.productionPhase) ? r.productionPhase : 'lead_new';
       map.get(key)!.push(r);
     }
     return map;
   }, [rows]);
 
-  function move(jobId: string, phase: ProductionPhase, current: string) {
+  function move(jobId: string, phase: PipelineStage, current: string) {
     if (phase === current) return;
+    // Signing a pre-signed record needs contract details — open the sign form
+    // instead of firing the move blindly (it would just error server-side).
+    if (phase === 'signed') {
+      const row = rows.find((r) => r.id === jobId);
+      if (row && !row.jobNumber) {
+        setError('');
+        setSignRow(row);
+        return;
+      }
+    }
     setError('');
     startTransition(async () => {
-      const res = await setJobProductionPhaseAction(jobId, phase);
+      const res = await setJobStageAction(jobId, phase);
       if (!res.ok) setError(res.error);
       else router.refresh();
+    });
+  }
+
+  function submitSign(contract: Parameters<typeof setJobStageAction>[2]) {
+    if (!signRow) return;
+    setError('');
+    startTransition(async () => {
+      const res = await setJobStageAction(signRow.id, 'signed', contract);
+      if (!res.ok) {
+        setError(res.error);
+      } else {
+        setSignRow(null);
+        router.refresh();
+      }
     });
   }
 
@@ -50,7 +76,7 @@ export function JobsBoard({ rows, canManage }: { rows: JobListRow[]; canManage: 
       )}
       <div className="overflow-x-auto pb-2">
         <div className="flex gap-3" style={{ minWidth: 'min-content' }}>
-          {PRODUCTION_PHASES.map((phase) => {
+          {PIPELINE_STAGES.map((phase) => {
             const items = byPhase.get(phase) ?? [];
             const active = dragOver === phase;
             return (
@@ -75,7 +101,7 @@ export function JobsBoard({ rows, canManage }: { rows: JobListRow[]; canManage: 
               >
                 <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
                   <span className="text-sm font-medium text-slate-700">
-                    {PRODUCTION_PHASE_LABELS[phase]}
+                    {PIPELINE_STAGE_LABELS[phase]}
                   </span>
                   <span className="rounded-full bg-slate-200 px-1.5 text-xs text-slate-600">
                     {items.length}
@@ -99,13 +125,19 @@ export function JobsBoard({ rows, canManage }: { rows: JobListRow[]; canManage: 
                             href={`/dashboard/jobs/${r.id}`}
                             className="text-sm font-medium text-slate-900 hover:text-teal-600"
                           >
-                            {r.jobNumber}
+                            {r.jobNumber ?? r.customerName ?? 'New lead'}
                           </Link>
                           <span className="text-xs text-slate-500">
-                            {formatCurrency(r.originalContractAmount)}
+                            {r.originalContractAmount
+                              ? formatCurrency(r.originalContractAmount)
+                              : r.estimatedValue
+                                ? `~${formatCurrency(r.estimatedValue)}`
+                                : '—'}
                           </span>
                         </div>
-                        <p className="mt-0.5 truncate text-sm text-slate-600">{r.customerName}</p>
+                        {r.jobNumber && (
+                          <p className="mt-0.5 truncate text-sm text-slate-600">{r.customerName}</p>
+                        )}
                         <div className="mt-2 flex items-center justify-between">
                           <span
                             className={`text-xs ${stuck ? 'font-medium text-amber-600' : 'text-slate-400'}`}
@@ -118,13 +150,13 @@ export function JobsBoard({ rows, canManage }: { rows: JobListRow[]; canManage: 
                               value={r.productionPhase}
                               disabled={isPending}
                               onChange={(e) =>
-                                move(r.id, e.target.value as ProductionPhase, r.productionPhase)
+                                move(r.id, e.target.value as PipelineStage, r.productionPhase)
                               }
                               className="rounded border border-slate-300 p-0.5 text-xs outline-none"
                             >
-                              {PRODUCTION_PHASES.map((p) => (
+                              {PIPELINE_STAGES.map((p) => (
                                 <option key={p} value={p}>
-                                  {PRODUCTION_PHASE_LABELS[p]}
+                                  {PIPELINE_STAGE_LABELS[p]}
                                 </option>
                               ))}
                             </select>
@@ -142,6 +174,141 @@ export function JobsBoard({ rows, canManage }: { rows: JobListRow[]; canManage: 
           })}
         </div>
       </div>
+
+      {signRow && (
+        <SignModal
+          row={signRow}
+          pending={isPending}
+          onCancel={() => setSignRow(null)}
+          onSubmit={submitSign}
+        />
+      )}
     </div>
+  );
+}
+
+function SignModal({
+  row,
+  pending,
+  onCancel,
+  onSubmit,
+}: {
+  row: JobListRow;
+  pending: boolean;
+  onCancel: () => void;
+  onSubmit: (contract: NonNullable<Parameters<typeof setJobStageAction>[2]>) => void;
+}) {
+  const today = new Date().toISOString().slice(0, 10);
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && !pending) onCancel();
+      }}
+    >
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const f = new FormData(e.currentTarget);
+          onSubmit({
+            originalContractAmount: String(f.get('amount')),
+            fundingType: f.get('fundingType') as 'insurance' | 'retail' | 'other',
+            contractedAt: String(f.get('contractedAt')),
+            propertyAddressLine1: String(f.get('line1')),
+            propertyCity: String(f.get('city')),
+            propertyState: String(f.get('state')),
+            propertyPostalCode: String(f.get('zip')),
+            insurerName: String(f.get('insurerName')) || undefined,
+            claimNumber: String(f.get('claimNumber')) || undefined,
+            customerName: String(f.get('customerName')) || undefined,
+          });
+        }}
+        className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-2xl"
+      >
+        <h3 className="text-base font-[550] tracking-[0.015em] text-slate-900">
+          Sign {row.customerName ?? 'lead'}
+        </h3>
+        <p className="mt-1 mb-3 text-xs text-slate-500">
+          Signing turns this lead into a job — it gets a JJ number and enters production.
+        </p>
+        <div className="flex flex-col gap-3">
+          <L label="Customer name">
+            <input name="customerName" defaultValue={row.customerName ?? ''} className={inputCls} />
+          </L>
+          <div className="grid grid-cols-2 gap-3">
+            <L label="Contract amount">
+              <input
+                name="amount"
+                type="number"
+                step="0.01"
+                required
+                defaultValue={row.estimatedValue ?? ''}
+                className={inputCls}
+              />
+            </L>
+            <L label="Contract date">
+              <input name="contractedAt" type="date" required defaultValue={today} className={inputCls} />
+            </L>
+          </div>
+          <L label="Funding">
+            <select name="fundingType" className={inputCls} defaultValue="insurance">
+              <option value="insurance">Insurance</option>
+              <option value="retail">Retail</option>
+              <option value="other">Other</option>
+            </select>
+          </L>
+          <div className="grid grid-cols-2 gap-3">
+            <L label="Insurer (optional)">
+              <input name="insurerName" className={inputCls} />
+            </L>
+            <L label="Claim # (optional)">
+              <input name="claimNumber" className={inputCls} />
+            </L>
+          </div>
+          <L label="Property address">
+            <input name="line1" required className={inputCls} />
+          </L>
+          <div className="grid grid-cols-3 gap-3">
+            <L label="City">
+              <input name="city" required className={inputCls} />
+            </L>
+            <L label="State">
+              <input name="state" required className={inputCls} />
+            </L>
+            <L label="ZIP">
+              <input name="zip" required className={inputCls} />
+            </L>
+          </div>
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={pending}
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={pending}
+            className="rounded-md bg-slate-800 px-4 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
+          >
+            {pending ? 'Signing…' : 'Sign & create job'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+const inputCls = 'rounded-md border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900';
+
+function L({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="flex flex-col gap-1 text-sm text-slate-700">
+      {label}
+      {children}
+    </label>
   );
 }

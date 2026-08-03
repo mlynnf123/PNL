@@ -1,11 +1,19 @@
-import { and, eq } from 'drizzle-orm';
+import { and, count, eq, like } from 'drizzle-orm';
 import { db as defaultDb } from '@/db/client';
 import type { DbClient } from '@/db/client';
-import { jobs } from '@/db/schema';
+import { customers, jobs } from '@/db/schema';
 import { recordAuditEvent } from '@/lib/audit';
 import { updateJob } from '@/lib/concurrency';
 import { PERMISSIONS, requirePermission } from '@/lib/permissions';
-import { PRODUCTION_PHASES, type ProductionPhase } from '@/lib/status';
+import { PIPELINE_STAGES, isSignedStage } from '@/lib/status';
+
+const UNIQUE_VIOLATION = '23505';
+const MAX_JOB_NUMBER_ATTEMPTS = 5;
+
+// Every pipeline stage a job can be moved to — the board's happy path plus the
+// terminal `lost` off-ramp (which isn't a board column).
+const ALL_STAGES = [...PIPELINE_STAGES, 'lost'] as const;
+export type Stage = (typeof ALL_STAGES)[number];
 
 export class JobNotFoundError extends Error {
   constructor(id: string) {
@@ -14,25 +22,58 @@ export class JobNotFoundError extends Error {
   }
 }
 
-export interface SetJobProductionPhaseInput {
+// Advancing a record to `signed` (the contract anchor) requires the fields that
+// make it a real job. Thrown so the UI can prompt for them in the sign form.
+export class ContractDetailsRequiredError extends Error {
+  missing: string[];
+  constructor(missing: string[]) {
+    super(`Contract details required to sign: ${missing.join(', ')}.`);
+    this.name = 'ContractDetailsRequiredError';
+    this.missing = missing;
+  }
+}
+
+// Contract fields captured when a lead-stage record crosses into `signed`.
+// Anything omitted falls back to what the record already carries.
+export interface SignContractDetails {
+  originalContractAmount?: string;
+  fundingType?: 'insurance' | 'retail' | 'other';
+  contractedAt?: string;
+  propertyAddressLine1?: string;
+  propertyAddressLine2?: string;
+  propertyCity?: string;
+  propertyState?: string;
+  propertyPostalCode?: string;
+  insurerName?: string;
+  claimNumber?: string;
+  // Link an existing customer, or create one from these (defaults to prospect*).
+  customerId?: string;
+  customerName?: string;
+  customerPhone?: string;
+  customerEmail?: string;
+}
+
+export interface SetJobStageInput {
   actorUserId: string;
   organizationId: string;
   jobId: string;
-  phase: ProductionPhase;
+  stage: Stage;
+  contract?: SignContractDetails;
   expectedRowVersion?: number;
   correlationId?: string;
 }
 
-// Move a job along the sales/production pipeline. Uses updateJob for optimistic
-// concurrency (a stale board/detail move is rejected, not clobbered) and stamps
-// the entered-at time so days-in-phase stays accurate. crm_management-gated —
-// this is a production/sales action, not a money mutation.
-export async function setJobProductionPhase(
-  input: SetJobProductionPhaseInput,
-  db: DbClient = defaultDb,
-) {
-  if (!PRODUCTION_PHASES.includes(input.phase)) {
-    throw new Error(`Unknown production phase: ${input.phase}`);
+// Move a record along the unified pipeline (lead → closed). crm_management-gated
+// — a production/sales action, not a money mutation. Uses updateJob for
+// optimistic concurrency and stamps entered-at so days-in-stage stays accurate.
+//
+// Crossing into `signed` from a pre-signed stage is the one special case: it
+// promotes a lead-stage record into a contracted job — validating/merging the
+// contract fields, creating a customer if needed, and assigning the permanent
+// JJ-YYYY-NNNN number (with the same collision retry as createJob).
+export async function setJobStage(input: SetJobStageInput, db: DbClient = defaultDb) {
+  if (!ALL_STAGES.includes(input.stage)) {
+    throw new Error(`Unknown pipeline stage: ${input.stage}`);
   }
 
   return db.transaction(async (tx) => {
@@ -46,14 +87,41 @@ export async function setJobProductionPhase(
     if (!existing) throw new JobNotFoundError(input.jobId);
 
     // No-op moves shouldn't reset the entered-at clock or write history.
-    if (existing.productionPhase === input.phase) return existing;
+    if (existing.productionPhase === input.stage) return existing;
 
-    const updated = await updateJob(
-      tx,
-      input.jobId,
-      { productionPhase: input.phase, productionPhaseEnteredAt: new Date() },
-      { actorUserId: input.actorUserId, expectedRowVersion: input.expectedRowVersion },
-    );
+    const auditPrev = { productionPhase: existing.productionPhase };
+    const enteringSigned =
+      isSignedStage(input.stage) && !isSignedStage(existing.productionPhase) && !existing.jobNumber;
+
+    if (enteringSigned) {
+      const updated = await promoteToSigned(tx, existing, input);
+      await recordAuditEvent(tx, {
+        organizationId: input.organizationId,
+        actorUserId: input.actorUserId,
+        action: 'job.signed',
+        entityType: 'job',
+        entityId: input.jobId,
+        jobId: input.jobId,
+        previousState: auditPrev,
+        newState: { productionPhase: input.stage, jobNumber: updated.jobNumber },
+        source: 'web',
+        correlationId: input.correlationId,
+      });
+      return updated;
+    }
+
+    const fields: Parameters<typeof updateJob>[2] = {
+      productionPhase: input.stage,
+      productionPhaseEnteredAt: new Date(),
+    };
+    // Terminal off-ramp archives the record; recovering from it re-activates.
+    if (input.stage === 'lost') fields.recordState = 'Archived';
+    else if (existing.recordState === 'Archived') fields.recordState = 'Active';
+
+    const updated = await updateJob(tx, input.jobId, fields, {
+      actorUserId: input.actorUserId,
+      expectedRowVersion: input.expectedRowVersion,
+    });
 
     await recordAuditEvent(tx, {
       organizationId: input.organizationId,
@@ -62,12 +130,104 @@ export async function setJobProductionPhase(
       entityType: 'job',
       entityId: input.jobId,
       jobId: input.jobId,
-      previousState: { productionPhase: existing.productionPhase },
-      newState: { productionPhase: input.phase },
+      previousState: auditPrev,
+      newState: { productionPhase: input.stage },
       source: 'web',
       correlationId: input.correlationId,
     });
 
     return updated;
   });
+}
+
+type TxHandle = Parameters<Parameters<DbClient['transaction']>[0]>[0];
+
+async function promoteToSigned(
+  tx: TxHandle,
+  existing: typeof jobs.$inferSelect,
+  input: SetJobStageInput,
+) {
+  const c = input.contract ?? {};
+  const amount = c.originalContractAmount ?? existing.originalContractAmount ?? null;
+  const funding = c.fundingType ?? existing.fundingType ?? null;
+  const contractedAt = c.contractedAt ?? existing.contractedAt ?? null;
+  const line1 = c.propertyAddressLine1 ?? existing.propertyAddressLine1 ?? existing.prospectAddress;
+  const city = c.propertyCity ?? existing.propertyCity ?? null;
+  const state = c.propertyState ?? existing.propertyState ?? null;
+  const zip = c.propertyPostalCode ?? existing.propertyPostalCode ?? null;
+
+  const missing: string[] = [];
+  if (!amount) missing.push('contract amount');
+  if (!funding) missing.push('funding type');
+  if (!contractedAt) missing.push('contract date');
+  if (!line1) missing.push('property address');
+  if (!city) missing.push('city');
+  if (!state) missing.push('state');
+  if (!zip) missing.push('ZIP');
+  if (missing.length) throw new ContractDetailsRequiredError(missing);
+
+  // Ensure a real customer — reuse an existing link, or create one from the
+  // supplied / prospect contact (mirrors createJob's newCustomer path).
+  let customerId = existing.customerId ?? c.customerId ?? null;
+  if (!customerId) {
+    const displayName = c.customerName ?? existing.prospectName ?? null;
+    if (!displayName) throw new ContractDetailsRequiredError(['customer name']);
+    const [customer] = await tx
+      .insert(customers)
+      .values({
+        organizationId: input.organizationId,
+        displayName,
+        phone: c.customerPhone ?? existing.prospectPhone ?? undefined,
+        email: c.customerEmail ?? existing.prospectEmail ?? undefined,
+      })
+      .returning();
+    customerId = customer.id;
+  }
+
+  const baseFields = {
+    productionPhase: input.stage,
+    productionPhaseEnteredAt: new Date(),
+    operationalStatus: 'Contracted' as const,
+    recordState: 'Active' as const,
+    customerId,
+    originalContractAmount: amount,
+    fundingType: funding,
+    contractedAt,
+    propertyAddressLine1: line1,
+    propertyAddressLine2: c.propertyAddressLine2 ?? existing.propertyAddressLine2 ?? undefined,
+    propertyCity: city,
+    propertyState: state,
+    propertyPostalCode: zip,
+    insurerName: c.insurerName ?? existing.insurerName ?? undefined,
+    claimNumber: c.claimNumber ?? existing.claimNumber ?? undefined,
+  };
+
+  // Assign the permanent number, retrying on collision in its own savepoint so a
+  // clash only rolls back that attempt (same approach as createJob).
+  const year = new Date().getFullYear();
+  const [{ value: existingCount }] = await tx
+    .select({ value: count() })
+    .from(jobs)
+    .where(
+      and(eq(jobs.organizationId, input.organizationId), like(jobs.jobNumber, `JJ-${year}-%`)),
+    );
+
+  for (let attempt = 0; attempt < MAX_JOB_NUMBER_ATTEMPTS; attempt++) {
+    const jobNumber = `JJ-${year}-${String(existingCount + attempt + 1).padStart(4, '0')}`;
+    try {
+      return await tx.transaction((tx2) =>
+        updateJob(
+          tx2,
+          input.jobId,
+          { ...baseFields, jobNumber },
+          { actorUserId: input.actorUserId, expectedRowVersion: input.expectedRowVersion },
+        ),
+      );
+    } catch (err) {
+      const code = (err as { cause?: { code?: string } }).cause?.code;
+      if (code === UNIQUE_VIOLATION && attempt < MAX_JOB_NUMBER_ATTEMPTS - 1) continue;
+      throw err;
+    }
+  }
+  throw new Error('Could not generate a unique job number.');
 }

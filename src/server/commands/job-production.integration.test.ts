@@ -11,7 +11,7 @@ import {
   grantPermission,
   resetDatabase,
 } from '@/test-support/fixtures';
-import { setJobProductionPhase } from './job-production';
+import { setJobStage } from './job-production';
 
 async function setup() {
   const org = await createOrganization();
@@ -22,19 +22,20 @@ async function setup() {
   return { org, actor, job };
 }
 
-describe('setJobProductionPhase', () => {
+describe('setJobStage', () => {
   beforeEach(async () => {
     await resetDatabase();
   });
 
-  it('PROD-001: moves a job to a new phase, stamps entered-at, and audits it', async () => {
+  it('PROD-001: moves a job to a new stage, stamps entered-at, and audits it', async () => {
     const { org, actor, job } = await setup();
 
+    // createJobFixture makes an already-contracted job, so it enters at `signed`.
     const before = await testDb.select().from(jobs).where(eq(jobs.id, job.id));
-    expect(before[0].productionPhase).toBe('pre_claim');
+    expect(before[0].productionPhase).toBe('signed');
 
-    await setJobProductionPhase(
-      { actorUserId: actor.id, organizationId: org.id, jobId: job.id, phase: 'installation' },
+    await setJobStage(
+      { actorUserId: actor.id, organizationId: org.id, jobId: job.id, stage: 'installation' },
       testDb,
     );
 
@@ -53,11 +54,11 @@ describe('setJobProductionPhase', () => {
     expect(events[0].jobId).toBe(job.id);
   });
 
-  it('PROD-002: a no-op move to the same phase does not advance the row or write history', async () => {
+  it('PROD-002: a no-op move to the same stage does not advance the row or write history', async () => {
     const { org, actor, job } = await setup();
 
-    await setJobProductionPhase(
-      { actorUserId: actor.id, organizationId: org.id, jobId: job.id, phase: 'pre_claim' },
+    await setJobStage(
+      { actorUserId: actor.id, organizationId: org.id, jobId: job.id, stage: 'signed' },
       testDb,
     );
 
@@ -74,12 +75,12 @@ describe('setJobProductionPhase', () => {
     const { org, actor, job } = await setup();
 
     await expect(
-      setJobProductionPhase(
+      setJobStage(
         {
           actorUserId: actor.id,
           organizationId: org.id,
           jobId: job.id,
-          phase: 'contracting',
+          stage: 'contracting',
           expectedRowVersion: 999,
         },
         testDb,
@@ -92,8 +93,8 @@ describe('setJobProductionPhase', () => {
     const stranger = await createUser(org.id);
 
     await expect(
-      setJobProductionPhase(
-        { actorUserId: stranger.id, organizationId: org.id, jobId: job.id, phase: 'contracting' },
+      setJobStage(
+        { actorUserId: stranger.id, organizationId: org.id, jobId: job.id, stage: 'contracting' },
         testDb,
       ),
     ).rejects.toBeInstanceOf(AuthorizationError);

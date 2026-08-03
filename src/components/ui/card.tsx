@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-
 // Canonical card from the reference design: white, rounded-xl, thin slate
 // border, soft shadow. Flat (no gradient), per the adopted design language.
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {

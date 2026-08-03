@@ -9,6 +9,8 @@ import {
   JOB_COLLECTION_TONE,
   JOB_COMMISSION_TONE,
   JOB_OPERATIONAL_TONE,
+  PIPELINE_STAGE_LABELS,
+  PIPELINE_STAGE_TONE,
   humanizeStatus,
   toneFor,
 } from '@/lib/status';
@@ -114,6 +116,7 @@ export function JobsQueue({
                 {[
                   'Job',
                   'Customer',
+                  'Stage',
                   'Contracted',
                   'Contract',
                   'Operational',
@@ -143,13 +146,18 @@ export function JobsQueue({
                       onClick={(e) => e.stopPropagation()}
                       className="font-medium text-slate-900 hover:text-teal-600"
                     >
-                      {row.jobNumber}
+                      {row.jobNumber ?? <span className="text-slate-400 italic">Lead</span>}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-slate-700">{row.customerName}</td>
+                  <td className="px-4 py-3 text-slate-700">{row.customerName ?? '—'}</td>
+                  <td className="px-4 py-3">
+                    <Badge tone={PIPELINE_STAGE_TONE[row.productionPhase] ?? 'slate'}>
+                      {PIPELINE_STAGE_LABELS[row.productionPhase] ?? humanizeStatus(row.productionPhase)}
+                    </Badge>
+                  </td>
                   <td className="px-4 py-3 text-slate-500">{formatDate(row.contractedAt)}</td>
                   <td className="px-4 py-3 text-slate-700">
-                    {formatCurrency(row.originalContractAmount)}
+                    {row.originalContractAmount ? formatCurrency(row.originalContractAmount) : '—'}
                   </td>
                   <td className="px-4 py-3">
                     <Badge tone={toneFor(JOB_OPERATIONAL_TONE, row.operationalStatus)}>
@@ -184,7 +192,7 @@ export function JobsQueue({
       <Drawer
         open={!!preview}
         onClose={closePreview}
-        title={preview ? preview.jobNumber : ''}
+        title={preview ? (preview.jobNumber ?? preview.customerName ?? 'New lead') : ''}
         footer={
           preview ? (
             <LinkButton href={`/dashboard/jobs/${preview.id}`}>Open full record</LinkButton>
@@ -204,12 +212,12 @@ export function JobsQueue({
                 {humanizeStatus(preview.commissionStatus)}
               </Badge>
             </div>
-            <Detail label="Customer" value={preview.customerName} />
+            <Detail label="Customer" value={preview.customerName ?? '—'} />
             <Detail
-              label="Contract amount"
-              value={formatCurrency(preview.originalContractAmount)}
+              label={preview.originalContractAmount ? 'Contract amount' : 'Estimated value'}
+              value={formatCurrency(preview.originalContractAmount ?? preview.estimatedValue)}
             />
-            <Detail label="Funding" value={humanizeStatus(preview.fundingType)} />
+            <Detail label="Funding" value={preview.fundingType ? humanizeStatus(preview.fundingType) : '—'} />
             <Detail label="Contracted" value={formatDate(preview.contractedAt)} />
             <Detail label="Collection" value={humanizeStatus(preview.collectionStatus)} />
 

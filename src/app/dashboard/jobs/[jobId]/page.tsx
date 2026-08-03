@@ -36,7 +36,9 @@ import {
 } from '@/server/commands/job-adjustments';
 import { getEntityActivity } from '@/server/queries/activity';
 import { listDocuments } from '@/server/queries/documents';
+import { listUsersWithRoles } from '@/server/queries/settings-directory';
 import { deleteDocument, uploadDocument } from '@/server/commands/documents';
+import { AssigneeSelect } from './assignee-select';
 import { ProductionPhaseCard } from './production-phase-card';
 import { getJobFinancialSummary } from '@/server/queries/job-financial-summary';
 import {
@@ -90,14 +92,30 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
   const [job] = await db
     .select({ job: jobs, customer: customers })
     .from(jobs)
-    .innerJoin(customers, eq(customers.id, jobs.customerId))
+    // Left join so a pre-signed lead (no customer yet) still resolves — the
+    // display name falls back to the prospect name.
+    .leftJoin(customers, eq(customers.id, jobs.customerId))
     .where(and(eq(jobs.id, jobId), eq(jobs.organizationId, session.user.organizationId)))
     .limit(1)
-    .then((rows) => rows.map((r) => ({ ...r.job, customerName: r.customer.displayName })));
+    .then((rows) =>
+      rows.map((r) => ({ ...r.job, customerName: r.customer?.displayName ?? r.job.prospectName })),
+    );
 
   if (!job) {
     notFound();
   }
+
+  // A pre-signed lead has no job number yet — show a light lead view instead of
+  // the full financial worksheet, which only applies once the deal is signed.
+  const isSigned = !!job.jobNumber;
+
+  // The owner directory drives the lead-view reassignment control (pre-sign).
+  const assignableUsers = isSigned
+    ? []
+    : (await listUsersWithRoles(session.user.organizationId)).map((u) => ({
+        id: u.id,
+        displayName: u.displayName,
+      }));
 
   const summary = await getJobFinancialSummary(jobId);
   const activity = await getEntityActivity(jobId, session.user.organizationId);
@@ -287,13 +305,55 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
         </Link>
       </div>
       <PageHeader
-        title={job.jobNumber}
-        description={`${job.customerName} · ${job.propertyAddressLine1}${job.propertyCity ? `, ${job.propertyCity}` : ''} · ${humanizeStatus(job.fundingType)}`}
+        title={job.jobNumber ?? job.customerName ?? 'New lead'}
+        description={
+          [
+            job.customerName,
+            [job.propertyAddressLine1, job.propertyCity].filter(Boolean).join(', ') || null,
+            job.fundingType ? humanizeStatus(job.fundingType) : null,
+          ]
+            .filter(Boolean)
+            .join(' · ') || 'Lead — not yet signed'
+        }
       />
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Understand — context on the left */}
         <div className="space-y-6 lg:col-span-2">
+          {!isSigned && (
+            <Section title="Lead details">
+              <div className="space-y-3 text-sm">
+                <LeadField label="Contact" value={job.prospectName ?? job.customerName} />
+                <LeadField label="Phone" value={job.prospectPhone} />
+                <LeadField label="Email" value={job.prospectEmail} />
+                <LeadField label="Address" value={job.prospectAddress} />
+                <LeadField
+                  label="Estimated value"
+                  value={job.estimatedValue ? formatCurrency(job.estimatedValue) : null}
+                />
+                <LeadField label="Source" value={job.source ? humanizeStatus(job.source) : null} />
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-xs font-medium tracking-wider text-slate-400 uppercase">
+                    Assigned to
+                  </span>
+                  <AssigneeSelect
+                    jobId={job.id}
+                    current={job.assignedTo}
+                    users={assignableUsers}
+                    canManage={canManageProduction}
+                  />
+                </div>
+                <LeadField label="Notes" value={job.description ?? job.notes} />
+              </div>
+              <p className="mt-4 rounded-md border-l-2 border-teal-500 bg-teal-50/50 px-3 py-2 text-xs text-slate-600">
+                This is a lead. Move it to <strong>Signed</strong> on the production pipeline (right)
+                to create the job and open the financial worksheet.
+              </p>
+            </Section>
+          )}
+
+          {isSigned && (
+            <>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <StatCard label="Expected" value={formatCurrency(summary.expectedRevenue, true)} />
             <StatCard label="Collected" value={formatCurrency(summary.collectedRevenue, true)} />
@@ -506,6 +566,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
               </div>
             </form>
           </Section>
+            </>
+          )}
 
           <Section title="Documents">
             <RowTable
@@ -542,28 +604,32 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
 
         {/* Act — status, lifecycle, next actions, activity on the right */}
         <div className="space-y-6">
-          <Card>
-            <CardHeader title="Status" />
-            <div className="flex flex-wrap gap-2">
-              <Badge tone={toneFor(JOB_OPERATIONAL_TONE, job.operationalStatus)}>
-                {humanizeStatus(job.operationalStatus)}
-              </Badge>
-              <Badge tone={toneFor(JOB_COLLECTION_TONE, job.collectionStatus)}>
-                {humanizeStatus(job.collectionStatus)}
-              </Badge>
-              <Badge tone={toneFor(JOB_CLOSE_TONE, job.financialCloseStatus)}>
-                {humanizeStatus(job.financialCloseStatus)}
-              </Badge>
-              <Badge tone={toneFor(JOB_COMMISSION_TONE, job.commissionStatus)}>
-                {humanizeStatus(job.commissionStatus)}
-              </Badge>
-            </div>
-          </Card>
+          {isSigned && (
+            <>
+              <Card>
+                <CardHeader title="Status" />
+                <div className="flex flex-wrap gap-2">
+                  <Badge tone={toneFor(JOB_OPERATIONAL_TONE, job.operationalStatus)}>
+                    {humanizeStatus(job.operationalStatus)}
+                  </Badge>
+                  <Badge tone={toneFor(JOB_COLLECTION_TONE, job.collectionStatus)}>
+                    {humanizeStatus(job.collectionStatus)}
+                  </Badge>
+                  <Badge tone={toneFor(JOB_CLOSE_TONE, job.financialCloseStatus)}>
+                    {humanizeStatus(job.financialCloseStatus)}
+                  </Badge>
+                  <Badge tone={toneFor(JOB_COMMISSION_TONE, job.commissionStatus)}>
+                    {humanizeStatus(job.commissionStatus)}
+                  </Badge>
+                </div>
+              </Card>
 
-          <Card>
-            <CardHeader title="Lifecycle" />
-            <LifecycleTracker stages={OPERATIONAL_STAGES} current={job.operationalStatus} />
-          </Card>
+              <Card>
+                <CardHeader title="Lifecycle" />
+                <LifecycleTracker stages={OPERATIONAL_STAGES} current={job.operationalStatus} />
+              </Card>
+            </>
+          )}
 
           <Card>
             <CardHeader title="Production pipeline" />
@@ -575,16 +641,25 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
           </Card>
 
           <Card>
-            <CardHeader title="Next actions" />
-            <div className="flex flex-col gap-2">
-              <LinkButton href={`${path}/close`} variant="secondary">
-                Completion &amp; close
-              </LinkButton>
-              <LinkButton href={`${path}/commission`} variant="secondary">
-                Commission
-              </LinkButton>
-            </div>
+            <CardHeader title="Estimates" />
+            <LinkButton href={`/dashboard/estimates/new?jobId=${job.id}`} variant="secondary">
+              New estimate
+            </LinkButton>
           </Card>
+
+          {isSigned && (
+            <Card>
+              <CardHeader title="Next actions" />
+              <div className="flex flex-col gap-2">
+                <LinkButton href={`${path}/close`} variant="secondary">
+                  Completion &amp; close
+                </LinkButton>
+                <LinkButton href={`${path}/commission`} variant="secondary">
+                  Commission
+                </LinkButton>
+              </div>
+            </Card>
+          )}
 
           <Card>
             <CardHeader title="Activity" />
@@ -592,6 +667,15 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
           </Card>
         </div>
       </div>
+    </div>
+  );
+}
+
+function LeadField({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div className="flex justify-between gap-4">
+      <span className="text-xs font-medium tracking-wider text-slate-400 uppercase">{label}</span>
+      <span className="text-right text-slate-800">{value || '—'}</span>
     </div>
   );
 }

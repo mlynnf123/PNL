@@ -22,10 +22,18 @@ export const JOB_OPERATIONAL_TONE: Record<string, BadgeTone> = {
   Reopened: 'amber',
 };
 
-// The sales/production pipeline, in order. `closed` is terminal. Used by the
-// jobs board (columns) and the job-detail phase stepper.
-export const PRODUCTION_PHASES = [
-  'pre_claim',
+// The unified deal pipeline, in board/stepper order. One spine from first
+// contact to close: the lead segment (lead_new..estimate), the `signed` anchor
+// (record becomes a contracted job), the post-sign work segment
+// (filing_claim..final_payment), and `closed` (terminal). `lost` is a terminal
+// off-ramp handled separately (not a board column). The legacy `pre_claim`
+// value is retained only for tone/label lookups on any un-migrated row.
+export const PIPELINE_STAGES = [
+  'lead_new',
+  'contacted',
+  'inspection',
+  'estimate',
+  'signed',
   'filing_claim',
   'adjuster_meeting',
   'negotiation',
@@ -37,10 +45,27 @@ export const PRODUCTION_PHASES = [
   'closed',
 ] as const;
 
-export type ProductionPhase = (typeof PRODUCTION_PHASES)[number];
+export type PipelineStage = (typeof PIPELINE_STAGES)[number];
 
-export const PRODUCTION_PHASE_LABELS: Record<ProductionPhase, string> = {
-  pre_claim: 'Pre-Claim',
+// The stage at/after which a record is a contracted job (financials apply).
+export const SIGNED_STAGE: PipelineStage = 'signed';
+
+// Stages that count as "signed or later" — used to guard money rollups so
+// pre-signed lead-stage records stay out of profit/collection totals.
+export const SIGNED_PLUS_STAGES: readonly string[] = PIPELINE_STAGES.slice(
+  PIPELINE_STAGES.indexOf(SIGNED_STAGE),
+);
+
+export function isSignedStage(stage: string): boolean {
+  return SIGNED_PLUS_STAGES.includes(stage);
+}
+
+export const PIPELINE_STAGE_LABELS: Record<string, string> = {
+  lead_new: 'New Lead',
+  contacted: 'Contacted',
+  inspection: 'Inspection',
+  estimate: 'Estimate Sent',
+  signed: 'Signed',
   filing_claim: 'Filing Claim',
   adjuster_meeting: 'Adjuster Meeting',
   negotiation: 'Negotiation',
@@ -50,10 +75,16 @@ export const PRODUCTION_PHASE_LABELS: Record<ProductionPhase, string> = {
   installation: 'Installation',
   final_payment: 'Final Payment',
   closed: 'Post-Job / Closed',
+  lost: 'Lost',
+  pre_claim: 'Pre-Claim',
 };
 
-export const PRODUCTION_PHASE_TONE: Record<string, BadgeTone> = {
-  pre_claim: 'slate',
+export const PIPELINE_STAGE_TONE: Record<string, BadgeTone> = {
+  lead_new: 'slate',
+  contacted: 'slate',
+  inspection: 'blue',
+  estimate: 'blue',
+  signed: 'teal',
   filing_claim: 'slate',
   adjuster_meeting: 'blue',
   negotiation: 'blue',
@@ -63,6 +94,8 @@ export const PRODUCTION_PHASE_TONE: Record<string, BadgeTone> = {
   installation: 'blue',
   final_payment: 'amber',
   closed: 'teal',
+  lost: 'red',
+  pre_claim: 'slate',
 };
 
 export const JOB_COLLECTION_TONE: Record<string, BadgeTone> = {

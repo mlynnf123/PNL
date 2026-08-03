@@ -115,7 +115,7 @@ export async function convertLeadAction(
       fundingType,
     });
     revalidatePath(PATH);
-    return { ok: true, jobId, jobNumber };
+    return { ok: true, jobId, jobNumber: jobNumber ?? undefined };
   } catch (err) {
     return handle(err);
   }

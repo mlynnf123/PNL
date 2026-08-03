@@ -1,11 +1,15 @@
 import { redirect } from 'next/navigation';
 import { db } from '@/db/client';
 import { requireSession } from '@/lib/require-session';
-import { createJob } from '@/server/commands/create-job';
+import { createLeadRecord } from '@/server/commands/create-lead-record';
+import { listUsersWithRoles } from '@/server/queries/settings-directory';
 import { AuthorizationError, PERMISSIONS, userHasPermission } from '@/lib/permissions';
 import { NoAccessNotice } from '../ui';
 
-export default async function NewJobPage({
+// The single front-of-funnel entry point: create a lead. It becomes a full job
+// (customer, address, contract amount, JJ number) when it's moved to the Signed
+// stage on the pipeline — nothing here demands those up front.
+export default async function NewLeadPage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string }>;
@@ -22,24 +26,30 @@ export default async function NewJobPage({
     );
   }
 
+  const users = await listUsersWithRoles(session.user.organizationId);
+
   async function create(formData: FormData) {
     'use server';
 
+    const estimatedValue = String(formData.get('estimatedValue') || '').trim();
     try {
-      const job = await createJob({
+      const job = await createLeadRecord({
         actorUserId: session.user.id,
         organizationId: session.user.organizationId,
-        newCustomer: { displayName: String(formData.get('customerName')) },
-        propertyAddressLine1: String(formData.get('propertyAddressLine1')),
-        propertyCity: String(formData.get('propertyCity')),
-        propertyState: String(formData.get('propertyState')),
-        propertyPostalCode: String(formData.get('propertyPostalCode')),
-        fundingType: formData.get('fundingType') as 'insurance' | 'retail' | 'other',
-        insurerName: String(formData.get('insurerName') || '') || undefined,
-        claimNumber: String(formData.get('claimNumber') || '') || undefined,
-        originalContractAmount: String(formData.get('originalContractAmount')),
-        contractedAt: String(formData.get('contractedAt')),
-        primarySalesRepUserId: session.user.id,
+        prospectName: String(formData.get('prospectName')),
+        prospectPhone: String(formData.get('prospectPhone') || '') || undefined,
+        prospectEmail: String(formData.get('prospectEmail') || '') || undefined,
+        prospectAddress: String(formData.get('prospectAddress') || '') || undefined,
+        source: (String(formData.get('source') || '') || undefined) as
+          | 'referral'
+          | 'online'
+          | 'advertisement'
+          | 'cold_call'
+          | 'other'
+          | undefined,
+        estimatedValue: estimatedValue || undefined,
+        assignedTo: String(formData.get('assignedTo') || '') || undefined,
+        description: String(formData.get('description') || '') || undefined,
       });
       redirect(`/dashboard/jobs/${job.id}`);
     } catch (err) {
@@ -52,11 +62,11 @@ export default async function NewJobPage({
 
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <h2 className="text-lg font-[550] tracking-[0.015em] text-slate-900">New job</h2>
+      <h2 className="text-lg font-[550] tracking-[0.015em] text-slate-900">New lead</h2>
 
       {error && (
         <p className="rounded-md border-l-2 border-slate-900 bg-slate-100 px-3 py-2 text-sm text-slate-800">
-          You do not have permission to create a job.
+          You do not have permission to create a lead.
         </p>
       )}
 
@@ -64,48 +74,60 @@ export default async function NewJobPage({
         action={create}
         className="flex max-w-lg flex-col gap-4 rounded-lg border border-slate-200 bg-white p-6"
       >
-        <Field label="Customer name" name="customerName" required />
-        <Field label="Property address" name="propertyAddressLine1" required />
-        <div className="grid grid-cols-3 gap-3">
-          <Field label="City" name="propertyCity" required />
-          <Field label="State" name="propertyState" required />
-          <Field label="ZIP" name="propertyPostalCode" required />
+        <Field label="Name" name="prospectName" required />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Phone" name="prospectPhone" />
+          <Field label="Email" name="prospectEmail" type="email" />
+        </div>
+        <Field label="Address" name="prospectAddress" />
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className="flex flex-col gap-1 text-sm text-slate-700">
+            Source
+            <select
+              name="source"
+              className="rounded-md border border-slate-300 px-3 py-2 font-normal text-slate-900"
+            >
+              <option value="referral">Referral</option>
+              <option value="online">Online</option>
+              <option value="advertisement">Advertisement</option>
+              <option value="cold_call">Cold call</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <Field label="Estimated value (optional)" name="estimatedValue" type="number" step="0.01" />
         </div>
 
         <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Funding type
+          Assigned to
           <select
-            name="fundingType"
-            required
+            name="assignedTo"
+            defaultValue={session.user.id}
             className="rounded-md border border-slate-300 px-3 py-2 font-normal text-slate-900"
           >
-            <option value="insurance">Insurance</option>
-            <option value="retail">Retail</option>
-            <option value="other">Other</option>
+            <option value="">Unassigned</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.displayName}
+              </option>
+            ))}
           </select>
         </label>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Insurer name (optional)" name="insurerName" />
-          <Field label="Claim number (optional)" name="claimNumber" />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Field
-            label="Original contract amount"
-            name="originalContractAmount"
-            type="number"
-            step="0.01"
-            required
+        <label className="flex flex-col gap-1 text-sm text-slate-700">
+          Notes (optional)
+          <textarea
+            name="description"
+            rows={3}
+            className="rounded-md border border-slate-300 px-3 py-2 font-normal text-slate-900"
           />
-          <Field label="Contract date" name="contractedAt" type="date" required />
-        </div>
+        </label>
 
         <button
           type="submit"
           className="mt-2 rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-900"
         >
-          Create job
+          Create lead
         </button>
       </form>
     </div>

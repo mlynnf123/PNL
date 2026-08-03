@@ -1,4 +1,6 @@
+import { and, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
+import { customers, jobs } from '@/db/schema';
 import { requireSession } from '@/lib/require-session';
 import { PERMISSIONS, userHasPermission } from '@/lib/permissions';
 import { listSelectableLayouts } from '@/server/queries/estimate-layouts';
@@ -9,7 +11,7 @@ import { LayoutSelector } from './selector-client';
 export default async function NewEstimatePage({
   searchParams,
 }: {
-  searchParams: Promise<{ leadId?: string }>;
+  searchParams: Promise<{ leadId?: string; jobId?: string }>;
 }) {
   const session = await requireSession();
   const canManage = await userHasPermission(db, session.user.id, PERMISSIONS.CRM_MANAGEMENT);
@@ -24,19 +26,46 @@ export default async function NewEstimatePage({
     );
   }
 
-  const { leadId } = await searchParams;
+  const { leadId, jobId } = await searchParams;
   const layouts = await listSelectableLayouts(session.user.organizationId);
 
   let prefill:
     | {
-        leadId: string;
+        leadId?: string;
+        jobId?: string;
         customerName?: string;
         customerAddress?: string;
         customerPhone?: string;
         customerEmail?: string;
       }
     | undefined;
-  if (leadId) {
+
+  // A pipeline record (job) — prefill from its customer (signed) or prospect
+  // fields (lead) and tie the estimate to the job.
+  if (jobId) {
+    const [row] = await db
+      .select({ job: jobs, customer: customers })
+      .from(jobs)
+      .leftJoin(customers, eq(customers.id, jobs.customerId))
+      .where(and(eq(jobs.id, jobId), eq(jobs.organizationId, session.user.organizationId)))
+      .limit(1);
+    if (row) {
+      const j = row.job;
+      const address =
+        [j.propertyAddressLine1, j.propertyCity, j.propertyState, j.propertyPostalCode]
+          .filter(Boolean)
+          .join(', ') ||
+        j.prospectAddress ||
+        undefined;
+      prefill = {
+        jobId: j.id,
+        customerName: row.customer?.displayName ?? j.prospectName ?? undefined,
+        customerAddress: address,
+        customerPhone: row.customer?.phone ?? j.prospectPhone ?? undefined,
+        customerEmail: row.customer?.email ?? j.prospectEmail ?? undefined,
+      };
+    }
+  } else if (leadId) {
     const lead = await getLead(leadId, session.user.organizationId);
     if (lead) {
       prefill = {

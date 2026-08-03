@@ -19,7 +19,8 @@ export function LayoutSelector({
 }: {
   layouts: SelectableLayout[];
   prefill?: {
-    leadId: string;
+    leadId?: string;
+    jobId?: string;
     customerName?: string;
     customerAddress?: string;
     customerPhone?: string;

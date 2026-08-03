@@ -59,6 +59,9 @@ async function DashboardBody({
     WHERE organization_id = ${organizationId}
       AND record_state = 'Active'
       AND financial_close_status <> 'Closed'
+      -- Only signed jobs count as "in progress"; a job_number is assigned
+      -- exactly at the signed anchor, so pre-signed leads are excluded.
+      AND job_number IS NOT NULL
   `);
   const canViewProfit = await userHasPermission(
     db,

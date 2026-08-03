@@ -1,21 +1,25 @@
-import { type SQL, and, desc, eq, gte, ilike, lte, or } from 'drizzle-orm';
+import { type SQL, and, desc, eq, gte, ilike, lte, ne, or, sql } from 'drizzle-orm';
 import { db as defaultDb } from '@/db/client';
 import type { DbOrTx } from '@/db/client';
 import { customers, jobs } from '@/db/schema';
 
 export interface JobListRow {
   id: string;
-  jobNumber: string;
-  customerName: string;
-  fundingType: string;
+  // Null until the record reaches `signed` (lead-stage records have no number).
+  jobNumber: string | null;
+  // Customer name once signed, else the prospect name captured at lead time.
+  customerName: string | null;
+  fundingType: string | null;
   operationalStatus: string;
   collectionStatus: string;
   financialCloseStatus: string;
   commissionStatus: string;
   productionPhase: string;
   productionPhaseEnteredAt: Date;
-  originalContractAmount: string;
-  contractedAt: string;
+  // Contract amount once signed; estimatedValue is the pre-sign ballpark.
+  originalContractAmount: string | null;
+  estimatedValue: string | null;
+  contractedAt: string | null;
 }
 
 export interface JobListFilters {
@@ -26,6 +30,8 @@ export interface JobListFilters {
   // Inclusive contracted-date range (ISO date strings).
   from?: string;
   to?: string;
+  // Include Archived (lost) records — off by default so they stay off the board.
+  includeArchived?: boolean;
 }
 
 export async function listJobs(
@@ -34,6 +40,7 @@ export async function listJobs(
   db: DbOrTx = defaultDb,
 ): Promise<JobListRow[]> {
   const conditions: SQL[] = [eq(jobs.organizationId, organizationId)];
+  if (!filters.includeArchived) conditions.push(ne(jobs.recordState, 'Archived'));
   if (filters.operationalStatus)
     conditions.push(eq(jobs.operationalStatus, filters.operationalStatus as never));
   if (filters.financialCloseStatus)
@@ -44,14 +51,21 @@ export async function listJobs(
   if (filters.to) conditions.push(lte(jobs.contractedAt, filters.to));
   if (filters.search) {
     const term = `%${filters.search}%`;
-    conditions.push(or(ilike(jobs.jobNumber, term), ilike(customers.displayName, term)) as SQL);
+    conditions.push(
+      or(
+        ilike(jobs.jobNumber, term),
+        ilike(customers.displayName, term),
+        ilike(jobs.prospectName, term),
+      ) as SQL,
+    );
   }
 
   const rows = await db
     .select({
       id: jobs.id,
       jobNumber: jobs.jobNumber,
-      customerName: customers.displayName,
+      // Signed records join a customer; lead-stage records fall back to prospect.
+      customerName: sql<string | null>`coalesce(${customers.displayName}, ${jobs.prospectName})`,
       fundingType: jobs.fundingType,
       operationalStatus: jobs.operationalStatus,
       collectionStatus: jobs.collectionStatus,
@@ -60,10 +74,12 @@ export async function listJobs(
       productionPhase: jobs.productionPhase,
       productionPhaseEnteredAt: jobs.productionPhaseEnteredAt,
       originalContractAmount: jobs.originalContractAmount,
+      estimatedValue: jobs.estimatedValue,
       contractedAt: jobs.contractedAt,
     })
     .from(jobs)
-    .innerJoin(customers, eq(customers.id, jobs.customerId))
+    // Left join so pre-signed records (no customer yet) still appear.
+    .leftJoin(customers, eq(customers.id, jobs.customerId))
     .where(and(...conditions))
     .orderBy(desc(jobs.contractedAt), desc(jobs.createdAt));
 

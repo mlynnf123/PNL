@@ -11,11 +11,6 @@ import { JobsFilters } from './jobs-filters';
 import { JobsQueue } from './jobs-queue';
 import { ImportWizard } from './import-wizard';
 
-function last30(): string {
-  const d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  return d.toISOString().slice(0, 10);
-}
-
 export default async function JobsPage({
   searchParams,
 }: {
@@ -33,9 +28,9 @@ export default async function JobsPage({
   if (!canView) {
     return (
       <div>
-        <PageHeader title="Jobs" />
+        <PageHeader title="Pipeline" />
         <p className="text-sm font-normal text-slate-500">
-          You don&apos;t have access to jobs yet. Ask an owner to grant you access.
+          You don&apos;t have access to the pipeline yet. Ask an owner to grant you access.
         </p>
       </div>
     );
@@ -44,7 +39,9 @@ export default async function JobsPage({
   const params = await searchParams;
   const showAll = params.showAll === '1';
   const view = params.view === 'board' ? 'board' : 'queue';
-  const from = params.from || (showAll ? undefined : last30());
+  // Pipeline default is the whole active funnel — no date window — so lead-stage
+  // records (which have no contract date) are visible. A date range is opt-in.
+  const from = params.from || undefined;
   const to = params.to || undefined;
 
   const canManage = await userHasPermission(db, session.user.id, PERMISSIONS.CRM_MANAGEMENT);
@@ -83,9 +80,9 @@ export default async function JobsPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Jobs"
-        description={`${rangeLabel} · ${rows.length} job${rows.length === 1 ? '' : 's'}`}
-        action={<LinkButton href="/dashboard/jobs/new">New job</LinkButton>}
+        title="Pipeline"
+        description={`${rangeLabel} · ${rows.length} record${rows.length === 1 ? '' : 's'}`}
+        action={<LinkButton href="/dashboard/jobs/new">New lead</LinkButton>}
       />
 
       {(canImport || canFinancial) && (
@@ -100,7 +97,7 @@ export default async function JobsPage({
       )}
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Jobs in range" value={String(rows.length)} />
+        <StatCard label="In pipeline" value={String(rows.length)} />
         <StatCard label="Total contract value" value={formatCurrency(totalValue)} />
         <StatCard label="Open (not closed)" value={String(openCount)} />
       </div>

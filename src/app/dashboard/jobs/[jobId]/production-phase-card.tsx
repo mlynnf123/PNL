@@ -2,8 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
-import { PRODUCTION_PHASES, PRODUCTION_PHASE_LABELS, type ProductionPhase } from '@/lib/status';
-import { setJobProductionPhaseAction } from '../actions';
+import { PIPELINE_STAGES, PIPELINE_STAGE_LABELS, type PipelineStage } from '@/lib/status';
+import { setJobStageAction } from '../actions';
 
 // Vertical production-pipeline stepper for a single job. Shows every phase with
 // the current one filled and earlier ones done; a manager can jump to any phase.
@@ -19,13 +19,13 @@ export function ProductionPhaseCard({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
-  const idx = PRODUCTION_PHASES.indexOf(current as ProductionPhase);
+  const idx = PIPELINE_STAGES.indexOf(current as PipelineStage);
 
-  function move(phase: ProductionPhase) {
+  function move(phase: PipelineStage) {
     if (phase === current) return;
     setError('');
     startTransition(async () => {
-      const res = await setJobProductionPhaseAction(jobId, phase);
+      const res = await setJobStageAction(jobId, phase);
       if (!res.ok) setError(res.error);
       else router.refresh();
     });
@@ -34,10 +34,10 @@ export function ProductionPhaseCard({
   return (
     <div className="space-y-3">
       <ol>
-        {PRODUCTION_PHASES.map((phase, i) => {
+        {PIPELINE_STAGES.map((phase, i) => {
           const done = idx >= 0 && i < idx;
           const active = i === idx;
-          const last = i === PRODUCTION_PHASES.length - 1;
+          const last = i === PIPELINE_STAGES.length - 1;
           return (
             <li key={phase} className="flex gap-3">
               <div className="flex flex-col items-center">
@@ -59,7 +59,7 @@ export function ProductionPhaseCard({
                   active ? 'font-medium text-slate-900' : done ? 'text-slate-700' : 'text-slate-400'
                 }`}
               >
-                {PRODUCTION_PHASE_LABELS[phase]}
+                {PIPELINE_STAGE_LABELS[phase]}
               </span>
             </li>
           );
@@ -72,12 +72,12 @@ export function ProductionPhaseCard({
           <select
             value={current}
             disabled={isPending}
-            onChange={(e) => move(e.target.value as ProductionPhase)}
+            onChange={(e) => move(e.target.value as PipelineStage)}
             className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500"
           >
-            {PRODUCTION_PHASES.map((p) => (
+            {PIPELINE_STAGES.map((p) => (
               <option key={p} value={p}>
-                {PRODUCTION_PHASE_LABELS[p]}
+                {PIPELINE_STAGE_LABELS[p]}
               </option>
             ))}
           </select>

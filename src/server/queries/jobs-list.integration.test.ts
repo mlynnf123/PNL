@@ -60,6 +60,6 @@ describe('listJobs', () => {
     // Search by customer name.
     expect(await listJobs(org.id, { search: 'Old' }, testDb)).toHaveLength(1);
     // Search by job number.
-    expect(await listJobs(org.id, { search: recent.jobNumber }, testDb)).toHaveLength(1);
+    expect(await listJobs(org.id, { search: recent.jobNumber! }, testDb)).toHaveLength(1);
   });
 });

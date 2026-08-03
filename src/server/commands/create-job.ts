@@ -54,6 +54,9 @@ export async function insertJobWithGeneratedNumber(tx: TxHandle, input: Generate
           .values({
             organizationId: input.organizationId,
             jobNumber,
+            // createJob + the importer both create already-contracted jobs, so
+            // they enter the pipeline at the `signed` anchor, not `lead_new`.
+            productionPhase: 'signed',
             customerId: input.customerId,
             propertyAddressLine1: input.propertyAddressLine1,
             propertyAddressLine2: input.propertyAddressLine2 ?? undefined,

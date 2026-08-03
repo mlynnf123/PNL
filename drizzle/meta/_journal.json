@@ -120,6 +120,13 @@
       "when": 1785561280390,
       "tag": "0016_cynical_lethal_legion",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1785574647882,
+      "tag": "0017_high_stick",
+      "breakpoints": true
     }
   ]
 }

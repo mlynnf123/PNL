@@ -45,7 +45,7 @@ describe('createJob', () => {
     const [customer] = await testDb
       .select()
       .from(customers)
-      .where(eq(customers.id, job.customerId))
+      .where(eq(customers.id, job.customerId!))
       .limit(1);
     expect(customer.displayName).toBe('Jane Doe');
 
