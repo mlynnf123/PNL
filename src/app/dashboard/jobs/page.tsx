@@ -85,16 +85,24 @@ export default async function JobsPage({
         action={<LinkButton href="/dashboard/jobs/new">New lead</LinkButton>}
       />
 
-      {(canImport || canFinancial) && (
-        <div className="flex items-center gap-2">
-          {canImport && <ImportWizard />}
-          {canFinancial && (
-            <LinkButton href="/dashboard/setter-costs" variant="secondary">
-              Setter costs
-            </LinkButton>
+      {/* Search / filters section — with the Import + Setter costs actions. */}
+      <Card>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="flex-1">
+            <JobsFilters />
+          </div>
+          {(canImport || canFinancial) && (
+            <div className="flex items-center gap-2">
+              {canImport && <ImportWizard />}
+              {canFinancial && (
+                <LinkButton href="/dashboard/setter-costs" variant="secondary">
+                  Setter costs
+                </LinkButton>
+              )}
+            </div>
           )}
         </div>
-      )}
+      </Card>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="In pipeline" value={String(rows.length)} />
@@ -128,12 +136,7 @@ export default async function JobsPage({
       {view === 'board' ? (
         <JobsBoard rows={rows} canManage={canManage} />
       ) : (
-        <>
-          <Card>
-            <JobsFilters />
-          </Card>
-          <JobsQueue rows={rows} lastEdited={lastEdited} />
-        </>
+        <JobsQueue rows={rows} lastEdited={lastEdited} />
       )}
     </div>
   );

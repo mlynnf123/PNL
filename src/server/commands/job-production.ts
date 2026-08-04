@@ -161,9 +161,8 @@ async function promoteToSigned(
   if (!funding) missing.push('funding type');
   if (!contractedAt) missing.push('contract date');
   if (!line1) missing.push('property address');
-  if (!city) missing.push('city');
-  if (!state) missing.push('state');
-  if (!zip) missing.push('ZIP');
+  // City/state/ZIP are captured when present but don't block signing — a signed
+  // estimate often carries only a single-line address. They can be filled later.
   if (missing.length) throw new ContractDetailsRequiredError(missing);
 
   // Ensure a real customer — reuse an existing link, or create one from the

@@ -31,6 +31,7 @@ export function ReviewClient({ doc }: { doc: EstimateDocFull }) {
 
   const padRef = useRef<SignaturePadHandle>(null);
   const [signerName, setSignerName] = useState(doc.customerName ?? '');
+  const [fundingType, setFundingType] = useState<'insurance' | 'retail' | 'other'>('insurance');
   const [selectedOptionId, setSelectedOptionId] = useState(options[0]?.id ?? '');
   const [padEmpty, setPadEmpty] = useState(true);
   const [error, setError] = useState('');
@@ -69,9 +70,16 @@ export function ReviewClient({ doc }: { doc: EstimateDocFull }) {
         signerName,
         dataUrl,
         requireOne ? selectedOptionId : null,
+        null,
+        doc.jobId ? fundingType : undefined,
       );
-      if (!res.ok) setError(res.error);
-      else router.push(`/dashboard/estimates/${doc.id}`);
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      // If the estimate was tied to a pipeline record, land on that job (now
+      // signed, with its worksheet unlocked); otherwise stay on the estimate.
+      router.push(res.jobId ? `/dashboard/jobs/${res.jobId}` : `/dashboard/estimates/${doc.id}`);
     });
   }
 
@@ -156,6 +164,25 @@ export function ReviewClient({ doc }: { doc: EstimateDocFull }) {
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none"
                 />
               </label>
+              {doc.jobId && (
+                <label className="block text-sm">
+                  <span className="mb-1 block text-xs font-medium text-slate-500">Funding type</span>
+                  <select
+                    value={fundingType}
+                    onChange={(e) =>
+                      setFundingType(e.target.value as 'insurance' | 'retail' | 'other')
+                    }
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none"
+                  >
+                    <option value="insurance">Insurance</option>
+                    <option value="retail">Retail</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <span className="mt-1 block text-xs text-slate-400">
+                    Signing creates the job (assigns a JJ number) and unlocks its financials.
+                  </span>
+                </label>
+              )}
               <div>
                 <span className="mb-1 block text-xs font-medium text-slate-500">Signature</span>
                 <SignaturePad ref={padRef} onChange={setPadEmpty} />

@@ -105,6 +105,35 @@ describe('lead → job pipeline', () => {
     expect(customer.displayName).toBe('Dana Shingle');
   });
 
+  it('PIPE-007: signing with only a street line (no city/state/zip) still creates the job', async () => {
+    const { org, actor } = await setup();
+    const job = await createLeadRecord(
+      { actorUserId: actor.id, organizationId: org.id, prospectName: 'One Line Addr' },
+      testDb,
+    );
+
+    // Mirrors the estimate-sign path: estimates carry a single-line address.
+    const signed = await setJobStage(
+      {
+        actorUserId: actor.id,
+        organizationId: org.id,
+        jobId: job.id,
+        stage: 'signed',
+        contract: {
+          originalContractAmount: '9000.00',
+          fundingType: 'retail',
+          contractedAt: '2026-08-01',
+          propertyAddressLine1: '42 Oak St, Austin, TX 78701',
+        },
+      },
+      testDb,
+    );
+
+    expect(signed.jobNumber).toMatch(/^JJ-\d{4}-\d{4}$/);
+    expect(signed.fundingType).toBe('retail');
+    expect(signed.propertyState).toBeNull();
+  });
+
   it('PIPE-004: moving to lost archives the record', async () => {
     const { org, actor } = await setup();
     const job = await createLeadRecord(

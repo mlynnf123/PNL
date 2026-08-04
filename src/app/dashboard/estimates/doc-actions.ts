@@ -1,10 +1,14 @@
 'use server';
 
+import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { db } from '@/db/client';
+import { estimateDocuments, jobs } from '@/db/schema';
 import { ConcurrencyConflictError } from '@/lib/concurrency';
 import type { PageType } from '@/lib/estimate-pages';
 import { AuthorizationError } from '@/lib/permissions';
 import { requireSession } from '@/lib/require-session';
+import { ContractDetailsRequiredError, setJobStage } from '@/server/commands/job-production';
 import {
   deleteContentTemplate,
   saveContentTemplate,
@@ -200,6 +204,15 @@ export async function sendEstimateAction(documentId: string): Promise<ActionResu
   }
 }
 
+// Signing a linked estimate can close the sales loop: after the estimate is
+// signed, the pipeline record it belongs to is advanced to `signed` (assigning
+// the JJ number, creating the customer, unlocking the financial worksheet).
+export type SignEstimateResult =
+  | { ok: false; error: string }
+  // jobId+jobNumber: the linked record became a job. jobPending: signed, but the
+  // job couldn't be created yet (missing contract details) — finish on pipeline.
+  | { ok: true; jobId?: string; jobNumber?: string; jobPending?: boolean };
+
 // Capture a drawn signature (a data: URL) as a private document, then sign.
 export async function signEstimateInPersonAction(
   documentId: string,
@@ -208,7 +221,8 @@ export async function signEstimateInPersonAction(
   dataUrl: string,
   selectedOptionId?: string | null,
   comments?: string | null,
-): Promise<ActionResult> {
+  fundingType?: 'insurance' | 'retail' | 'other',
+): Promise<SignEstimateResult> {
   const session = await requireSession();
   if (!signerName.trim()) return { ok: false, error: 'Enter the signer name.' };
   const match = /^data:(image\/png);base64,(.+)$/.exec(dataUrl);
@@ -234,9 +248,75 @@ export async function signEstimateInPersonAction(
     });
     revalidatePath(`${BASE}/${documentId}`);
     revalidatePath(BASE);
-    return { ok: true };
+
+    // Close the loop: advance the linked pipeline record to `signed`.
+    const jobResult = await advanceLinkedJob(session, documentId, fundingType);
+    return { ok: true, ...jobResult };
   } catch (err) {
     return handle(err);
+  }
+}
+
+async function advanceLinkedJob(
+  session: Awaited<ReturnType<typeof requireSession>>,
+  documentId: string,
+  fundingType?: 'insurance' | 'retail' | 'other',
+): Promise<{ jobId?: string; jobNumber?: string; jobPending?: boolean }> {
+  const [doc] = await db
+    .select({
+      jobId: estimateDocuments.jobId,
+      total: estimateDocuments.total,
+      customerName: estimateDocuments.customerName,
+      customerAddress: estimateDocuments.customerAddress,
+      customerCity: estimateDocuments.customerCity,
+      customerState: estimateDocuments.customerState,
+      customerZip: estimateDocuments.customerZip,
+      customerPhone: estimateDocuments.customerPhone,
+      customerEmail: estimateDocuments.customerEmail,
+    })
+    .from(estimateDocuments)
+    .where(eq(estimateDocuments.id, documentId))
+    .limit(1);
+  if (!doc?.jobId) return {};
+
+  // Only a pre-signed record (no JJ number yet) is advanced — signing another
+  // estimate for an already-contracted job must not move it backward.
+  const [job] = await db
+    .select({ jobNumber: jobs.jobNumber })
+    .from(jobs)
+    .where(eq(jobs.id, doc.jobId))
+    .limit(1);
+  if (!job) return {};
+  if (job.jobNumber) return { jobId: doc.jobId, jobNumber: job.jobNumber };
+
+  try {
+    const advanced = await setJobStage({
+      actorUserId: session.user.id,
+      organizationId: session.user.organizationId,
+      jobId: doc.jobId,
+      stage: 'signed',
+      contract: {
+        originalContractAmount: doc.total,
+        fundingType,
+        contractedAt: new Date().toISOString().slice(0, 10),
+        propertyAddressLine1: doc.customerAddress ?? undefined,
+        propertyCity: doc.customerCity ?? undefined,
+        propertyState: doc.customerState ?? undefined,
+        propertyPostalCode: doc.customerZip ?? undefined,
+        customerName: doc.customerName ?? undefined,
+        customerPhone: doc.customerPhone ?? undefined,
+        customerEmail: doc.customerEmail ?? undefined,
+      },
+    });
+    revalidatePath('/dashboard/jobs');
+    revalidatePath(`/dashboard/jobs/${doc.jobId}`);
+    return { jobId: doc.jobId, jobNumber: advanced.jobNumber ?? undefined };
+  } catch (err) {
+    // The estimate is signed regardless; the job just needs a few more details.
+    if (err instanceof ContractDetailsRequiredError) {
+      return { jobId: doc.jobId, jobPending: true };
+    }
+    throw err;
   }
 }
 

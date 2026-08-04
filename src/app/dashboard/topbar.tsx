@@ -3,116 +3,89 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
+import { LogOut, Search, Settings } from 'lucide-react';
 
-// Unified navigation. The old Leads / Jobs / Contracts split collapsed into one
-// "Pipeline" (a deal is a single record from first contact to close, on the
-// jobs table); Contracts folded into Estimates (a signed estimate is the
-// contract). The Pipeline route is /dashboard/jobs.
-const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/dashboard/jobs', label: 'Pipeline' },
-  { href: '/dashboard/estimates', label: 'Estimates' },
-  { href: '/dashboard/settings', label: 'Settings' },
-];
-
-function navClass(active: boolean): string {
-  return `flex items-center rounded-lg px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
-    active
-      ? 'bg-slate-800 text-white shadow-sm'
-      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-  }`;
-}
-
+// Top bar over the content area: a search box, a settings gear (Settings lives
+// here now, not in the sidebar), and a user avatar menu — all right-aligned.
 export function Topbar({ email, logout }: { email: string; logout: () => Promise<void> }) {
   const pathname = usePathname();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const settingsActive = pathname.startsWith('/dashboard/settings');
+  const initial = (email.trim()[0] || 'U').toUpperCase();
 
-  // /dashboard matches exactly; other sections match their whole subtree.
-  const isActive = (href: string) =>
-    href === '/dashboard' ? pathname === href : pathname.startsWith(href);
+  function openSearch() {
+    window.dispatchEvent(new CustomEvent('open-command-palette'));
+  }
 
   return (
-    <header className="sticky top-0 z-50 bg-slate-900 text-white shadow-md">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
-          <div className="flex flex-shrink-0 items-center">
-            <Link href="/dashboard" className="text-lg font-medium tracking-tight">
-              J&amp;J Roofing Pros
-            </Link>
-          </div>
+    <header className="flex h-14 flex-shrink-0 items-center justify-end gap-2 border-b border-slate-200 bg-white px-4 md:px-6">
+      {/* Search box (opens the command palette) */}
+      <button
+        type="button"
+        onClick={openSearch}
+        className="hidden w-56 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-400 transition-colors hover:bg-slate-100 sm:flex"
+      >
+        <Search size={16} />
+        <span className="flex-1 text-left">Search</span>
+        <kbd className="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] text-slate-500">
+          ⌘K
+        </kbd>
+      </button>
+      <button
+        type="button"
+        onClick={openSearch}
+        aria-label="Search"
+        className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 sm:hidden"
+      >
+        <Search size={18} />
+      </button>
 
-          <nav className="ml-6 hidden items-center space-x-1 md:flex">
-            {NAV_ITEMS.map((item) => (
-              <Link key={item.href} href={item.href} className={navClass(isActive(item.href))}>
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+      {/* Settings */}
+      <Link
+        href="/dashboard/settings"
+        aria-label="Settings"
+        title="Settings"
+        className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
+          settingsActive
+            ? 'bg-slate-100 text-slate-900'
+            : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+        }`}
+      >
+        <Settings size={18} />
+      </Link>
 
-          <div className="ml-6 hidden items-center space-x-4 border-l border-slate-700 pl-6 md:flex">
-            <button
-              type="button"
-              onClick={() => window.dispatchEvent(new CustomEvent('open-command-palette'))}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-400 transition-colors hover:text-white"
-            >
-              Search
-              <kbd className="rounded bg-slate-800 px-1.5 py-0.5 text-xs text-slate-300">⌘K</kbd>
-            </button>
-            {email && (
-              <span className="max-w-[180px] truncate text-sm text-slate-400" title={email}>
+      {/* User avatar + menu */}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setMenuOpen((o) => !o)}
+          aria-label="Account menu"
+          aria-expanded={menuOpen}
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0C2A86] text-sm font-medium text-white transition-opacity hover:opacity-90"
+        >
+          {initial}
+        </button>
+        {menuOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+            <div className="absolute right-0 z-50 mt-2 w-56 rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
+              <p className="truncate px-3 py-2 text-xs text-slate-500" title={email}>
                 {email}
-              </span>
-            )}
-            <form action={logout}>
-              <button
-                type="submit"
-                className="text-sm text-slate-400 transition-colors hover:text-red-400"
-              >
-                Sign out
-              </button>
-            </form>
-          </div>
-
-          <div className="flex items-center md:hidden">
-            <button
-              type="button"
-              onClick={() => setMobileOpen((v) => !v)}
-              aria-label="Toggle navigation menu"
-              className="p-2 text-slate-300 transition-colors hover:text-white focus:outline-none"
-            >
-              {mobileOpen ? '✕' : '☰'}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {mobileOpen && (
-        <div className="border-t border-slate-700 bg-slate-800 md:hidden">
-          <div className="space-y-1 px-2 pt-2 pb-3 sm:px-3">
-            {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileOpen(false)}
-                className={navClass(isActive(item.href))}
-              >
-                {item.label}
-              </Link>
-            ))}
-            <div className="my-2 border-t border-slate-700 px-4 pt-2">
-              {email && <div className="mb-2 truncate text-sm text-slate-400">{email}</div>}
+              </p>
+              <div className="my-1 border-t border-slate-100" />
               <form action={logout}>
                 <button
                   type="submit"
-                  className="text-sm font-medium text-slate-300 transition-colors hover:text-red-400"
+                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
                 >
+                  <LogOut size={16} />
                   Sign out
                 </button>
               </form>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </div>
     </header>
   );
 }
