@@ -130,6 +130,177 @@ export async function approveCostTransaction(
   });
 }
 
+export interface ApplyCostTemplateInput {
+  actorUserId: string;
+  organizationId: string;
+  jobId: string;
+  incurredDate: string;
+  lines: {
+    category: 'labor' | 'material' | 'permit' | 'subcontractor' | 'disposal' | 'other';
+    transactionType: 'purchase' | 'charge';
+    description: string;
+  }[];
+  correlationId?: string;
+}
+
+// Drop a set of preset $0 Draft cost lines onto a job (job-type template), for
+// the rep to fill amounts inline. One transaction, one audit event.
+export async function applyCostTemplate(input: ApplyCostTemplateInput, db: DbClient = defaultDb) {
+  return db.transaction(async (tx) => {
+    await requirePermission(tx, input.actorUserId, PERMISSIONS.FINANCIAL_ENTRY);
+
+    const inserted: (typeof costTransactions.$inferSelect)[] = [];
+    for (const line of input.lines) {
+      const [row] = await tx
+        .insert(costTransactions)
+        .values({
+          jobId: input.jobId,
+          category: line.category,
+          transactionType: line.transactionType,
+          description: line.description,
+          amount: '0.00',
+          incurredDate: input.incurredDate,
+          createdBy: input.actorUserId,
+        })
+        .returning();
+      inserted.push(row);
+    }
+
+    await recordAuditEvent(tx, {
+      organizationId: input.organizationId,
+      actorUserId: input.actorUserId,
+      action: 'cost_transaction.template_applied',
+      entityType: 'job',
+      entityId: input.jobId,
+      jobId: input.jobId,
+      newState: { count: inserted.length },
+      source: 'web',
+      correlationId: input.correlationId,
+    });
+
+    return inserted;
+  });
+}
+
+export interface BulkAddCostTransactionsInput {
+  actorUserId: string;
+  organizationId: string;
+  jobId: string;
+  incurredDate: string;
+  rows: {
+    category: 'labor' | 'material' | 'permit' | 'subcontractor' | 'disposal' | 'other';
+    transactionType: 'purchase' | 'charge';
+    description: string;
+    amount: string;
+  }[];
+  correlationId?: string;
+}
+
+// Insert many Draft costs at once (spreadsheet paste import). One transaction.
+export async function bulkAddCostTransactions(
+  input: BulkAddCostTransactionsInput,
+  db: DbClient = defaultDb,
+) {
+  return db.transaction(async (tx) => {
+    await requirePermission(tx, input.actorUserId, PERMISSIONS.FINANCIAL_ENTRY);
+
+    const inserted: (typeof costTransactions.$inferSelect)[] = [];
+    for (const row of input.rows) {
+      const [created] = await tx
+        .insert(costTransactions)
+        .values({
+          jobId: input.jobId,
+          category: row.category,
+          transactionType: row.transactionType,
+          description: row.description,
+          amount: row.amount,
+          incurredDate: input.incurredDate,
+          createdBy: input.actorUserId,
+        })
+        .returning();
+      inserted.push(created);
+    }
+
+    await recordAuditEvent(tx, {
+      organizationId: input.organizationId,
+      actorUserId: input.actorUserId,
+      action: 'cost_transaction.bulk_added',
+      entityType: 'job',
+      entityId: input.jobId,
+      jobId: input.jobId,
+      newState: { count: inserted.length },
+      source: 'web',
+      correlationId: input.correlationId,
+    });
+
+    return inserted;
+  });
+}
+
+export interface UpdateCostTransactionInput {
+  actorUserId: string;
+  organizationId: string;
+  transactionId: string;
+  category: 'labor' | 'material' | 'permit' | 'subcontractor' | 'disposal' | 'other';
+  transactionType: 'purchase' | 'charge';
+  description: string;
+  amount: string;
+  incurredDate: string;
+  correlationId?: string;
+}
+
+// Edit a Draft cost in place (inline worksheet). Approved costs are locked —
+// correct those with a linked reversal via reverseOrCreditCost instead.
+export async function updateCostTransaction(
+  input: UpdateCostTransactionInput,
+  db: DbClient = defaultDb,
+) {
+  return db.transaction(async (tx) => {
+    await requirePermission(tx, input.actorUserId, PERMISSIONS.FINANCIAL_ENTRY);
+
+    const [existing] = await tx
+      .select()
+      .from(costTransactions)
+      .where(eq(costTransactions.id, input.transactionId))
+      .limit(1);
+    if (!existing) throw new CostTransactionNotFoundError(input.transactionId);
+    if (existing.approvalStatus !== 'Draft') {
+      throw new CostTransactionNotDraftError(input.transactionId);
+    }
+
+    const [updated] = await tx
+      .update(costTransactions)
+      .set({
+        category: input.category,
+        transactionType: input.transactionType,
+        description: input.description,
+        amount: input.amount,
+        incurredDate: input.incurredDate,
+      })
+      .where(eq(costTransactions.id, input.transactionId))
+      .returning();
+
+    await recordAuditEvent(tx, {
+      organizationId: input.organizationId,
+      actorUserId: input.actorUserId,
+      action: 'cost_transaction.updated',
+      entityType: 'cost_transaction',
+      entityId: updated.id,
+      jobId: existing.jobId,
+      previousState: {
+        category: existing.category,
+        amount: existing.amount,
+        description: existing.description,
+      },
+      newState: { category: updated.category, amount: updated.amount, description: updated.description },
+      source: 'web',
+      correlationId: input.correlationId,
+    });
+
+    return updated;
+  });
+}
+
 export interface ReverseOrCreditCostInput {
   actorUserId: string;
   organizationId: string;

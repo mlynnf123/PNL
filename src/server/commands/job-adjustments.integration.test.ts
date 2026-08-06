@@ -10,7 +10,12 @@ import {
 } from '@/test-support/fixtures';
 import { finalizeCostCategory } from './finalize-cost-category';
 import { approveFinancialClose, submitFinancialClose } from './financial-close';
-import { addJobAdjustment, approveJobAdjustment } from './job-adjustments';
+import {
+  addJobAdjustment,
+  approveJobAdjustment,
+  JobAdjustmentNotDraftError,
+  updateJobAdjustment,
+} from './job-adjustments';
 
 describe('job adjustments (named pre-commission fees)', () => {
   beforeEach(async () => {
@@ -82,5 +87,57 @@ describe('job adjustments (named pre-commission fees)', () => {
         testDb,
       ),
     ).rejects.toBeInstanceOf(AuthorizationError);
+  });
+
+  it('FEE-EDIT: edits a Draft fee in place; an Approved fee is locked', async () => {
+    const org = await createOrganization();
+    const actor = await createUser(org.id);
+    await grantPermission(org.id, actor.id, PERMISSIONS.FINANCIAL_ENTRY);
+    await grantPermission(org.id, actor.id, PERMISSIONS.COST_FINALIZATION);
+    const { job } = await createCloseableJobFixture(org.id, actor.id);
+
+    const fee = await addJobAdjustment(
+      {
+        actorUserId: actor.id,
+        organizationId: org.id,
+        jobId: job.id,
+        adjustmentType: 'other',
+        description: 'x',
+        amount: '100.00',
+      },
+      testDb,
+    );
+
+    const edited = await updateJobAdjustment(
+      {
+        actorUserId: actor.id,
+        organizationId: org.id,
+        adjustmentId: fee.id,
+        adjustmentType: 'referral_fee',
+        description: 'Referral',
+        amount: '250.00',
+      },
+      testDb,
+    );
+    expect(edited.adjustmentType).toBe('referral_fee');
+    expect(edited.amount).toBe('250.00');
+
+    await approveJobAdjustment(
+      { actorUserId: actor.id, organizationId: org.id, adjustmentId: fee.id },
+      testDb,
+    );
+    await expect(
+      updateJobAdjustment(
+        {
+          actorUserId: actor.id,
+          organizationId: org.id,
+          adjustmentId: fee.id,
+          adjustmentType: 'other',
+          description: 'no',
+          amount: '1.00',
+        },
+        testDb,
+      ),
+    ).rejects.toBeInstanceOf(JobAdjustmentNotDraftError);
   });
 });

@@ -12,6 +12,13 @@ export class RevenueComponentNotFoundError extends Error {
   }
 }
 
+export class RevenueComponentNotDraftError extends Error {
+  constructor(id: string) {
+    super(`Revenue component is not in Draft status: ${id}`);
+    this.name = 'RevenueComponentNotDraftError';
+  }
+}
+
 export interface AddRevenueComponentInput {
   actorUserId: string;
   organizationId: string;
@@ -69,6 +76,62 @@ export async function addRevenueComponent(
   });
 }
 
+export interface UpdateRevenueComponentInput {
+  actorUserId: string;
+  organizationId: string;
+  componentId: string;
+  componentType: AddRevenueComponentInput['componentType'];
+  description?: string;
+  amount: string;
+  effectiveDate: string;
+  correlationId?: string;
+}
+
+// Edit a Draft revenue line in place (inline worksheet). Approved lines are
+// locked (the original contract line is seeded Approved and stays fixed).
+export async function updateRevenueComponent(
+  input: UpdateRevenueComponentInput,
+  db: DbClient = defaultDb,
+) {
+  return db.transaction(async (tx) => {
+    await requirePermission(tx, input.actorUserId, PERMISSIONS.FINANCIAL_ENTRY);
+
+    const [existing] = await tx
+      .select()
+      .from(revenueComponents)
+      .where(eq(revenueComponents.id, input.componentId))
+      .limit(1);
+    if (!existing) throw new RevenueComponentNotFoundError(input.componentId);
+    if (existing.status !== 'Draft') throw new RevenueComponentNotDraftError(input.componentId);
+
+    const [updated] = await tx
+      .update(revenueComponents)
+      .set({
+        componentType: input.componentType,
+        description: input.description,
+        amount: input.amount,
+        effectiveDate: input.effectiveDate,
+      })
+      .where(eq(revenueComponents.id, input.componentId))
+      .returning();
+
+    await recordAuditEvent(tx, {
+      organizationId: input.organizationId,
+      actorUserId: input.actorUserId,
+      action: 'revenue_component.updated',
+      entityType: 'revenue_component',
+      entityId: updated.id,
+      jobId: existing.jobId,
+      previousState: { componentType: existing.componentType, amount: existing.amount },
+      newState: { componentType: updated.componentType, amount: updated.amount },
+      source: 'web',
+      correlationId: input.correlationId,
+    });
+
+    return updated;
+  });
+}
+
 export interface ApproveRevenueComponentInput {
   actorUserId: string;
   organizationId: string;
@@ -91,6 +154,9 @@ export async function approveRevenueComponent(
 
     if (!existing) {
       throw new RevenueComponentNotFoundError(input.componentId);
+    }
+    if (existing.status !== 'Draft') {
+      throw new RevenueComponentNotDraftError(input.componentId);
     }
 
     const [updated] = await tx

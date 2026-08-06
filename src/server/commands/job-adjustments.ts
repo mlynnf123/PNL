@@ -74,6 +74,60 @@ export async function addJobAdjustment(input: AddJobAdjustmentInput, db: DbClien
   });
 }
 
+export interface UpdateJobAdjustmentInput {
+  actorUserId: string;
+  organizationId: string;
+  adjustmentId: string;
+  adjustmentType: JobAdjustmentType;
+  description: string;
+  amount: string;
+  correlationId?: string;
+}
+
+// Edit a Draft fee in place (inline worksheet). Approved fees are locked — void
+// and re-add to correct one.
+export async function updateJobAdjustment(
+  input: UpdateJobAdjustmentInput,
+  db: DbClient = defaultDb,
+) {
+  return db.transaction(async (tx) => {
+    await requirePermission(tx, input.actorUserId, PERMISSIONS.FINANCIAL_ENTRY);
+
+    const [existing] = await tx
+      .select()
+      .from(jobAdjustments)
+      .where(eq(jobAdjustments.id, input.adjustmentId))
+      .limit(1);
+    if (!existing) throw new JobAdjustmentNotFoundError(input.adjustmentId);
+    if (existing.status !== 'Draft') throw new JobAdjustmentNotDraftError(input.adjustmentId);
+
+    const [updated] = await tx
+      .update(jobAdjustments)
+      .set({
+        adjustmentType: input.adjustmentType,
+        description: input.description,
+        amount: input.amount,
+      })
+      .where(eq(jobAdjustments.id, input.adjustmentId))
+      .returning();
+
+    await recordAuditEvent(tx, {
+      organizationId: input.organizationId,
+      actorUserId: input.actorUserId,
+      action: 'job_adjustment.updated',
+      entityType: 'job_adjustment',
+      entityId: updated.id,
+      jobId: existing.jobId,
+      previousState: { adjustmentType: existing.adjustmentType, amount: existing.amount },
+      newState: { adjustmentType: updated.adjustmentType, amount: updated.amount },
+      source: 'web',
+      correlationId: input.correlationId,
+    });
+
+    return updated;
+  });
+}
+
 export interface ApproveJobAdjustmentInput {
   actorUserId: string;
   organizationId: string;

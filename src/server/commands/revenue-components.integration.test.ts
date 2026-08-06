@@ -10,7 +10,12 @@ import {
   grantPermission,
   resetDatabase,
 } from '@/test-support/fixtures';
-import { addRevenueComponent, approveRevenueComponent } from './revenue-components';
+import {
+  addRevenueComponent,
+  approveRevenueComponent,
+  RevenueComponentNotDraftError,
+  updateRevenueComponent,
+} from './revenue-components';
 
 describe('revenue components', () => {
   beforeEach(async () => {
@@ -106,5 +111,59 @@ describe('revenue components', () => {
       .from(revenueComponents)
       .where(eq(revenueComponents.jobId, job.id));
     expect(components).toHaveLength(0);
+  });
+
+  it('REV-EDIT: edits a Draft revenue line in place; an Approved line is locked', async () => {
+    const org = await createOrganization();
+    const actor = await createUser(org.id);
+    await grantPermission(org.id, actor.id, PERMISSIONS.FINANCIAL_ENTRY);
+    const { job } = await createJobFixture(org.id, actor.id);
+
+    const comp = await addRevenueComponent(
+      {
+        actorUserId: actor.id,
+        organizationId: org.id,
+        jobId: job.id,
+        componentType: 'supplement',
+        description: 's',
+        amount: '1000.00',
+        effectiveDate: '2026-03-01',
+      },
+      testDb,
+    );
+
+    const edited = await updateRevenueComponent(
+      {
+        actorUserId: actor.id,
+        organizationId: org.id,
+        componentId: comp.id,
+        componentType: 'change_order',
+        description: 'CO',
+        amount: '1500.00',
+        effectiveDate: '2026-03-02',
+      },
+      testDb,
+    );
+    expect(edited.componentType).toBe('change_order');
+    expect(edited.amount).toBe('1500.00');
+
+    await approveRevenueComponent(
+      { actorUserId: actor.id, organizationId: org.id, componentId: comp.id },
+      testDb,
+    );
+    await expect(
+      updateRevenueComponent(
+        {
+          actorUserId: actor.id,
+          organizationId: org.id,
+          componentId: comp.id,
+          componentType: 'discount',
+          description: 'no',
+          amount: '1.00',
+          effectiveDate: '2026-03-03',
+        },
+        testDb,
+      ),
+    ).rejects.toBeInstanceOf(RevenueComponentNotDraftError);
   });
 });

@@ -1,7 +1,7 @@
 import { and, count, eq, like } from 'drizzle-orm';
 import { db as defaultDb } from '@/db/client';
 import type { DbClient } from '@/db/client';
-import { customers, jobs } from '@/db/schema';
+import { customers, jobs, revenueComponents } from '@/db/schema';
 import { recordAuditEvent } from '@/lib/audit';
 import { updateJob } from '@/lib/concurrency';
 import { PERMISSIONS, requirePermission } from '@/lib/permissions';
@@ -211,10 +211,11 @@ async function promoteToSigned(
       and(eq(jobs.organizationId, input.organizationId), like(jobs.jobNumber, `JJ-${year}-%`)),
     );
 
+  let signedJob: typeof jobs.$inferSelect | undefined;
   for (let attempt = 0; attempt < MAX_JOB_NUMBER_ATTEMPTS; attempt++) {
     const jobNumber = `JJ-${year}-${String(existingCount + attempt + 1).padStart(4, '0')}`;
     try {
-      return await tx.transaction((tx2) =>
+      signedJob = await tx.transaction((tx2) =>
         updateJob(
           tx2,
           input.jobId,
@@ -222,11 +223,49 @@ async function promoteToSigned(
           { actorUserId: input.actorUserId, expectedRowVersion: input.expectedRowVersion },
         ),
       );
+      break;
     } catch (err) {
       const code = (err as { cause?: { code?: string } }).cause?.code;
       if (code === UNIQUE_VIOLATION && attempt < MAX_JOB_NUMBER_ATTEMPTS - 1) continue;
       throw err;
     }
   }
-  throw new Error('Could not generate a unique job number.');
+  if (!signedJob) throw new Error('Could not generate a unique job number.');
+
+  // Seed the contract revenue line so the P&L worksheet opens with the deal in
+  // it, not blank. The signed contract amount is authoritative, so it's created
+  // Approved (counts immediately) rather than as an unverified Draft. `amount`
+  // and `contractedAt` are guaranteed non-null by the validation above.
+  const [revenue] = await tx
+    .insert(revenueComponents)
+    .values({
+      jobId: input.jobId,
+      componentType: 'original_contract',
+      description: 'Original contract',
+      amount: amount!,
+      effectiveDate: contractedAt!,
+      status: 'Approved',
+      approvedBy: input.actorUserId,
+      approvedAt: new Date(),
+      createdBy: input.actorUserId,
+    })
+    .returning();
+
+  await recordAuditEvent(tx, {
+    organizationId: input.organizationId,
+    actorUserId: input.actorUserId,
+    action: 'revenue_component.created',
+    entityType: 'revenue_component',
+    entityId: revenue.id,
+    jobId: input.jobId,
+    newState: {
+      componentType: revenue.componentType,
+      amount: revenue.amount,
+      status: revenue.status,
+    },
+    source: 'web',
+    correlationId: input.correlationId,
+  });
+
+  return signedJob;
 }

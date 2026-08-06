@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { testDb } from '@/db/test-client';
-import { customers, jobs } from '@/db/schema';
+import { customers, jobs, revenueComponents } from '@/db/schema';
 import { PERMISSIONS } from '@/lib/permissions';
 import {
   createOrganization,
@@ -132,6 +132,39 @@ describe('lead → job pipeline', () => {
     expect(signed.jobNumber).toMatch(/^JJ-\d{4}-\d{4}$/);
     expect(signed.fundingType).toBe('retail');
     expect(signed.propertyState).toBeNull();
+  });
+
+  it('PIPE-008: signing seeds an approved original_contract revenue line', async () => {
+    const { org, actor } = await setup();
+    const job = await createLeadRecord(
+      { actorUserId: actor.id, organizationId: org.id, prospectName: 'Revenue Seed' },
+      testDb,
+    );
+
+    await setJobStage(
+      {
+        actorUserId: actor.id,
+        organizationId: org.id,
+        jobId: job.id,
+        stage: 'signed',
+        contract: {
+          originalContractAmount: '20000.00',
+          fundingType: 'insurance',
+          contractedAt: '2026-08-01',
+          propertyAddressLine1: '1 Main St',
+        },
+      },
+      testDb,
+    );
+
+    const rows = await testDb
+      .select()
+      .from(revenueComponents)
+      .where(eq(revenueComponents.jobId, job.id));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].componentType).toBe('original_contract');
+    expect(rows[0].status).toBe('Approved');
+    expect(rows[0].amount).toBe('20000.00');
   });
 
   it('PIPE-004: moving to lost archives the record', async () => {

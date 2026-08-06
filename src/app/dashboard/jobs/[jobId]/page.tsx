@@ -22,24 +22,16 @@ import {
   humanizeStatus,
   toneFor,
 } from '@/lib/status';
-import { addRevenueComponent, approveRevenueComponent } from '@/server/commands/revenue-components';
 import { postCollection, reverseCollection } from '@/server/commands/collections';
-import {
-  approveCostTransaction,
-  postCostTransaction,
-  reverseOrCreditCost,
-} from '@/server/commands/cost-transactions';
-import {
-  addJobAdjustment,
-  approveJobAdjustment,
-  voidJobAdjustment,
-} from '@/server/commands/job-adjustments';
 import { getEntityActivity } from '@/server/queries/activity';
 import { listDocuments } from '@/server/queries/documents';
 import { listUsersWithRoles } from '@/server/queries/settings-directory';
 import { deleteDocument, uploadDocument } from '@/server/commands/documents';
 import { AssigneeSelect } from './assignee-select';
+import { CostsTable } from './costs-table';
+import { FeesTable } from './fees-table';
 import { ProductionPhaseCard } from './production-phase-card';
+import { RevenueTable } from './revenue-table';
 import { getJobFinancialSummary } from '@/server/queries/job-financial-summary';
 import {
   ActivityTimeline,
@@ -80,6 +72,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
     session.user.id,
     PERMISSIONS.CRM_MANAGEMENT,
   );
+  const canFinancial = await userHasPermission(db, session.user.id, PERMISSIONS.FINANCIAL_ENTRY);
   if (!canView) {
     return (
       <div>
@@ -146,29 +139,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
 
   const jobDocuments = await listDocuments('job', jobId, session.user.organizationId);
 
-  async function approveRevenue(formData: FormData) {
-    'use server';
-    await approveRevenueComponent({
-      actorUserId: session.user.id,
-      organizationId: session.user.organizationId,
-      componentId: String(formData.get('componentId')),
-    });
-    revalidatePath(path);
-  }
-
-  async function addRevenue(formData: FormData) {
-    'use server';
-    await addRevenueComponent({
-      actorUserId: session.user.id,
-      organizationId: session.user.organizationId,
-      jobId,
-      componentType: formData.get('componentType') as never,
-      description: String(formData.get('description') || '') || undefined,
-      amount: String(formData.get('amount')),
-      effectiveDate: String(formData.get('effectiveDate')),
-    });
-    revalidatePath(path);
-  }
+  // Revenue add/edit/approve moved to the inline RevenueTable (worksheet-actions).
 
   async function addCollection(formData: FormData) {
     'use server';
@@ -195,78 +166,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
     revalidatePath(path);
   }
 
-  async function addCost(formData: FormData) {
-    'use server';
-    await postCostTransaction({
-      actorUserId: session.user.id,
-      organizationId: session.user.organizationId,
-      jobId,
-      category: formData.get('category') as never,
-      transactionType: formData.get('transactionType') as never,
-      description: String(formData.get('description')),
-      amount: String(formData.get('amount')),
-      incurredDate: String(formData.get('incurredDate')),
-    });
-    revalidatePath(path);
-  }
-
-  async function approveCost(formData: FormData) {
-    'use server';
-    await approveCostTransaction({
-      actorUserId: session.user.id,
-      organizationId: session.user.organizationId,
-      transactionId: String(formData.get('transactionId')),
-    });
-    revalidatePath(path);
-  }
-
-  async function returnCost(formData: FormData) {
-    'use server';
-    await reverseOrCreditCost({
-      actorUserId: session.user.id,
-      organizationId: session.user.organizationId,
-      originalTransactionId: String(formData.get('originalTransactionId')),
-      transactionType: 'return',
-      amount: String(formData.get('amount')),
-      description: String(formData.get('description')),
-      incurredDate: String(formData.get('incurredDate')),
-      reason: String(formData.get('reason')),
-    });
-    revalidatePath(path);
-  }
-
-  async function addAdjustment(formData: FormData) {
-    'use server';
-    await addJobAdjustment({
-      actorUserId: session.user.id,
-      organizationId: session.user.organizationId,
-      jobId,
-      adjustmentType: formData.get('adjustmentType') as never,
-      description: String(formData.get('description')),
-      amount: String(formData.get('amount')),
-    });
-    revalidatePath(path);
-  }
-
-  async function approveAdjustment(formData: FormData) {
-    'use server';
-    await approveJobAdjustment({
-      actorUserId: session.user.id,
-      organizationId: session.user.organizationId,
-      adjustmentId: String(formData.get('adjustmentId')),
-    });
-    revalidatePath(path);
-  }
-
-  async function voidAdjustment(formData: FormData) {
-    'use server';
-    await voidJobAdjustment({
-      actorUserId: session.user.id,
-      organizationId: session.user.organizationId,
-      adjustmentId: String(formData.get('adjustmentId')),
-    });
-    revalidatePath(path);
-  }
+  // Cost/Fee/Revenue add/edit/approve moved to the inline worksheet tables
+  // (CostsTable / FeesTable / RevenueTable + worksheet-actions).
 
   async function uploadJobDocument(formData: FormData) {
     'use server';
@@ -362,43 +263,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
           </div>
 
           <Section title="Revenue components">
-            <RowTable
-              headers={['Type', 'Description', 'Amount', 'Status', 'Date', '']}
-              rows={revenue.map((r) => [
-                humanizeStatus(r.componentType),
-                r.description ?? '—',
-                formatCurrency(r.amount, true),
-                r.status,
-                r.effectiveDate,
-                r.status === 'Draft' ? (
-                  <form action={approveRevenue} key="approve">
-                    <input type="hidden" name="componentId" value={r.id} />
-                    <SmallButton>Approve</SmallButton>
-                  </form>
-                ) : null,
-              ])}
-            />
-            <form action={addRevenue} className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-              <SelectField
-                label="Type"
-                name="componentType"
-                options={[
-                  'original_contract',
-                  'supplement',
-                  'change_order',
-                  'deductible',
-                  'discount',
-                  'write_off',
-                  'correction',
-                ]}
-              />
-              <Field label="Description" name="description" />
-              <Field label="Amount" name="amount" type="number" step="0.01" required />
-              <Field label="Effective date" name="effectiveDate" type="date" required />
-              <div className="flex items-end">
-                <SubmitButton>Add revenue</SubmitButton>
-              </div>
-            </form>
+            <RevenueTable jobId={job.id} rows={revenue} canManage={canFinancial} />
           </Section>
 
           <Section title="Collections">
@@ -450,121 +315,15 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
           </Section>
 
           <Section title="Costs">
-            <RowTable
-              headers={['Category', 'Type', 'Description', 'Amount', 'Status', '']}
-              rows={costs.map((c) => [
-                humanizeStatus(c.category),
-                humanizeStatus(c.transactionType),
-                c.description,
-                formatCurrency(c.amount, true),
-                c.approvalStatus,
-                <div key="actions" className="flex flex-col gap-2">
-                  {c.approvalStatus === 'Draft' && (
-                    <form action={approveCost}>
-                      <input type="hidden" name="transactionId" value={c.id} />
-                      <SmallButton>Approve</SmallButton>
-                    </form>
-                  )}
-                  {(c.transactionType === 'purchase' || c.transactionType === 'charge') &&
-                    c.approvalStatus === 'Approved' && (
-                      <form action={returnCost} className="flex flex-wrap items-center gap-1">
-                        <input type="hidden" name="originalTransactionId" value={c.id} />
-                        <input
-                          name="amount"
-                          type="number"
-                          step="0.01"
-                          placeholder="Return $"
-                          required
-                          className="w-20 rounded-md border border-slate-300 px-2 py-1 text-xs font-normal text-slate-900"
-                        />
-                        <input
-                          name="description"
-                          placeholder="Description"
-                          required
-                          className="w-24 rounded-md border border-slate-300 px-2 py-1 text-xs font-normal text-slate-900"
-                        />
-                        <input
-                          name="incurredDate"
-                          type="date"
-                          required
-                          className="rounded-md border border-slate-300 px-2 py-1 text-xs font-normal text-slate-900"
-                        />
-                        <input
-                          name="reason"
-                          placeholder="Reason"
-                          required
-                          className="w-24 rounded-md border border-slate-300 px-2 py-1 text-xs font-normal text-slate-900"
-                        />
-                        <SmallButton>Return</SmallButton>
-                      </form>
-                    )}
-                </div>,
-              ])}
-            />
-            <form action={addCost} className="grid grid-cols-2 gap-3 sm:grid-cols-6">
-              <SelectField
-                label="Category"
-                name="category"
-                options={['labor', 'material', 'permit', 'subcontractor', 'disposal', 'other']}
-              />
-              <SelectField label="Type" name="transactionType" options={['purchase', 'charge']} />
-              <Field label="Description" name="description" required />
-              <Field label="Amount" name="amount" type="number" step="0.01" required />
-              <Field label="Incurred date" name="incurredDate" type="date" required />
-              <div className="flex items-end">
-                <SubmitButton>Add cost</SubmitButton>
-              </div>
-            </form>
+            <CostsTable jobId={job.id} rows={costs} canManage={canFinancial} />
           </Section>
 
           <Section title="Fees &amp; adjustments">
-            <RowTable
-              headers={['Fee type', 'Description', 'Amount', 'Status', '']}
-              rows={adjustments.map((a) => [
-                humanizeStatus(a.adjustmentType),
-                a.description,
-                formatCurrency(a.amount, true),
-                a.status,
-                <div key="actions" className="flex gap-2">
-                  {a.status === 'Draft' && (
-                    <form action={approveAdjustment}>
-                      <input type="hidden" name="adjustmentId" value={a.id} />
-                      <SmallButton>Approve</SmallButton>
-                    </form>
-                  )}
-                  {a.status !== 'Voided' && (
-                    <form action={voidAdjustment}>
-                      <input type="hidden" name="adjustmentId" value={a.id} />
-                      <SmallButton>Void</SmallButton>
-                    </form>
-                  )}
-                </div>,
-              ])}
-            />
-            <p className="text-xs font-normal text-slate-500">
+            <FeesTable jobId={job.id} rows={adjustments} canManage={canFinancial} />
+            <p className="mt-2 text-xs font-normal text-slate-500">
               Approved fees reduce commissionable profit. Finalize the &ldquo;adjustments&rdquo;
               category before closing.
             </p>
-            <form action={addAdjustment} className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <SelectField
-                label="Fee type"
-                name="adjustmentType"
-                options={[
-                  'supp_x_fee',
-                  'referral_fee',
-                  'sales_rep_fee',
-                  'owner_override_fee',
-                  'deductible_adjustment',
-                  'warranty_charge',
-                  'other',
-                ]}
-              />
-              <Field label="Description" name="description" required />
-              <Field label="Amount" name="amount" type="number" step="0.01" required />
-              <div className="flex items-end">
-                <SubmitButton>Add fee</SubmitButton>
-              </div>
-            </form>
           </Section>
             </>
           )}
