@@ -19,6 +19,7 @@ import {
   setEstimatePageIncludedAction,
   updateEstimateMetaAction,
   updateEstimatePageAction,
+  uploadInspectionPhotoAction,
 } from '../doc-actions';
 
 const ctrl =
@@ -59,6 +60,20 @@ export function EstimateDocBuilder({
   function selectPage(p: EstimatePageRow) {
     setSelectedKey(p.id);
     setPageDraft({ title: p.title ?? '', content: p.contentJson ?? {} });
+  }
+
+  // Upload an inspection photo and return its document id for the editor to
+  // embed. The id is persisted when the page is saved (Save page).
+  async function uploadInspectionPhoto(file: File): Promise<string | null> {
+    setError('');
+    const fd = new FormData();
+    fd.set('file', file);
+    const res = await uploadInspectionPhotoAction(doc.id, fd);
+    if (!res.ok) {
+      setError(res.error);
+      return null;
+    }
+    return res.id ?? null;
   }
 
   function move(pageId: string, dir: -1 | 1) {
@@ -282,6 +297,7 @@ export function EstimateDocBuilder({
                   onChange={
                     editable ? (v) => setPageDraft((d) => ({ ...d, content: v })) : () => {}
                   }
+                  onUploadPhoto={editable ? uploadInspectionPhoto : undefined}
                 />
               </div>
             </div>

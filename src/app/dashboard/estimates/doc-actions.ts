@@ -192,6 +192,35 @@ export async function uploadEstimateCoverAction(
   }
 }
 
+// Upload one inspection photo, tied to the estimate like the cover photo, and
+// return its document id. The id is embedded into the inspection page's content
+// and persisted through updateEstimatePage when the page is saved.
+export async function uploadInspectionPhotoAction(
+  documentId: string,
+  formData: FormData,
+): Promise<ActionResult> {
+  const session = await requireSession();
+  const file = formData.get('file');
+  if (!(file instanceof File) || file.size === 0)
+    return { ok: false, error: 'Choose an image to upload.' };
+  if (!file.type.startsWith('image/'))
+    return { ok: false, error: 'Only image files can be added to an inspection page.' };
+  try {
+    const doc = await uploadDocument({
+      actorUserId: session.user.id,
+      organizationId: session.user.organizationId,
+      entityType: 'estimate',
+      entityId: documentId,
+      fileName: file.name,
+      contentType: file.type || 'application/octet-stream',
+      bytes: Buffer.from(await file.arrayBuffer()),
+    });
+    return { ok: true, id: doc.id };
+  } catch (err) {
+    return handle(err);
+  }
+}
+
 export async function sendEstimateAction(documentId: string): Promise<ActionResult> {
   const session = await requireSession();
   try {

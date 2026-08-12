@@ -1,11 +1,15 @@
 'use client';
 
-import { Trash2 } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { ImagePlus, Loader2, Plus, Trash2 } from 'lucide-react';
 import type {
   AuthorizationContent,
   CoverContent,
   CustomContent,
   DisclosuresContent,
+  InspectionContent,
+  InspectionSection,
+  InspectionSectionItem,
   InsuranceWorksheetContent,
   IntroContent,
   LegalBodyContent,
@@ -15,10 +19,16 @@ import type {
   ThirdPartyAuthContent,
   WarrantyContent,
 } from '@/lib/estimate-pages';
+import { inspectionSummary } from '@/lib/estimate-pages';
 import type { QuoteContent } from '@/lib/estimate-doc-math';
 import { formatCurrency } from '@/lib/format';
 import { QuoteEditor } from './quote-editor';
 import { TokenTextArea } from './token-text-area';
+
+// Uploads a photo and resolves to its document id (or null on failure). The
+// estimate builder supplies this; a layout template has no document to attach
+// photos to, so it is omitted there and photo upload is disabled.
+export type UploadPhoto = (file: File) => Promise<string | null>;
 
 const ctrl =
   'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500';
@@ -41,10 +51,12 @@ export function PageEditor({
   pageType,
   value,
   onChange,
+  onUploadPhoto,
 }: {
   pageType: PageType;
   value: unknown;
   onChange: (v: unknown) => void;
+  onUploadPhoto?: UploadPhoto;
 }) {
   const v = (value ?? {}) as Val;
   const set = (patch: Val) => onChange({ ...v, ...patch });
@@ -556,12 +568,239 @@ export function PageEditor({
     }
     case 'inspection':
       return (
-        <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-          The inspection editor (photo/text sections) arrives in the next slice. This page renders
-          empty for now.
-        </p>
+        <InspectionEditor
+          value={v as unknown as InspectionContent}
+          onChange={onChange}
+          onUploadPhoto={onUploadPhoto}
+        />
       );
   }
+}
+
+// --- Inspection editor -------------------------------------------------------
+
+const uid = () =>
+  typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `id-${Math.random().toString(36).slice(2)}`;
+
+function InspectionEditor({
+  value,
+  onChange,
+  onUploadPhoto,
+}: {
+  value: InspectionContent;
+  onChange: (v: unknown) => void;
+  onUploadPhoto?: UploadPhoto;
+}) {
+  const sections = value?.sections ?? [];
+  const setSections = (next: InspectionSection[]) => onChange({ ...value, sections: next });
+  const patchSection = (id: string, patch: Partial<InspectionSection>) =>
+    setSections(sections.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+
+  return (
+    <div className="space-y-5">
+      {sections.length === 0 && (
+        <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+          Add a section (e.g. “Roof”, “Gutters”) and fill it with photos and notes from the
+          inspection.
+        </p>
+      )}
+
+      {sections.map((section) => (
+        <div key={section.id} className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <input
+              className={`${ctrl} font-medium`}
+              placeholder="Section title (e.g. Roof)"
+              value={section.title}
+              onChange={(e) => patchSection(section.id, { title: e.target.value })}
+            />
+            <button
+              type="button"
+              onClick={() => setSections(sections.filter((s) => s.id !== section.id))}
+              className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-slate-50 hover:text-red-600"
+              title="Remove section"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {(section.items ?? []).map((item) => (
+              <InspectionItemRow
+                key={item.id}
+                item={item}
+                onChange={(next) =>
+                  patchSection(section.id, {
+                    items: section.items.map((it) => (it.id === item.id ? next : it)),
+                  })
+                }
+                onRemove={() =>
+                  patchSection(section.id, {
+                    items: section.items.filter((it) => it.id !== item.id),
+                  })
+                }
+                onUploadPhoto={onUploadPhoto}
+              />
+            ))}
+          </div>
+
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                patchSection(section.id, {
+                  items: [...(section.items ?? []), { id: uid(), type: 'photo' }],
+                })
+              }
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+            >
+              <ImagePlus size={15} /> Add photo
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                patchSection(section.id, {
+                  items: [...(section.items ?? []), { id: uid(), type: 'text', body: '' }],
+                })
+              }
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+            >
+              <Plus size={15} /> Add note
+            </button>
+          </div>
+        </div>
+      ))}
+
+      <button
+        type="button"
+        onClick={() => setSections([...sections, { id: uid(), title: '', items: [] }])}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+      >
+        <Plus size={16} /> Add section
+      </button>
+    </div>
+  );
+}
+
+function InspectionItemRow({
+  item,
+  onChange,
+  onRemove,
+  onUploadPhoto,
+}: {
+  item: InspectionSectionItem;
+  onChange: (next: InspectionSectionItem) => void;
+  onRemove: () => void;
+  onUploadPhoto?: UploadPhoto;
+}) {
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleFile(file: File) {
+    if (!onUploadPhoto) return;
+    setError('');
+    setUploading(true);
+    try {
+      const documentId = await onUploadPhoto(file);
+      if (documentId) onChange({ ...item, documentId });
+      else setError('Upload failed. Try again.');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  if (item.type === 'text') {
+    return (
+      <div className="flex items-start gap-2">
+        <div className="flex-1">
+          <TokenTextArea
+            value={item.body ?? ''}
+            onChange={(body) => onChange({ ...item, body })}
+            rows={3}
+            placeholder="Inspection note…"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="mt-1 shrink-0 rounded-lg p-2 text-slate-400 hover:bg-slate-50 hover:text-red-600"
+          title="Remove note"
+        >
+          <Trash2 size={15} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-start gap-3 rounded-lg border border-slate-200 p-3">
+      <div className="flex h-20 w-24 shrink-0 items-center justify-center overflow-hidden rounded-md bg-slate-100">
+        {item.documentId ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={`/api/documents/${item.documentId}`}
+            alt={item.caption || 'Inspection photo'}
+            className="h-full w-full object-cover"
+          />
+        ) : uploading ? (
+          <Loader2 size={18} className="animate-spin text-slate-400" />
+        ) : (
+          <ImagePlus size={18} className="text-slate-300" />
+        )}
+      </div>
+      <div className="flex-1 space-y-2">
+        <input
+          className={ctrl}
+          placeholder="Caption (optional)"
+          value={item.caption ?? ''}
+          onChange={(e) => onChange({ ...item, caption: e.target.value })}
+        />
+        {onUploadPhoto ? (
+          <div className="flex items-center gap-3">
+            <input
+              ref={fileInput}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleFile(file);
+                e.target.value = '';
+              }}
+            />
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={() => fileInput.current?.click()}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 disabled:opacity-50"
+            >
+              {uploading ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" /> Uploading…
+                </>
+              ) : (
+                <>{item.documentId ? 'Replace photo' : 'Upload photo'}</>
+              )}
+            </button>
+            {error && <span className="text-xs text-red-600">{error}</span>}
+          </div>
+        ) : (
+          <p className="text-xs text-slate-400">Photos are added when editing an estimate.</p>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-slate-50 hover:text-red-600"
+        title="Remove photo"
+      >
+        <Trash2 size={15} />
+      </button>
+    </div>
+  );
 }
 
 // Small read-only summary of a page's content for the page rail.
@@ -579,6 +818,13 @@ export function pageSummary(pageType: PageType, value: unknown): string {
   if (pageType === 'authorization') {
     const sig = (v as unknown as AuthorizationContent).signature;
     return sig ? `Signed by ${sig.signerName}` : 'Awaiting signature';
+  }
+  if (pageType === 'inspection') {
+    const { sections, photos } = inspectionSummary(v as unknown as InspectionContent);
+    if (sections === 0) return 'Empty';
+    const s = `${sections} section${sections === 1 ? '' : 's'}`;
+    const p = `${photos} photo${photos === 1 ? '' : 's'}`;
+    return `${s}, ${p}`;
   }
   return '';
 }

@@ -15,6 +15,7 @@ import type {
   CoverContent,
   CustomContent,
   DisclosuresContent,
+  InspectionContent,
   InsuranceWorksheetContent,
   IntroContent,
   LegalBodyContent,
@@ -303,8 +304,102 @@ function PageBlock({
         />
       );
     case 'inspection':
-      return <Heading>{title || 'Inspection'}</Heading>;
+      return (
+        <Inspection
+          content={page.contentJson as InspectionContent}
+          title={title || 'Inspection'}
+          ctx={ctx}
+        />
+      );
   }
+}
+
+function Inspection({
+  content,
+  title,
+  ctx,
+}: {
+  content: InspectionContent;
+  title: string;
+  ctx: TokenContext;
+}) {
+  const sections = (content?.sections ?? []).filter(
+    (s) => (s.title && s.title.trim()) || (s.items ?? []).length > 0,
+  );
+  return (
+    <div>
+      <Heading>{title}</Heading>
+      {sections.length === 0 && (
+        <div style={{ color: MUTED, fontSize: 14 }}>No inspection findings recorded.</div>
+      )}
+      {sections.map((section) => {
+        const photos = (section.items ?? []).filter((it) => it.type === 'photo' && it.documentId);
+        const texts = (section.items ?? []).filter(
+          (it) => it.type === 'text' && (it.body ?? '').trim(),
+        );
+        return (
+          <div key={section.id} style={{ marginBottom: 28 }}>
+            {section.title?.trim() && (
+              <div
+                style={{
+                  fontSize: 15,
+                  fontWeight: 800,
+                  color: BLUE,
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.4,
+                  borderBottom: `2px solid ${LIGHT}`,
+                  paddingBottom: 6,
+                  marginBottom: 14,
+                }}
+              >
+                {section.title}
+              </div>
+            )}
+            {texts.map((it) => (
+              <div key={it.id} style={{ marginBottom: 12 }}>
+                <RichText text={resolveTokens(it.body ?? '', ctx)} />
+              </div>
+            ))}
+            {photos.length > 0 && (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: photos.length === 1 ? '1fr' : '1fr 1fr',
+                  gap: 16,
+                }}
+              >
+                {photos.map((it) => (
+                  <div key={it.id}>
+                    <div
+                      style={{
+                        border: `1px solid ${BORDER}`,
+                        borderRadius: 6,
+                        overflow: 'hidden',
+                        background: ALT,
+                      }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`/api/documents/${it.documentId}`}
+                        alt={it.caption || 'Inspection photo'}
+                        crossOrigin="anonymous"
+                        style={{ display: 'block', width: '100%', height: 240, objectFit: 'cover' }}
+                      />
+                    </div>
+                    {it.caption?.trim() && (
+                      <div style={{ marginTop: 6, fontSize: 12, color: MUTED, fontWeight: 700 }}>
+                        {it.caption}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function LabeledRow({ label, value }: { label: string; value?: string | null }) {
