@@ -187,7 +187,9 @@ export function LeadsClient({
 
         {filtered.length === 0 ? (
           <div className="rounded-xl border border-slate-200 bg-white p-12 text-center shadow-sm">
-            <h3 className="mb-2 text-lg font-[550] tracking-[0.015em] text-slate-900">No leads found</h3>
+            <h3 className="mb-2 text-lg font-[550] tracking-[0.015em] text-slate-900">
+              No leads found
+            </h3>
             <p className="text-sm text-slate-500">
               {search || statusFilter !== 'all' || priorityFilter !== 'all'
                 ? 'Try adjusting your filters.'
@@ -670,6 +672,23 @@ function LeadDetailDrawer({
               ))}
             </ul>
           )}
+        </div>
+
+        <div className="border-t border-slate-200 pt-4">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-medium tracking-wider text-slate-400 uppercase">
+              Insurance scope
+            </p>
+            <Link
+              href={`/dashboard/leads/${lead.id}/scope`}
+              className="text-sm font-medium text-teal-600 hover:underline"
+            >
+              Upload &amp; review →
+            </Link>
+          </div>
+          <p className="text-sm text-slate-500">
+            AI-parse a carrier estimate PDF into draft financials.
+          </p>
         </div>
 
         <div className="border-t border-slate-200 pt-4">

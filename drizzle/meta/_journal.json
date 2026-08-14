@@ -127,6 +127,13 @@
       "when": 1785574647882,
       "tag": "0017_high_stick",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1786654643457,
+      "tag": "0018_robust_glorian",
+      "breakpoints": true
     }
   ]
 }
