@@ -2,8 +2,10 @@ import Link from 'next/link';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
 // Reference button styles: one dominant primary (slate-800), a teal accent for
-// positive/CTA actions, a bordered secondary, and a red danger.
-export type ButtonVariant = 'primary' | 'accent' | 'secondary' | 'danger';
+// positive/CTA actions, a bordered secondary, a red danger, plus low-emphasis
+// dashed / ghost / link variants — all in the slate + teal system.
+export type ButtonVariant =
+  'primary' | 'accent' | 'secondary' | 'danger' | 'dashed' | 'ghost' | 'link';
 export type ButtonSize = 'sm' | 'md';
 
 const VARIANT: Record<ButtonVariant, string> = {
@@ -11,6 +13,9 @@ const VARIANT: Record<ButtonVariant, string> = {
   accent: 'bg-teal-600 text-white hover:bg-teal-700',
   secondary: 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
   danger: 'bg-red-600 text-white hover:bg-red-700',
+  dashed: 'border border-dashed border-slate-400 bg-white text-slate-700 hover:bg-slate-50',
+  ghost: 'bg-transparent text-slate-700 hover:bg-slate-100',
+  link: 'bg-transparent text-teal-600 hover:text-teal-700 hover:underline',
 };
 
 const SIZE: Record<ButtonSize, string> = {
