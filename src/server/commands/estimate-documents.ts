@@ -290,8 +290,11 @@ export async function updateEstimatePage(input: UpdatePageInput, db: DbClient = 
       .returning();
     if (!bumped) throw new ConcurrencyConflictError('estimate');
 
-    if (page.pageType === 'quote') await recomputeTotal(tx, input.documentId);
-    return { ok: true };
+    let total = bumped.total;
+    if (page.pageType === 'quote') total = await recomputeTotal(tx, input.documentId);
+    // Echo the new rowVersion + total so an auto-saving editor can keep saving
+    // without a round-trip refresh (and avoid stale-version conflicts).
+    return { ok: true as const, rowVersion: bumped.rowVersion, total };
   });
 }
 

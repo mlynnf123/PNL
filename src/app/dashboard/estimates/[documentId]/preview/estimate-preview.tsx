@@ -5,10 +5,8 @@ import { useRef, useState } from 'react';
 import {
   type QuoteContent,
   type QuoteOption,
-  lineItemTotal,
   optionTotal,
   quoteTotal,
-  sectionSubtotal,
 } from '@/lib/estimate-doc-math';
 import type {
   AuthorizationContent,
@@ -169,19 +167,15 @@ export function EstimatePreview({ doc }: { doc: EstimateDocFull }) {
           useCORS: true,
         });
         const img = canvas.toDataURL('image/jpeg', 0.92);
-        const ih = (canvas.height * pw) / canvas.width;
-        let left = ih;
-        let pos = 0;
+        // One PDF page per page block. Each estimate page is designed as a single
+        // page, so scale the capture to fit the letter sheet (preserving aspect
+        // ratio) rather than splitting a hair of overflow onto a blank page.
+        const fit = Math.min(pw / canvas.width, ph / canvas.height);
+        const w = canvas.width * fit;
+        const h = canvas.height * fit;
         if (!first) pdf.addPage();
         first = false;
-        pdf.addImage(img, 'JPEG', 0, pos, pw, ih);
-        left -= ph;
-        while (left > 0) {
-          pos -= ph;
-          pdf.addPage();
-          pdf.addImage(img, 'JPEG', 0, pos, pw, ih);
-          left -= ph;
-        }
+        pdf.addImage(img, 'JPEG', (pw - w) / 2, 0, w, h);
       }
       pdf.save(`${number}.pdf`);
     } finally {
@@ -694,74 +688,65 @@ function Cover({
 
 function Quote({ content, title }: { content: QuoteContent; title: string }) {
   const options = content.options ?? [];
-  const d = content.display ?? { showLineTotal: true, showSectionTotal: true };
   const multi = options.length > 1;
-  const selectOne = (d.selectionPolicy ?? 'one') === 'one';
-  // Server-authoritative total (matches doc.total): sums options only for a
-  // "combine/multi" quote; for "select one" it is a single option's total.
-  // Summing mutually-exclusive options was the divergence bug.
+  const selectOne = (content.display?.selectionPolicy ?? 'one') === 'one';
   const total = quoteTotal(content);
-  // For select-one with multiple options, each option is priced on its own
-  // header — a combined grand total would be meaningless (and wrong).
-  const showCombinedTotal = !(selectOne && multi);
 
+  // One priced row per option: the option name is the title, with an optional
+  // description beneath it. For "select one" with several options the customer
+  // picks one, so no combined total is shown.
   return (
     <div>
       <Heading>{title}</Heading>
-      {options.map((o) => (
-        <div key={o.id} style={{ marginBottom: 20 }}>
-          {multi && (
-            <div style={{ fontSize: 16, fontWeight: 800, color: INK, marginBottom: 8 }}>
-              {o.name} — {formatCurrency(optionTotal(o))}
-            </div>
-          )}
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: LIGHT }}>
-                <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 13, color: INK }}>
-                  Description
-                </th>
-                {d.showQty && (
-                  <th style={{ textAlign: 'right', padding: '8px 12px', fontSize: 13, color: INK }}>
-                    Qty
-                  </th>
-                )}
-                {d.showUnitPrice && (
-                  <th style={{ textAlign: 'right', padding: '8px 12px', fontSize: 13, color: INK }}>
-                    Unit price
-                  </th>
-                )}
-                {d.showLineTotal && (
-                  <th style={{ textAlign: 'right', padding: '8px 12px', fontSize: 13, color: INK }}>
-                    Line total
-                  </th>
-                )}
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr style={{ background: LIGHT }}>
+            <th style={{ textAlign: 'left', padding: '10px 12px', fontSize: 13, color: INK }}>
+              Description
+            </th>
+            <th style={{ textAlign: 'right', padding: '10px 12px', fontSize: 13, color: INK }}>
+              Price
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {options.map((o, i) => {
+            const desc = o.sections
+              .flatMap((s) => s.items)
+              .map((it) => it.description)
+              .find(Boolean);
+            return (
+              <tr key={o.id} style={{ background: i % 2 === 0 ? '#ffffff' : ALT }}>
+                <td style={{ padding: '10px 12px', color: INK, fontSize: 14 }}>
+                  <div style={{ fontWeight: 700 }}>{o.name || 'Option'}</div>
+                  {desc && <div style={{ color: MUTED, fontSize: 13, marginTop: 2 }}>{desc}</div>}
+                </td>
+                <td
+                  style={{
+                    padding: '10px 12px',
+                    textAlign: 'right',
+                    color: INK,
+                    fontSize: 14,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {formatCurrency(optionTotal(o))}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {o.sections
-                .filter((s) => s.visible)
-                .map((s) => (
-                  <QuoteSectionRows key={s.id} section={s} display={d} multiOption={multi} />
-                ))}
-            </tbody>
-          </table>
+            );
+          })}
+        </tbody>
+      </table>
+      {selectOne && multi ? (
+        <div
+          style={{ marginTop: 14, textAlign: 'right', fontSize: 13, fontWeight: 700, color: MUTED }}
+        >
+          Choose one option above — each is priced separately.
         </div>
-      ))}
-      {showCombinedTotal ? (
+      ) : (
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}>
           <table>
             <tbody>
-              <tr>
-                <td
-                  style={{ padding: '4px 24px', textAlign: 'right', fontWeight: 700, color: MUTED }}
-                >
-                  Estimate subtotal
-                </td>
-                <td style={{ padding: '4px 0', textAlign: 'right', color: BODY, minWidth: 100 }}>
-                  {formatCurrency(total)}
-                </td>
-              </tr>
               <tr>
                 <td
                   style={{ padding: '4px 24px', textAlign: 'right', fontWeight: 800, color: INK }}
@@ -783,82 +768,8 @@ function Quote({ content, title }: { content: QuoteContent; title: string }) {
             </tbody>
           </table>
         </div>
-      ) : (
-        <div
-          style={{ marginTop: 14, textAlign: 'right', fontSize: 13, fontWeight: 700, color: MUTED }}
-        >
-          Choose one option above — each is priced separately.
-        </div>
       )}
     </div>
-  );
-}
-
-function QuoteSectionRows({
-  section,
-  display,
-  multiOption,
-}: {
-  section: QuoteContent['options'][number]['sections'][number];
-  display: QuoteContent['display'];
-  multiOption: boolean;
-}) {
-  const cols =
-    1 +
-    (display.showQty ? 1 : 0) +
-    (display.showUnitPrice ? 1 : 0) +
-    (display.showLineTotal ? 1 : 0);
-  return (
-    <>
-      {section.title && (
-        <tr>
-          <td
-            colSpan={cols}
-            style={{ padding: '8px 12px', fontWeight: 800, color: INK, background: ALT }}
-          >
-            {section.title}
-          </td>
-        </tr>
-      )}
-      {section.items.map((it, i) => (
-        <tr key={it.id} style={{ background: i % 2 === 0 ? '#ffffff' : ALT }}>
-          <td style={{ padding: '8px 12px', color: BODY, fontSize: 14 }}>
-            <div
-              style={{ fontWeight: it.description ? 700 : 400, color: it.description ? INK : BODY }}
-            >
-              {it.name}
-            </div>
-            {it.description && <div style={{ color: MUTED, fontSize: 13 }}>{it.description}</div>}
-          </td>
-          {display.showQty && (
-            <td style={{ padding: '8px 12px', textAlign: 'right', color: BODY }}>{it.quantity}</td>
-          )}
-          {display.showUnitPrice && (
-            <td style={{ padding: '8px 12px', textAlign: 'right', color: BODY }}>
-              {formatCurrency(it.unitPrice)}
-            </td>
-          )}
-          {display.showLineTotal && (
-            <td style={{ padding: '8px 12px', textAlign: 'right', color: BODY }}>
-              {formatCurrency(lineItemTotal(it))}
-            </td>
-          )}
-        </tr>
-      ))}
-      {display.showSectionTotal && !multiOption && (
-        <tr>
-          <td
-            colSpan={cols - 1}
-            style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: INK }}
-          >
-            Section Total
-          </td>
-          <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 800, color: INK }}>
-            {formatCurrency(sectionSubtotal(section))}
-          </td>
-        </tr>
-      )}
-    </>
   );
 }
 
