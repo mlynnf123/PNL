@@ -1,8 +1,19 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
-import { Badge, Drawer, EmptyState, LinkButton } from '@/components/ui';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { Badge, type BadgeTone, Drawer, EmptyState, LinkButton } from '@/components/ui';
+import { Badge as StatusBadge } from '@/components/ui/shadcn/badge';
+import { Card } from '@/components/ui/shadcn/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/shadcn/table';
 import { formatCurrency, formatDate, formatRelative } from '@/lib/format';
 import {
   JOB_CLOSE_TONE,
@@ -69,6 +80,16 @@ export function JobsQueue({
     [rows, bucket],
   );
 
+  // Footer total for the visible bucket — integer cents so the display sum is exact.
+  const total = useMemo(
+    () =>
+      displayed.reduce(
+        (cents, r) => cents + Math.round(Number(r.originalContractAmount ?? 0) * 100),
+        0,
+      ) / 100,
+    [displayed],
+  );
+
   if (rows.length === 0) {
     return (
       <EmptyState
@@ -108,85 +129,80 @@ export function JobsQueue({
         })}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50">
-              <tr>
-                {[
-                  'Job',
-                  'Customer',
-                  'Stage',
-                  'Contracted',
-                  'Contract',
-                  'Operational',
-                  'Collection',
-                  'Close',
-                  'Last edited',
-                ].map((h) => (
-                  <th
-                    key={h}
-                    className="px-4 py-3 text-xs font-medium tracking-wider text-slate-500 uppercase"
+      <Card className="overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Job</TableHead>
+              <TableHead>Customer</TableHead>
+              <TableHead>Stage</TableHead>
+              <TableHead>Contracted</TableHead>
+              <TableHead className="text-right">Contract</TableHead>
+              <TableHead>Operational</TableHead>
+              <TableHead>Collection</TableHead>
+              <TableHead>Close</TableHead>
+              <TableHead>Last edited</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {displayed.map((row) => (
+              <TableRow key={row.id} onClick={() => openPreview(row)} className="cursor-pointer">
+                <TableCell>
+                  <Link
+                    href={`/dashboard/jobs/${row.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="font-medium text-slate-900 hover:text-teal-600"
                   >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {displayed.map((row) => (
-                <tr
-                  key={row.id}
-                  onClick={() => openPreview(row)}
-                  className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-slate-50"
-                >
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/dashboard/jobs/${row.id}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="font-medium text-slate-900 hover:text-teal-600"
-                    >
-                      {row.jobNumber ?? <span className="text-slate-400 italic">Lead</span>}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-slate-700">{row.customerName ?? '—'}</td>
-                  <td className="px-4 py-3">
-                    <Badge tone={PIPELINE_STAGE_TONE[row.productionPhase] ?? 'slate'}>
-                      {PIPELINE_STAGE_LABELS[row.productionPhase] ?? humanizeStatus(row.productionPhase)}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-slate-500">{formatDate(row.contractedAt)}</td>
-                  <td className="px-4 py-3 text-slate-700">
-                    {row.originalContractAmount ? formatCurrency(row.originalContractAmount) : '—'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge tone={toneFor(JOB_OPERATIONAL_TONE, row.operationalStatus)}>
-                      {humanizeStatus(row.operationalStatus)}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge tone={toneFor(JOB_COLLECTION_TONE, row.collectionStatus)}>
-                      {humanizeStatus(row.collectionStatus)}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge tone={toneFor(JOB_CLOSE_TONE, row.financialCloseStatus)}>
-                      {humanizeStatus(row.financialCloseStatus)}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-xs whitespace-nowrap text-slate-500">
-                    {lastEdited[row.id]
-                      ? `${lastEdited[row.id].actorName ?? 'system'} · ${formatRelative(
-                          lastEdited[row.id].occurredAt,
-                        )}`
-                      : '—'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                    {row.jobNumber ?? <span className="text-slate-400 italic">Lead</span>}
+                  </Link>
+                </TableCell>
+                <TableCell className="text-slate-700">{row.customerName ?? '—'}</TableCell>
+                <TableCell>
+                  <StatusPill tone={PIPELINE_STAGE_TONE[row.productionPhase] ?? 'slate'}>
+                    {PIPELINE_STAGE_LABELS[row.productionPhase] ??
+                      humanizeStatus(row.productionPhase)}
+                  </StatusPill>
+                </TableCell>
+                <TableCell className="text-slate-500">{formatDate(row.contractedAt)}</TableCell>
+                <TableCell className="text-right text-slate-700">
+                  {row.originalContractAmount ? formatCurrency(row.originalContractAmount) : '—'}
+                </TableCell>
+                <TableCell>
+                  <StatusPill tone={toneFor(JOB_OPERATIONAL_TONE, row.operationalStatus)}>
+                    {humanizeStatus(row.operationalStatus)}
+                  </StatusPill>
+                </TableCell>
+                <TableCell>
+                  <StatusPill tone={toneFor(JOB_COLLECTION_TONE, row.collectionStatus)}>
+                    {humanizeStatus(row.collectionStatus)}
+                  </StatusPill>
+                </TableCell>
+                <TableCell>
+                  <StatusPill tone={toneFor(JOB_CLOSE_TONE, row.financialCloseStatus)}>
+                    {humanizeStatus(row.financialCloseStatus)}
+                  </StatusPill>
+                </TableCell>
+                <TableCell className="text-xs whitespace-nowrap text-slate-500">
+                  {lastEdited[row.id]
+                    ? `${lastEdited[row.id].actorName ?? 'system'} · ${formatRelative(
+                        lastEdited[row.id].occurredAt,
+                      )}`
+                    : '—'}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TableCell colSpan={4} className="text-slate-600">
+                Total contract value{bucket === 'all' ? '' : ` · ${humanizeStatus(bucket)}`}
+              </TableCell>
+              <TableCell className="text-right text-slate-900">{formatCurrency(total)}</TableCell>
+              <TableCell colSpan={4} />
+            </TableRow>
+          </TableFooter>
+        </Table>
+      </Card>
 
       {/* Preview sheet: scan -> preview -> commit */}
       <Drawer
@@ -217,7 +233,10 @@ export function JobsQueue({
               label={preview.originalContractAmount ? 'Contract amount' : 'Estimated value'}
               value={formatCurrency(preview.originalContractAmount ?? preview.estimatedValue)}
             />
-            <Detail label="Funding" value={preview.fundingType ? humanizeStatus(preview.fundingType) : '—'} />
+            <Detail
+              label="Funding"
+              value={preview.fundingType ? humanizeStatus(preview.fundingType) : '—'}
+            />
             <Detail label="Contracted" value={formatDate(preview.contractedAt)} />
             <Detail label="Collection" value={humanizeStatus(preview.collectionStatus)} />
 
@@ -251,6 +270,25 @@ export function JobsQueue({
   );
 }
 
+// Status dot colors, keyed by the app's semantic tone.
+const DOT: Record<BadgeTone, string> = {
+  slate: 'bg-slate-400',
+  teal: 'bg-teal-500',
+  amber: 'bg-amber-500',
+  red: 'bg-red-500',
+  blue: 'bg-blue-500',
+};
+
+// A neutral outline pill with a tone-colored status dot (shadcn Badge).
+function StatusPill({ tone, children }: { tone: BadgeTone; children: ReactNode }) {
+  return (
+    <StatusBadge variant="outline">
+      <span aria-hidden="true" className={`size-1.5 rounded-full ${DOT[tone]}`} />
+      <span className="capitalize">{children}</span>
+    </StatusBadge>
+  );
+}
+
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div>
@@ -261,9 +299,7 @@ function Detail({ label, value }: { label: string; value: string }) {
 }
 
 function humanizeAudit(s: string): string {
-  return s
-    .replace(/[._]/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return s.replace(/[._]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function fmtVal(v: unknown): string {
