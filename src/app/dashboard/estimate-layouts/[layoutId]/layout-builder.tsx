@@ -6,8 +6,13 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { Badge, Button } from '@/components/ui';
 import { PageEditor } from '@/components/estimate/page-editor';
+import { formatDate } from '@/lib/format';
 import { PAGE_TYPES, PAGE_TYPE_LABELS, type PageType } from '@/lib/estimate-pages';
-import type { LayoutForEdit, LayoutPageRow } from '@/server/queries/estimate-layouts';
+import type {
+  LayoutForEdit,
+  LayoutPageRow,
+  LayoutVersionRow,
+} from '@/server/queries/estimate-layouts';
 import {
   type ActionResult,
   addLayoutPageAction,
@@ -15,15 +20,27 @@ import {
   publishLayoutAction,
   removeLayoutPageAction,
   reorderLayoutPagesAction,
+  restoreLayoutVersionAction,
   updateLayoutPageAction,
 } from '../actions';
 
-export function LayoutBuilder({ layout }: { layout: LayoutForEdit }) {
+export function LayoutBuilder({
+  layout,
+  versions,
+}: {
+  layout: LayoutForEdit;
+  versions: LayoutVersionRow[];
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
   const [selectedId, setSelectedId] = useState(layout.pages[0]?.id ?? '');
   const [adding, setAdding] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [versionName, setVersionName] = useState('');
+
+  const publishedVersions = versions.filter((v) => v.status === 'published');
 
   const pages = layout.pages;
   const selected = pages.find((p) => p.id === selectedId) ?? pages[0];
@@ -58,10 +75,10 @@ export function LayoutBuilder({ layout }: { layout: LayoutForEdit }) {
             href="/dashboard/estimate-layouts"
             className="text-sm text-slate-500 hover:text-slate-700"
           >
-            ← Layouts
+            ← Templates
           </Link>
           <div className="mt-1 flex items-center gap-2">
-            <h2 className="text-2xl font-[550] tracking-[0.015em] text-slate-900">{layout.name}</h2>
+            <h2 className="text-2xl font-normal tracking-[0.035em] text-slate-900">{layout.name}</h2>
             <Badge tone={layout.status === 'active' ? 'teal' : 'slate'}>{layout.status}</Badge>
             {layout.currentVersionNumber != null && (
               <Badge tone={isDraft ? 'amber' : 'slate'}>
@@ -71,6 +88,62 @@ export function LayoutBuilder({ layout }: { layout: LayoutForEdit }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {publishedVersions.length > 0 && (
+            <div className="relative">
+              <Button
+                variant="secondary"
+                disabled={isPending}
+                onClick={() => setShowHistory((v) => !v)}
+              >
+                Version history
+              </Button>
+              {showHistory && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowHistory(false)} />
+                  <div className="absolute right-0 z-50 mt-2 max-h-80 w-80 overflow-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
+                    {publishedVersions.map((v) => (
+                      <div
+                        key={v.id}
+                        className="flex items-center justify-between gap-2 rounded-md px-3 py-2 hover:bg-slate-50"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm text-slate-800">
+                            {v.name || `Version ${v.versionNumber}`}
+                            {v.isCurrent && (
+                              <span className="ml-1 text-xs text-teal-600">· current</span>
+                            )}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            v{v.versionNumber} · {formatDate(v.publishedAt)}
+                            {v.publishedByName ? ` · ${v.publishedByName}` : ''}
+                          </p>
+                        </div>
+                        {!v.isCurrent && (
+                          <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() => {
+                              if (
+                                confirm(
+                                  `Restore "${v.name || `Version ${v.versionNumber}`}"? This opens it as a new draft you can review and publish.`,
+                                )
+                              ) {
+                                setShowHistory(false);
+                                run(restoreLayoutVersionAction(layout.id, v.id));
+                              }
+                            }}
+                            className="shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                          >
+                            Restore
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
           {isDraft && layout.status === 'active' && (
             <Button
               variant="secondary"
@@ -83,14 +156,52 @@ export function LayoutBuilder({ layout }: { layout: LayoutForEdit }) {
               Discard draft
             </Button>
           )}
-          <Button
-            disabled={isPending || !isDraft}
-            onClick={() => run(publishLayoutAction(layout.id))}
-          >
+          <Button disabled={isPending || !isDraft} onClick={() => setPublishing(true)}>
             {layout.status === 'active' ? 'Publish changes' : 'Publish'}
           </Button>
         </div>
       </div>
+
+      {publishing && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget && !isPending) setPublishing(false);
+          }}
+        >
+          <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <h3 className="text-base font-normal tracking-[0.035em] text-slate-900">
+              Publish this version
+            </h3>
+            <p className="mt-1 mb-3 text-xs text-slate-500">
+              Name this version so you can find it later in the history (e.g. &ldquo;Spring 2026
+              pricing&rdquo;). Optional.
+            </p>
+            <input
+              value={versionName}
+              onChange={(e) => setVersionName(e.target.value)}
+              placeholder="Version name"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="secondary" disabled={isPending} onClick={() => setPublishing(false)}>
+                Cancel
+              </Button>
+              <Button
+                disabled={isPending}
+                onClick={() =>
+                  run(publishLayoutAction(layout.id, versionName.trim() || undefined), () => {
+                    setPublishing(false);
+                    setVersionName('');
+                  })
+                }
+              >
+                {isPending ? 'Publishing…' : 'Publish'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {!isDraft && (
         <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">

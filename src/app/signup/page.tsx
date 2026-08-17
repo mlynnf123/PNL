@@ -66,7 +66,7 @@ export default async function SignupPage({
         action={register}
         className="flex w-full max-w-sm flex-col gap-4 rounded-lg border border-slate-200 bg-white p-8 shadow-sm"
       >
-        <h1 className="text-xl font-[550] tracking-[0.015em] text-slate-900">Create account</h1>
+        <h1 className="text-xl font-normal tracking-[0.035em] text-slate-900">Create account</h1>
 
         {errorMessage && (
           <p className="rounded-md border-l-2 border-slate-900 bg-slate-100 px-3 py-2 text-sm text-slate-800">

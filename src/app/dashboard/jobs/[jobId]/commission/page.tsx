@@ -224,7 +224,7 @@ export default async function JobCommissionPage({
         >
           ← {job.jobNumber}
         </Link>
-        <h2 className="text-lg font-[550] tracking-[0.015em] text-slate-900">Commission</h2>
+        <h2 className="text-lg font-normal tracking-[0.035em] text-slate-900">Commission</h2>
       </div>
 
       <div className="grid grid-cols-2 gap-4 rounded-lg border border-slate-200 bg-white p-6 sm:grid-cols-3">

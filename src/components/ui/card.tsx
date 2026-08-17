@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
-// Canonical card from the reference design: white, rounded-xl, thin slate
-// border, soft shadow. Flat (no gradient), per the adopted design language.
+import { cn } from '@/lib/utils';
+
+// Card surface, now on shadcn theme tokens (bg-card / border / ring) so it
+// stays cohesive with the rest of the component library.
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-xl border border-slate-200 bg-white p-6 shadow-sm ${className}`}>
+    <div className={cn('rounded-xl border bg-card p-6 text-card-foreground shadow-xs', className)}>
       {children}
     </div>
   );
@@ -12,13 +14,13 @@ export function Card({ children, className = '' }: { children: ReactNode; classN
 export function CardHeader({ title, action }: { title: string; action?: ReactNode }) {
   return (
     <div className="mb-4 flex items-center justify-between">
-      <h3 className="text-base font-[550] tracking-[0.015em] text-slate-900">{title}</h3>
+      <h3 className="text-base font-normal tracking-[0.035em] text-foreground">{title}</h3>
       {action}
     </div>
   );
 }
 
-// A labeled metric tile (reference StatCard): small muted label, prominent value.
+// A labeled metric tile: small muted label, prominent value.
 export function StatCard({
   label,
   value,
@@ -29,10 +31,10 @@ export function StatCard({
   hint?: ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <p className="text-sm font-medium text-slate-500">{label}</p>
-      <p className="mt-1 text-xl font-normal text-slate-900">{value}</p>
-      {hint && <p className="mt-1 text-xs font-normal text-slate-400">{hint}</p>}
+    <div className="rounded-xl border bg-card p-6 text-card-foreground shadow-xs">
+      <p className="text-sm font-normal text-muted-foreground">{label}</p>
+      <p className="mt-1 text-xl font-normal text-foreground">{value}</p>
+      {hint && <p className="mt-1 text-xs font-normal text-muted-foreground">{hint}</p>}
     </div>
   );
 }

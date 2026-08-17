@@ -40,7 +40,7 @@ export function StatusPill({
 export function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h3 className="text-sm font-[550] tracking-[0.015em] text-slate-900">{title}</h3>
+      <h3 className="text-sm font-normal tracking-[0.035em] text-slate-900">{title}</h3>
       {children}
     </div>
   );

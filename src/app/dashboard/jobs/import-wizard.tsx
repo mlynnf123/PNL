@@ -79,7 +79,7 @@ export function ImportWizard() {
         >
           <div className="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-5 shadow-2xl">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-base font-[550] tracking-[0.015em] text-slate-900">Import Job Profit workbook</h3>
+              <h3 className="text-base font-normal tracking-[0.035em] text-slate-900">Import Job Profit workbook</h3>
               <button
                 type="button"
                 onClick={() => !pending && close()}

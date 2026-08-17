@@ -1,8 +1,55 @@
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { db as defaultDb } from '@/db/client';
 import type { DbOrTx } from '@/db/client';
-import { estimateLayoutPages, estimateLayoutVersions, estimateLayouts } from '@/db/schema';
+import { estimateLayoutPages, estimateLayoutVersions, estimateLayouts, users } from '@/db/schema';
 import type { PageType } from '@/lib/estimate-pages';
+
+export interface LayoutVersionRow {
+  id: string;
+  versionNumber: number;
+  name: string | null;
+  status: string;
+  publishedAt: Date | null;
+  publishedByName: string | null;
+  isCurrent: boolean;
+}
+
+// Full version history for a template — newest first — for the restore dropdown.
+export async function listLayoutVersions(
+  layoutId: string,
+  organizationId: string,
+  db: DbOrTx = defaultDb,
+): Promise<LayoutVersionRow[]> {
+  const [layout] = await db
+    .select({ currentVersionId: estimateLayouts.currentVersionId })
+    .from(estimateLayouts)
+    .where(
+      and(eq(estimateLayouts.id, layoutId), eq(estimateLayouts.organizationId, organizationId)),
+    )
+    .limit(1);
+  const currentId = layout?.currentVersionId ?? null;
+
+  const rows = await db
+    .select({
+      id: estimateLayoutVersions.id,
+      versionNumber: estimateLayoutVersions.versionNumber,
+      name: estimateLayoutVersions.name,
+      status: estimateLayoutVersions.status,
+      publishedAt: estimateLayoutVersions.publishedAt,
+      publishedByName: users.displayName,
+    })
+    .from(estimateLayoutVersions)
+    .leftJoin(users, eq(users.id, estimateLayoutVersions.publishedBy))
+    .where(
+      and(
+        eq(estimateLayoutVersions.layoutId, layoutId),
+        eq(estimateLayoutVersions.organizationId, organizationId),
+      ),
+    )
+    .orderBy(desc(estimateLayoutVersions.versionNumber));
+
+  return rows.map((r) => ({ ...r, isCurrent: r.id === currentId }));
+}
 
 export interface LayoutListRow {
   id: string;

@@ -13,6 +13,7 @@ import {
   publishLayout,
   removeLayoutPage,
   reorderLayoutPages,
+  restoreLayoutVersion,
   retireLayout,
   updateLayoutMeta,
   updateLayoutPage,
@@ -122,12 +123,29 @@ export async function reorderLayoutPagesAction(
   }
 }
 
-export async function publishLayoutAction(layoutId: string): Promise<ActionResult> {
+export async function publishLayoutAction(
+  layoutId: string,
+  name?: string,
+): Promise<ActionResult> {
   const session = await requireSession();
   try {
-    await publishLayout({ ...actor(session), layoutId });
+    await publishLayout({ ...actor(session), layoutId, name });
     revalidatePath(`${BASE}/${layoutId}`);
     revalidatePath(BASE);
+    return { ok: true };
+  } catch (err) {
+    return handle(err);
+  }
+}
+
+export async function restoreLayoutVersionAction(
+  layoutId: string,
+  sourceVersionId: string,
+): Promise<ActionResult> {
+  const session = await requireSession();
+  try {
+    await restoreLayoutVersion({ ...actor(session), layoutId, sourceVersionId });
+    revalidatePath(`${BASE}/${layoutId}`);
     return { ok: true };
   } catch (err) {
     return handle(err);

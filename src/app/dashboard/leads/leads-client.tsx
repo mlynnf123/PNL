@@ -106,7 +106,7 @@ export function LeadsClient({
     <>
       <div className="space-y-6">
         <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-          <h2 className="text-2xl font-[550] tracking-[0.015em] text-slate-900">Lead Management</h2>
+          <h2 className="text-2xl font-normal tracking-[0.035em] text-slate-900">Lead Management</h2>
           <div className="flex items-center gap-3">
             <div className="flex rounded-lg bg-slate-100 p-1">
               {(['grid', 'list'] as const).map((v) => (
@@ -187,7 +187,7 @@ export function LeadsClient({
 
         {filtered.length === 0 ? (
           <div className="rounded-xl border border-slate-200 bg-white p-12 text-center shadow-sm">
-            <h3 className="mb-2 text-lg font-[550] tracking-[0.015em] text-slate-900">No leads found</h3>
+            <h3 className="mb-2 text-lg font-normal tracking-[0.035em] text-slate-900">No leads found</h3>
             <p className="text-sm text-slate-500">
               {search || statusFilter !== 'all' || priorityFilter !== 'all'
                 ? 'Try adjusting your filters.'

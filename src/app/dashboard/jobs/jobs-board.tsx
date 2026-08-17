@@ -225,7 +225,7 @@ function SignModal({
         }}
         className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-2xl"
       >
-        <h3 className="text-base font-[550] tracking-[0.015em] text-slate-900">
+        <h3 className="text-base font-normal tracking-[0.035em] text-slate-900">
           Sign {row.customerName ?? 'lead'}
         </h3>
         <p className="mt-1 mb-3 text-xs text-slate-500">

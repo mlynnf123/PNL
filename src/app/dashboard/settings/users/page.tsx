@@ -15,7 +15,7 @@ export default async function UsersSettingsPage() {
   if (!canManage) {
     return (
       <div className="flex flex-1 flex-col gap-4">
-        <h2 className="text-lg font-[550] tracking-[0.015em] text-slate-900">Users</h2>
+        <h2 className="text-lg font-normal tracking-[0.035em] text-slate-900">Users</h2>
         <NoAccessNotice />
       </div>
     );
@@ -80,7 +80,7 @@ export default async function UsersSettingsPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <h2 className="text-lg font-[550] tracking-[0.015em] text-slate-900">Users</h2>
+      <h2 className="text-lg font-normal tracking-[0.035em] text-slate-900">Users</h2>
 
       <Section title="Add a user">
         <form action={createUser} className="grid max-w-2xl gap-3 sm:grid-cols-2">

@@ -14,7 +14,7 @@ export function PageHeader({
   return (
     <div className="mb-6 flex items-start justify-between gap-4">
       <div>
-        <h2 className="text-2xl font-[550] tracking-[0.015em] text-slate-900">{title}</h2>
+        <h2 className="text-2xl font-[550] tracking-[0.035em] text-slate-900">{title}</h2>
         {description && <p className="mt-1 text-sm font-normal text-slate-500">{description}</p>}
       </div>
       {action && <div className="flex flex-shrink-0 items-center gap-2">{action}</div>}

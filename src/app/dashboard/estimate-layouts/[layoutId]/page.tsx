@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { db } from '@/db/client';
 import { requireSession } from '@/lib/require-session';
 import { PERMISSIONS, userHasPermission } from '@/lib/permissions';
-import { getLayoutForEdit } from '@/server/queries/estimate-layouts';
+import { getLayoutForEdit, listLayoutVersions } from '@/server/queries/estimate-layouts';
 import { PageHeader } from '@/components/ui';
 import { LayoutBuilder } from './layout-builder';
 
@@ -28,5 +28,7 @@ export default async function LayoutBuilderPage({
   const layout = await getLayoutForEdit(layoutId, session.user.organizationId);
   if (!layout) notFound();
 
-  return <LayoutBuilder layout={layout} />;
+  const versions = await listLayoutVersions(layoutId, session.user.organizationId);
+
+  return <LayoutBuilder layout={layout} versions={versions} />;
 }

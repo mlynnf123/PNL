@@ -1544,6 +1544,9 @@ export const estimateLayoutVersions = pgTable(
       .references(() => estimateLayouts.id),
     versionNumber: integer('version_number').notNull(),
     status: layoutVersionStatusEnum('status').notNull().default('draft'),
+    // User-given name for a published version ("Spring 2026 pricing"), so the
+    // version history/restore dropdown is human-readable. Null until published.
+    name: text('name'),
     // Prior version this one superseded (app-validated chain, no hard FK).
     priorVersionId: uuid('prior_version_id'),
     publishedBy: uuid('published_by').references(() => users.id),

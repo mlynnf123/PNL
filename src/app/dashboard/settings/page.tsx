@@ -56,7 +56,7 @@ export default async function SettingsPage() {
             href={card.href}
             className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
           >
-            <h3 className="font-[550] tracking-[0.015em] text-slate-900">{card.title}</h3>
+            <h3 className="font-normal tracking-[0.035em] text-slate-900">{card.title}</h3>
             <p className="text-sm font-normal text-slate-600">{card.body}</p>
           </Link>
         ))}

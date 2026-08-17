@@ -222,7 +222,7 @@ export default async function JobClosePage({
         >
           ← {job.jobNumber}
         </Link>
-        <h2 className="text-lg font-[550] tracking-[0.015em] text-slate-900">Close</h2>
+        <h2 className="text-lg font-normal tracking-[0.035em] text-slate-900">Close</h2>
       </div>
 
       {error === 'conflict' && (

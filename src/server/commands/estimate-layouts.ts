@@ -39,6 +39,26 @@ async function loadLayout(tx: Tx, organizationId: string, layoutId: string) {
   return layout;
 }
 
+// Clone every page from one version into another (in sort order). Used by the
+// draft fork, duplicate, and restore-version paths.
+async function copyPages(tx: Tx, fromVersionId: string, toVersionId: string) {
+  const pages = await tx
+    .select()
+    .from(estimateLayoutPages)
+    .where(eq(estimateLayoutPages.layoutVersionId, fromVersionId))
+    .orderBy(asc(estimateLayoutPages.sortOrder));
+  for (const p of pages) {
+    await tx.insert(estimateLayoutPages).values({
+      layoutVersionId: toVersionId,
+      pageType: p.pageType,
+      sortOrder: p.sortOrder,
+      title: p.title,
+      configJson: p.configJson,
+      defaultContentJson: p.defaultContentJson,
+    });
+  }
+}
+
 // Returns the editable DRAFT version for a layout. If the current version is
 // published (or there is none), forks a new draft (copying the current version's
 // pages) and repoints the layout at it — this is how publish/discard versioning
@@ -76,21 +96,7 @@ async function getOrCreateDraftVersion(tx: Tx, actor: Actor, layoutId: string) {
 
   // Copy the current version's pages into the new draft (if any).
   if (layout.currentVersionId) {
-    const pages = await tx
-      .select()
-      .from(estimateLayoutPages)
-      .where(eq(estimateLayoutPages.layoutVersionId, layout.currentVersionId))
-      .orderBy(asc(estimateLayoutPages.sortOrder));
-    for (const p of pages) {
-      await tx.insert(estimateLayoutPages).values({
-        layoutVersionId: draft.id,
-        pageType: p.pageType,
-        sortOrder: p.sortOrder,
-        title: p.title,
-        configJson: p.configJson,
-        defaultContentJson: p.defaultContentJson,
-      });
-    }
+    await copyPages(tx, layout.currentVersionId, draft.id);
   }
 
   await tx
@@ -328,6 +334,8 @@ export async function reorderLayoutPages(input: ReorderLayoutPagesInput, db: DbC
 
 export interface PublishLayoutInput extends Actor {
   layoutId: string;
+  // A human name for this published version ("Spring 2026 pricing").
+  name?: string;
 }
 
 export async function publishLayout(input: PublishLayoutInput, db: DbClient = defaultDb) {
@@ -343,9 +351,15 @@ export async function publishLayout(input: PublishLayoutInput, db: DbClient = de
       .limit(1);
     if (!current || current.status !== 'draft') throw new Error('No draft to publish.');
 
+    const name = input.name?.trim() || current.name || null;
     const [published] = await tx
       .update(estimateLayoutVersions)
-      .set({ status: 'published', publishedBy: input.actorUserId, publishedAt: new Date() })
+      .set({
+        status: 'published',
+        name,
+        publishedBy: input.actorUserId,
+        publishedAt: new Date(),
+      })
       .where(eq(estimateLayoutVersions.id, current.id))
       .returning();
 
@@ -365,6 +379,95 @@ export async function publishLayout(input: PublishLayoutInput, db: DbClient = de
       correlationId: input.correlationId,
     });
     return published;
+  });
+}
+
+export interface RestoreLayoutVersionInput extends Actor {
+  layoutId: string;
+  sourceVersionId: string;
+}
+
+// Go back to an earlier version: opens a new editable draft that copies the
+// chosen version's pages (nothing is overwritten — history stays intact). The
+// admin reviews it and publishes to make it live. Replaces any in-progress draft.
+export async function restoreLayoutVersion(
+  input: RestoreLayoutVersionInput,
+  db: DbClient = defaultDb,
+) {
+  return db.transaction(async (tx) => {
+    await requirePermission(tx, input.actorUserId, PERMISSIONS.ESTIMATE_LAYOUT_ADMIN);
+    const layout = await loadLayout(tx, input.organizationId, input.layoutId);
+
+    const [source] = await tx
+      .select()
+      .from(estimateLayoutVersions)
+      .where(
+        and(
+          eq(estimateLayoutVersions.id, input.sourceVersionId),
+          eq(estimateLayoutVersions.layoutId, input.layoutId),
+        ),
+      )
+      .limit(1);
+    if (!source) throw new Error('That version does not belong to this template.');
+
+    // The published version the new draft chains from. If a working draft is
+    // open, discard it (and chain from what it was based on) so drafts don't stack.
+    let priorVersionId = layout.currentVersionId ?? null;
+    if (layout.currentVersionId) {
+      const [current] = await tx
+        .select()
+        .from(estimateLayoutVersions)
+        .where(eq(estimateLayoutVersions.id, layout.currentVersionId))
+        .limit(1);
+      if (current && current.status === 'draft') {
+        priorVersionId = current.priorVersionId;
+        await tx
+          .delete(estimateLayoutPages)
+          .where(eq(estimateLayoutPages.layoutVersionId, current.id));
+        await tx.delete(estimateLayoutVersions).where(eq(estimateLayoutVersions.id, current.id));
+      }
+    }
+
+    const [{ maxNumber }] = await tx
+      .select({
+        maxNumber: sql<number>`COALESCE(MAX(${estimateLayoutVersions.versionNumber}), 0)::int`,
+      })
+      .from(estimateLayoutVersions)
+      .where(eq(estimateLayoutVersions.layoutId, input.layoutId));
+
+    const restoredLabel = source.name ?? `v${source.versionNumber}`;
+    const [draft] = await tx
+      .insert(estimateLayoutVersions)
+      .values({
+        organizationId: input.organizationId,
+        layoutId: input.layoutId,
+        versionNumber: maxNumber + 1,
+        status: 'draft',
+        name: `Restored from ${restoredLabel}`,
+        priorVersionId,
+        createdBy: input.actorUserId,
+      })
+      .returning();
+
+    await copyPages(tx, source.id, draft.id);
+
+    await tx
+      .update(estimateLayouts)
+      .set({ currentVersionId: draft.id, updatedAt: new Date() })
+      .where(eq(estimateLayouts.id, input.layoutId));
+
+    await recordAuditEvent(tx, {
+      organizationId: input.organizationId,
+      actorUserId: input.actorUserId,
+      action: 'estimate_layout.version_restored',
+      entityType: 'estimate_layout',
+      entityId: input.layoutId,
+      newState: { fromVersion: source.versionNumber, newDraftVersion: draft.versionNumber },
+      source: 'web',
+      correlationId: input.correlationId,
+    });
+
+    return draft;
   });
 }
 

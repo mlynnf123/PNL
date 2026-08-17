@@ -172,7 +172,7 @@ export function ContractBuilder({
           <Link href="/dashboard/contracts" className="text-sm text-slate-500 hover:text-slate-700">
             ← Contracts
           </Link>
-          <h2 className="mt-1 text-2xl font-[550] tracking-[0.015em] text-slate-900">
+          <h2 className="mt-1 text-2xl font-normal tracking-[0.035em] text-slate-900">
             {initial ? `CON-${String(initial.contractNumber).padStart(4, '0')}` : 'New contract'}
           </h2>
         </div>

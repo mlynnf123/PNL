@@ -1,6 +1,11 @@
 import type { Metadata } from 'next';
-import { Roboto } from 'next/font/google';
+import { Geist, Roboto } from 'next/font/google';
 import './globals.css';
+import { Toaster } from '@/components/shadcn/sonner';
+import { TooltipProvider } from '@/components/shadcn/tooltip';
+import { cn } from '@/lib/utils';
+
+const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 
 const roboto = Roboto({
   variable: '--font-roboto',
@@ -19,8 +24,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${roboto.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col font-sans font-normal">{children}</body>
+    <html
+      lang="en"
+      className={cn('h-full antialiased font-sans', roboto.variable, geist.variable)}
+    >
+      <body className="flex min-h-full flex-col font-sans font-normal">
+        <TooltipProvider delayDuration={200}>{children}</TooltipProvider>
+        <Toaster />
+      </body>
     </html>
   );
 }

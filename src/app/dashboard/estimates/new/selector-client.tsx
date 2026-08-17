@@ -84,8 +84,8 @@ export function LayoutSelector({
 
       {layouts.length === 0 ? (
         <EmptyState
-          title="No published layouts"
-          description="An admin needs to design and publish a layout before you can build an estimate from it."
+          title="No published templates"
+          description="An admin needs to design and publish a template before you can build an estimate from it."
         />
       ) : (
         <div className="max-w-md space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">

@@ -34,7 +34,7 @@ export function Drawer({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-          <h3 className="text-base font-[550] tracking-[0.015em] text-slate-900">{title}</h3>
+          <h3 className="text-base font-normal tracking-[0.035em] text-slate-900">{title}</h3>
           <button
             type="button"
             onClick={onClose}

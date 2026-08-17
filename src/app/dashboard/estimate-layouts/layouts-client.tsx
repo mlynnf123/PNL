@@ -47,9 +47,9 @@ export function LayoutsClient({ layouts }: { layouts: LayoutListRow[] }) {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Estimate layouts"
+        title="Estimate templates"
         description="Reusable page stacks that reps build estimates from"
-        action={<Button onClick={() => setCreating(true)}>New layout</Button>}
+        action={<Button onClick={() => setCreating(true)}>New template</Button>}
       />
 
       {error && (
@@ -60,9 +60,9 @@ export function LayoutsClient({ layouts }: { layouts: LayoutListRow[] }) {
 
       {active.length === 0 ? (
         <EmptyState
-          title="No layouts yet"
+          title="No templates yet"
           description="Design a reusable estimate or legal-document layout to build from."
-          action={<Button onClick={() => setCreating(true)}>New layout</Button>}
+          action={<Button onClick={() => setCreating(true)}>New template</Button>}
         />
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -107,7 +107,7 @@ export function LayoutsClient({ layouts }: { layouts: LayoutListRow[] }) {
                     type="button"
                     onClick={() => {
                       if (
-                        confirm('Retire this layout? Reps will no longer be able to build from it.')
+                        confirm('Retire this template? Reps will no longer be able to build from it.')
                       )
                         run(retireLayoutAction(l.id));
                     }}
@@ -178,7 +178,7 @@ function CreateLayoutModal({
     <Modal
       open
       onClose={onClose}
-      title="New layout"
+      title="New template"
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
@@ -194,7 +194,7 @@ function CreateLayoutModal({
       }
     >
       <div className="space-y-4">
-        <FormField label="Layout name">
+        <FormField label="Template name">
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}

@@ -12,9 +12,9 @@ export default async function EstimateLayoutsPage() {
   if (!canAdmin) {
     return (
       <div>
-        <PageHeader title="Layouts" />
+        <PageHeader title="Templates" />
         <p className="text-sm font-normal text-slate-500">
-          You don&apos;t have permission to design estimate layouts.
+          You don&apos;t have permission to design estimate templates.
         </p>
       </div>
     );

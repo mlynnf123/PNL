@@ -91,7 +91,7 @@ export function EstimatesClient({
           <div className="flex items-center gap-2">
             {canAdminLayouts && (
               <LinkButton href="/dashboard/estimate-layouts" variant="secondary">
-                Layouts
+                Templates
               </LinkButton>
             )}
             {canManage && (

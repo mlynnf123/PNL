@@ -62,7 +62,7 @@ export default async function NewLeadPage({
 
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <h2 className="text-lg font-[550] tracking-[0.015em] text-slate-900">New lead</h2>
+      <h2 className="text-lg font-normal tracking-[0.035em] text-slate-900">New lead</h2>
 
       {error && (
         <p className="rounded-md border-l-2 border-slate-900 bg-slate-100 px-3 py-2 text-sm text-slate-800">
