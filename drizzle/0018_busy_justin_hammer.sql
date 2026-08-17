@@ -1,1 +1,0 @@
-ALTER TABLE "estimate_layout_versions" ADD COLUMN "name" text;

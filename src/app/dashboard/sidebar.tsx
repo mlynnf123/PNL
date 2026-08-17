@@ -48,7 +48,7 @@ export function Sidebar() {
   return (
     <aside
       className={`flex h-full flex-shrink-0 flex-col bg-[#14161D] p-3 transition-[width] duration-200 ${
-        collapsed ? 'w-16' : 'w-60'
+        collapsed ? 'w-16' : 'w-52'
       }`}
     >
       <button

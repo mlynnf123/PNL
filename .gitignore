@@ -17,3 +17,8 @@ next-env.d.ts
 
 # local object storage backend (dev)
 .storage/
+
+# Agent skill tooling (npx skills)
+.agents/
+.claude/skills/
+skills-lock.json

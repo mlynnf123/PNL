@@ -1,6 +1,6 @@
 {
-  "id": "590ac201-42b7-4f0f-83e4-98caca7431be",
-  "prevId": "9bae7b2b-f391-4ecc-ab1c-9820a15b9c56",
+  "id": "5675c5c8-064d-4077-8d72-cf14278e596b",
+  "prevId": "590ac201-42b7-4f0f-83e4-98caca7431be",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -3072,6 +3072,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'draft'"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "prior_version_id": {
           "name": "prior_version_id",

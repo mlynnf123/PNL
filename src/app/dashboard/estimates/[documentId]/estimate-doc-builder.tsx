@@ -3,7 +3,7 @@
 import { ChevronDown, ChevronUp, Eye, Plus, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { Badge, Button, LinkButton } from '@/components/ui';
 import { PageEditor } from '@/components/estimate/page-editor';
 import { formatCurrency } from '@/lib/format';
@@ -19,6 +19,7 @@ import {
   setEstimatePageIncludedAction,
   updateEstimateMetaAction,
   updateEstimatePageAction,
+  uploadInspectionPhotoAction,
 } from '../doc-actions';
 
 const ctrl =
@@ -44,6 +45,19 @@ export function EstimateDocBuilder({
   const editable = canManage && doc.status === 'draft';
   const number = `EST-${String(doc.docNumber).padStart(4, '0')}`;
 
+  const [liveTotal, setLiveTotal] = useState(doc.total);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  // Live rowVersion for optimistic concurrency across rapid auto-saves; savedRef
+  // holds the last-persisted page snapshot so only real edits trigger a save.
+  const rowVersionRef = useRef(doc.rowVersion);
+  const savedRef = useRef('');
+
+  // Resync the working rowVersion whenever the server sends a fresh doc (e.g.
+  // after adding/reordering a page). liveTotal is updated from save responses.
+  useEffect(() => {
+    rowVersionRef.current = doc.rowVersion;
+  }, [doc.rowVersion]);
+
   function run(action: Promise<ActionResult>, onOk?: () => void) {
     setError('');
     startTransition(async () => {
@@ -58,7 +72,69 @@ export function EstimateDocBuilder({
 
   function selectPage(p: EstimatePageRow) {
     setSelectedKey(p.id);
-    setPageDraft({ title: p.title ?? '', content: p.contentJson ?? {} });
+    const draft = { title: p.title ?? '', content: p.contentJson ?? {} };
+    setPageDraft(draft);
+    savedRef.current = JSON.stringify(draft);
+  }
+
+  // Auto-save the selected page ~700ms after edits stop — no manual Save.
+  useEffect(() => {
+    if (!editable || selectedKey === 'details') return;
+    const page = doc.pages.find((p) => p.id === selectedKey);
+    if (!page) return;
+    const snapshot = JSON.stringify(pageDraft);
+    if (snapshot === savedRef.current) return;
+    const t = setTimeout(async () => {
+      setSaveState('saving');
+      setError('');
+      const res = await updateEstimatePageAction(
+        doc.id,
+        page.id,
+        pageDraft.content,
+        rowVersionRef.current,
+        pageDraft.title,
+      );
+      if (res.ok) {
+        savedRef.current = snapshot;
+        if (res.rowVersion !== undefined) rowVersionRef.current = res.rowVersion;
+        if (res.total !== undefined) setLiveTotal(res.total);
+        setSaveState('saved');
+      } else {
+        setError(res.error);
+        setSaveState('error');
+      }
+    }, 700);
+    return () => clearTimeout(t);
+  }, [pageDraft, selectedKey, editable, doc.id, doc.pages]);
+
+  const saveDetails = useCallback(
+    async (fields: Record<string, string | null>) => {
+      setSaveState('saving');
+      setError('');
+      const res = await updateEstimateMetaAction(doc.id, rowVersionRef.current, fields);
+      if (res.ok) {
+        if (res.rowVersion !== undefined) rowVersionRef.current = res.rowVersion;
+        setSaveState('saved');
+      } else {
+        setError(res.error);
+        setSaveState('error');
+      }
+    },
+    [doc.id],
+  );
+
+  // Upload an inspection photo and return its document id for the editor to
+  // embed. The id is persisted when the page is saved (Save page).
+  async function uploadInspectionPhoto(file: File): Promise<string | null> {
+    setError('');
+    const fd = new FormData();
+    fd.set('file', file);
+    const res = await uploadInspectionPhotoAction(doc.id, fd);
+    if (!res.ok) {
+      setError(res.error);
+      return null;
+    }
+    return res.id ?? null;
   }
 
   function move(pageId: string, dir: -1 | 1) {
@@ -82,7 +158,18 @@ export function EstimateDocBuilder({
           <div className="mt-1 flex items-center gap-2">
             <h2 className="text-2xl font-normal tracking-[0.035em] text-slate-900">{number}</h2>
             <Badge tone={toneFor(ESTIMATE_DOC_STATUS_TONE, doc.status)}>{doc.status}</Badge>
-            <span className="text-sm text-slate-500">{formatCurrency(doc.total)}</span>
+            <span className="text-sm text-slate-500">{formatCurrency(liveTotal)}</span>
+            {editable && (
+              <span className="text-xs text-slate-400">
+                {saveState === 'saving'
+                  ? '· Saving…'
+                  : saveState === 'saved'
+                    ? '· Saved'
+                    : saveState === 'error'
+                      ? '· Save failed'
+                      : ''}
+              </span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -227,12 +314,7 @@ export function EstimateDocBuilder({
         {/* Canvas */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           {selectedKey === 'details' ? (
-            <DetailsPanel
-              doc={doc}
-              editable={editable}
-              isPending={isPending}
-              onSave={(fields) => run(updateEstimateMetaAction(doc.id, doc.rowVersion, fields))}
-            />
+            <DetailsPanel doc={doc} editable={editable} onSave={saveDetails} />
           ) : selectedPage ? (
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-3">
@@ -246,26 +328,6 @@ export function EstimateDocBuilder({
                     className={ctrl}
                   />
                 </div>
-                {editable && (
-                  <div className="pt-5">
-                    <Button
-                      disabled={isPending}
-                      onClick={() =>
-                        run(
-                          updateEstimatePageAction(
-                            doc.id,
-                            selectedPage.id,
-                            pageDraft.content,
-                            doc.rowVersion,
-                            pageDraft.title,
-                          ),
-                        )
-                      }
-                    >
-                      Save page
-                    </Button>
-                  </div>
-                )}
               </div>
 
               {selectedPage.pageType === 'cover' && (
@@ -282,6 +344,7 @@ export function EstimateDocBuilder({
                   onChange={
                     editable ? (v) => setPageDraft((d) => ({ ...d, content: v })) : () => {}
                   }
+                  onUploadPhoto={editable ? uploadInspectionPhoto : undefined}
                 />
               </div>
             </div>
@@ -297,12 +360,10 @@ export function EstimateDocBuilder({
 function DetailsPanel({
   doc,
   editable,
-  isPending,
   onSave,
 }: {
   doc: EstimateDocFull;
   editable: boolean;
-  isPending: boolean;
   onSave: (fields: Record<string, string | null>) => void;
 }) {
   const [f, setF] = useState({
@@ -318,6 +379,23 @@ function DetailsPanel({
     repName: doc.repName ?? '',
   });
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
+
+  // Auto-save details ~700ms after edits stop. onSave is read through a ref so
+  // the debounce only depends on the field values.
+  const onSaveRef = useRef(onSave);
+  useEffect(() => {
+    onSaveRef.current = onSave;
+  }, [onSave]);
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    if (!editable) return;
+    const t = setTimeout(() => onSaveRef.current(f), 700);
+    return () => clearTimeout(t);
+  }, [f, editable]);
 
   return (
     <div className="space-y-4">
@@ -404,11 +482,7 @@ function DetailsPanel({
           />
         </Labeled>
       </div>
-      {editable && (
-        <Button disabled={isPending} onClick={() => onSave(f)}>
-          Save details
-        </Button>
-      )}
+      {editable && <p className="text-xs text-slate-400">Changes save automatically.</p>}
     </div>
   );
 }

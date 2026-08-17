@@ -1718,3 +1718,92 @@ export const estimateDocumentVersions = pgTable(
     ),
   ],
 );
+
+// CRM — AI insurance-scope parser (carrier estimate extraction). A carrier's
+// insurance estimate PDF is uploaded to a lead, extracted by AI into this
+// reviewable draft record, then a human approves selected fields before any
+// financial mapping happens. The carrier's numbers are NEVER collected revenue
+// (docs/01 SS4): approval only creates a DRAFT expected-revenue component that
+// still runs through the normal financial controls. Labor/material stay manual.
+// rawExtractionJson keeps the immutable original AI output (values, evidence,
+// line items, issues); the typed columns below hold the human-approved values,
+// so a correction never overwrites the AI original.
+export const carrierScopeStatusEnum = pgEnum('carrier_scope_status', [
+  'uploaded', // file stored, not parsed yet
+  'processing', // extraction running
+  'parsed_needs_review', // structured draft exists; review screen only
+  'approved_mapped', // reviewer approved; draft expected-revenue created
+  'rejected', // wrong/unusable document, kept as evidence
+  'parse_error', // technical extraction failure; retry/manual path
+]);
+
+export const carrierScopes = pgTable(
+  'carrier_scopes',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    leadId: uuid('lead_id')
+      .notNull()
+      .references(() => leads.id),
+    // The stored insurance PDF (documents row, entity_type 'lead').
+    documentId: uuid('document_id').references(() => documents.id),
+    status: carrierScopeStatusEnum('status').notNull().default('uploaded'),
+
+    // Extraction metadata.
+    extractionModel: text('extraction_model'), // e.g. 'openai/gpt-oss-120b' or 'qwen/qwen3.6-27b'
+    extractionMode: text('extraction_mode'), // 'native_text' | 'vision'
+    extractedAt: timestamp('extracted_at', { withTimezone: true }),
+    parseError: text('parse_error'),
+    // Immutable original AI output: identity, financial summary, line items,
+    // per-field evidence, and issues. Never overwritten by human corrections.
+    rawExtractionJson: jsonb('raw_extraction_json')
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+
+    // Human-approved identity (nullable until reviewed).
+    carrier: text('carrier'),
+    claimNumber: text('claim_number'),
+    insuredName: text('insured_name'),
+    propertyAddress: text('property_address'),
+    estimateNumber: text('estimate_number'),
+    estimateDate: date('estimate_date'),
+    dateOfLoss: date('date_of_loss'),
+
+    // Human-approved carrier financial summary — fixed-precision decimals,
+    // nullable (not every estimate prints every field). Carrier facts only:
+    // none of these is "collected revenue" or JJ profit.
+    rcv: numeric('rcv', { precision: 12, scale: 2 }),
+    acv: numeric('acv', { precision: 12, scale: 2 }),
+    recoverableDepreciation: numeric('recoverable_depreciation', { precision: 12, scale: 2 }),
+    nonRecoverableDepreciation: numeric('non_recoverable_depreciation', {
+      precision: 12,
+      scale: 2,
+    }),
+    deductible: numeric('deductible', { precision: 12, scale: 2 }),
+    netClaim: numeric('net_claim', { precision: 12, scale: 2 }),
+    priorPayments: numeric('prior_payments', { precision: 12, scale: 2 }),
+    salesTax: numeric('sales_tax', { precision: 12, scale: 2 }),
+    overheadProfit: numeric('overhead_profit', { precision: 12, scale: 2 }),
+
+    // Mapping outcome: the draft expected-revenue component created on approval
+    // (nullable — only set once a reviewer approves the revenue mapping).
+    mappedRevenueComponentId: uuid('mapped_revenue_component_id').references(
+      () => revenueComponents.id,
+    ),
+    reviewedBy: uuid('reviewed_by').references(() => users.id),
+    reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    // Optimistic concurrency (same pattern as jobs/leads).
+    rowVersion: integer('row_version').notNull().default(1),
+  },
+  (table) => [index('carrier_scopes_lead_idx').on(table.leadId)],
+);

@@ -1,20 +1,31 @@
 import Link from 'next/link';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
-import { Button as ShadButton, buttonVariants } from '@/components/shadcn/button';
-import { cn } from '@/lib/utils';
 
-// Our app's button API, kept stable, now rendered by the shadcn/Radix button so
-// every button gets consistent theming, focus rings, and press states.
-export type ButtonVariant = 'primary' | 'accent' | 'secondary' | 'danger';
+// Reference button styles: one dominant primary (slate-800), a teal accent for
+// positive/CTA actions, a bordered secondary, a red danger, plus low-emphasis
+// dashed / ghost / link variants — all in the slate + teal system.
+export type ButtonVariant =
+  'primary' | 'accent' | 'secondary' | 'danger' | 'dashed' | 'ghost' | 'link';
 export type ButtonSize = 'sm' | 'md';
 
-const VARIANT_MAP: Record<ButtonVariant, 'default' | 'outline' | 'destructive'> = {
-  primary: 'default',
-  accent: 'default',
-  secondary: 'outline',
-  danger: 'destructive',
+const VARIANT: Record<ButtonVariant, string> = {
+  primary: 'bg-slate-800 text-white hover:bg-slate-900',
+  accent: 'bg-teal-600 text-white hover:bg-teal-700',
+  secondary: 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
+  danger: 'bg-red-600 text-white hover:bg-red-700',
+  dashed: 'border border-dashed border-slate-400 bg-white text-slate-700 hover:bg-slate-50',
+  ghost: 'bg-transparent text-slate-700 hover:bg-slate-100',
+  link: 'bg-transparent text-teal-600 hover:text-teal-700 hover:underline',
 };
-const SIZE_MAP: Record<ButtonSize, 'sm' | 'default'> = { sm: 'sm', md: 'default' };
+
+const SIZE: Record<ButtonSize, string> = {
+  sm: 'px-3 py-1.5 text-xs',
+  md: 'px-4 py-2 text-sm',
+};
+
+function classes(variant: ButtonVariant, size: ButtonSize, extra = ''): string {
+  return `inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition-colors disabled:opacity-50 ${VARIANT[variant]} ${SIZE[size]} ${extra}`;
+}
 
 export function Button({
   variant = 'primary',
@@ -28,9 +39,9 @@ export function Button({
   children: ReactNode;
 } & ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <ShadButton variant={VARIANT_MAP[variant]} size={SIZE_MAP[size]} className={className} {...props}>
+    <button className={classes(variant, size, className)} {...props}>
       {children}
-    </ShadButton>
+    </button>
   );
 }
 
@@ -48,13 +59,7 @@ export function LinkButton({
   children: ReactNode;
 }) {
   return (
-    <Link
-      href={href}
-      className={cn(
-        buttonVariants({ variant: VARIANT_MAP[variant], size: SIZE_MAP[size] }),
-        className,
-      )}
-    >
+    <Link href={href} className={classes(variant, size, className)}>
       {children}
     </Link>
   );

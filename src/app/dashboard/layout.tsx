@@ -21,7 +21,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <div className="flex flex-1 flex-col overflow-hidden">
         <Topbar email={session.user.email ?? ''} logout={logout} />
         <main className="flex-1 overflow-auto bg-[radial-gradient(1100px_520px_at_12%_-8%,#E7EEFB,transparent_60%),radial-gradient(900px_460px_at_100%_0%,#ECF0FB,transparent_55%),linear-gradient(180deg,#F4F7FD_0%,#FAFBFE_100%)] p-4 md:p-8">
-          <div className="mx-auto w-full max-w-[1440px]">{children}</div>
+          <div className="mx-auto w-full max-w-[1600px]">{children}</div>
         </main>
       </div>
       <CommandPalette />

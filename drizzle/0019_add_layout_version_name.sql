@@ -1,0 +1,1 @@
+ALTER TABLE "estimate_layout_versions" ADD COLUMN IF NOT EXISTS "name" text;

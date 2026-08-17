@@ -106,8 +106,38 @@ export interface InspectionSectionItem {
   body?: string;
 }
 
+export interface InspectionSection {
+  id: string;
+  title: string;
+  style?: string;
+  items: InspectionSectionItem[];
+}
+
 export interface InspectionContent {
-  sections: { id: string; title: string; style?: string; items: InspectionSectionItem[] }[];
+  sections: InspectionSection[];
+}
+
+// Counts across an inspection page's sections. Pure so the page rail summary and
+// tests share one definition; a photo item only counts once it has an uploaded
+// document attached (an empty photo slot is not yet a photo).
+export function inspectionSummary(content: InspectionContent | undefined | null): {
+  sections: number;
+  photos: number;
+  texts: number;
+} {
+  const sections = content?.sections ?? [];
+  let photos = 0;
+  let texts = 0;
+  for (const section of sections) {
+    for (const item of section.items ?? []) {
+      if (item.type === 'photo') {
+        if (item.documentId) photos += 1;
+      } else {
+        texts += 1;
+      }
+    }
+  }
+  return { sections: sections.length, photos, texts };
 }
 
 export interface LegalBodyContent {

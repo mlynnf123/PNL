@@ -674,6 +674,23 @@ function LeadDetailDrawer({
 
         <div className="border-t border-slate-200 pt-4">
           <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-medium tracking-wider text-slate-400 uppercase">
+              Insurance scope
+            </p>
+            <Link
+              href={`/dashboard/leads/${lead.id}/scope`}
+              className="text-sm font-medium text-teal-600 hover:underline"
+            >
+              Upload &amp; review →
+            </Link>
+          </div>
+          <p className="text-sm text-slate-500">
+            AI-parse a carrier estimate PDF into draft financials.
+          </p>
+        </div>
+
+        <div className="border-t border-slate-200 pt-4">
+          <div className="mb-2 flex items-center justify-between">
             <p className="text-xs font-medium tracking-wider text-slate-400 uppercase">Contracts</p>
             {canManage && (
               <Link
