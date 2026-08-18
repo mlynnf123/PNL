@@ -30,6 +30,9 @@ const SAFETY = 0.85; // headroom under the hard ceiling
 // Cap chunks/batches so a pathological PDF can't fan out into dozens of calls.
 const MAX_TEXT_CHUNKS = Number(process.env.GROQ_SCOPE_MAX_CHUNKS ?? 4);
 const VISION_IMAGES_PER_REQ = Number(process.env.GROQ_SCOPE_VISION_BATCH ?? 2);
+// The vision model (qwen3.6) is a reasoning model: give the reply room for its
+// <think> pass plus the JSON, and force JSON mode so it can't ramble past budget.
+const VISION_REPLY_TOKENS = Number(process.env.GROQ_SCOPE_VISION_MAX_TOKENS ?? 3000);
 const MAX_VISION_REQUESTS = Number(process.env.GROQ_SCOPE_MAX_VISION_REQ ?? 3);
 
 const PROMPT = `You extract facts from a property-insurance estimate (a carrier "scope"). Return ONLY a single JSON object, no prose, no markdown fences.
@@ -190,7 +193,11 @@ async function callGroq(
 // Reasoning models (e.g. Qwen) prepend <think>…</think>; strip it, then take the
 // outermost JSON object. Throws if no JSON object is present.
 function parseModelJson(text: string): unknown {
-  const cleaned = text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+  const cleaned = text
+    .replace(/<think>[\s\S]*?<\/think>/g, '') // closed reasoning blocks
+    .replace(/<think>[\s\S]*$/g, '') // truncated/unclosed reasoning at the end
+    .replace(/```(?:json)?/gi, '') // stray markdown fences
+    .trim();
   const start = cleaned.indexOf('{');
   const end = cleaned.lastIndexOf('}');
   if (start === -1 || end === -1 || end <= start) {
@@ -290,7 +297,10 @@ export async function extractScopeFromImages(
       i % 2 === 0
         ? [SCOPE_MODELS.vision, SCOPE_MODELS.visionFallback]
         : [SCOPE_MODELS.visionFallback, SCOPE_MODELS.vision];
-    const { text: out, model } = await callGroq(order, content);
+    const { text: out, model } = await callGroq(order, content, {
+      jsonMode: true,
+      maxTokens: VISION_REPLY_TOKENS,
+    });
     if (i === 0) usedModel = model;
     try {
       parts.push(parseModelJson(out));
