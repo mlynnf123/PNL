@@ -105,18 +105,19 @@ async function DashboardBody({
   return (
     <div className="space-y-8">
       {/* Business metrics */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard label="In pipeline" value={String(pipeline.count)} />
-        <StatCard label="Pipeline value" value={formatCurrency(pipeline.totalValue)} />
-        <StatCard label="Jobs in progress" value={String(inProgress)} />
-        <StatCard label="Open receivables" value={formatCurrency(outstandingTotal)} />
+      <div className="mx-auto grid w-full max-w-4xl grid-cols-2 gap-3 lg:grid-cols-3">
+        <StatCard compact label="In pipeline" value={String(pipeline.count)} />
+        <StatCard compact label="Pipeline value" value={formatCurrency(pipeline.totalValue)} />
+        <StatCard compact label="Jobs in progress" value={String(inProgress)} />
+        <StatCard compact label="Open receivables" value={formatCurrency(outstandingTotal)} />
         {canViewProfit && companyProfit && (
           <StatCard
+            compact
             label="Company profit (net)"
             value={formatCurrency(companyProfit.netCompanyProfit)}
           />
         )}
-        <StatCard label="Commission payable" value={formatCurrency(payableTotal)} />
+        <StatCard compact label="Commission payable" value={formatCurrency(payableTotal)} />
       </div>
 
       {/* Trends + "needs attention" stacked on the left; live activity rail on the right */}
