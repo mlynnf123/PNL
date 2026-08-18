@@ -8,7 +8,11 @@ import { PERMISSIONS, userHasPermission } from '@/lib/permissions';
 import { getDashboardQueues } from '@/server/queries/dashboard-queues';
 import { getOutstandingCollectionsReport } from '@/server/queries/outstanding-collections-report';
 import { getCompanyProfitReport } from '@/server/queries/company-profit-report';
+import { getBusinessTrends } from '@/server/queries/business-trends';
+import { getRecentActivity } from '@/server/queries/recent-activity';
 import { Badge, Card, CardHeader, EmptyState, PageHeader, StatCard } from '@/components/ui';
+import { BusinessTrendsChart } from './business-trends-chart';
+import { ActivityFeed } from './activity-feed';
 
 interface JobItem {
   jobId: string;
@@ -72,6 +76,17 @@ async function DashboardBody({
     ? await getCompanyProfitReport(organizationId, viewerUserId, db)
     : null;
   const payableTotal = q.commissionPayable.reduce((s, p) => s + Number(p.balance || 0), 0);
+  // Pipeline summary (moved here from the Pipeline page): active record count +
+  // total contract value across the active funnel.
+  const [pipeline] = await db.execute<{ count: number; totalValue: string }>(sql`
+    SELECT COUNT(*)::int AS count,
+           COALESCE(SUM(original_contract_amount), 0)::numeric(14,2) AS "totalValue"
+    FROM jobs
+    WHERE organization_id = ${organizationId} AND record_state = 'Active'
+  `);
+  const trends = await getBusinessTrends(organizationId);
+  const canViewAudit = await userHasPermission(db, viewerUserId, PERMISSIONS.AUDIT_VIEWING);
+  const recentActivity = canViewAudit ? await getRecentActivity(organizationId) : [];
 
   const attention: { title: string; tone: 'red' | 'amber'; items: JobItem[] }[] = [
     { title: 'Close blocked', tone: 'red', items: q.closeBlocked },
@@ -90,9 +105,9 @@ async function DashboardBody({
   return (
     <div className="space-y-8">
       {/* Business metrics */}
-      <div
-        className={`grid gap-4 sm:grid-cols-2 ${canViewProfit ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}
-      >
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard label="In pipeline" value={String(pipeline.count)} />
+        <StatCard label="Pipeline value" value={formatCurrency(pipeline.totalValue)} />
         <StatCard label="Jobs in progress" value={String(inProgress)} />
         <StatCard label="Open receivables" value={formatCurrency(outstandingTotal)} />
         {canViewProfit && companyProfit && (
@@ -104,21 +119,36 @@ async function DashboardBody({
         <StatCard label="Commission payable" value={formatCurrency(payableTotal)} />
       </div>
 
-      {/* What needs attention now */}
-      {attentionCount === 0 ? (
-        <EmptyState
-          title="Nothing needs attention"
-          description="No blocked closes, short collections, or pending depreciation right now."
-        />
-      ) : (
-        <div className="grid gap-4 lg:grid-cols-3">
-          {attention
-            .filter((a) => a.items.length > 0)
-            .map((a) => (
-              <QueueCard key={a.title} title={a.title} tone={a.tone} items={a.items} />
-            ))}
+      {/* Trends + "needs attention" stacked on the left; live activity rail on the right */}
+      <div className={`grid gap-4 ${canViewAudit ? 'lg:grid-cols-3' : ''}`}>
+        <div className={`flex min-w-0 flex-col gap-4 ${canViewAudit ? 'lg:col-span-2' : ''}`}>
+          <BusinessTrendsChart data={trends} canViewCosts={canViewProfit} />
+          {attentionCount === 0 ? (
+            <EmptyState
+              title="Nothing needs attention"
+              description="No blocked closes, short collections, or pending depreciation right now."
+            />
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {attention
+                .filter((a) => a.items.length > 0)
+                .map((a) => (
+                  <QueueCard key={a.title} title={a.title} tone={a.tone} items={a.items} />
+                ))}
+            </div>
+          )}
         </div>
-      )}
+        {canViewAudit && (
+          // relative wrapper takes no intrinsic height, so the row height is set by
+          // the left column; the feed absolutely fills it and scrolls internally,
+          // keeping the bottoms aligned regardless of how many events there are.
+          <div className="relative min-w-0">
+            <div className="lg:absolute lg:inset-0">
+              <ActivityFeed initial={recentActivity} />
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* In-flight work */}
       <div>

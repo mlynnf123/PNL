@@ -1,22 +1,56 @@
 'use client';
 
-import { Trash2 } from 'lucide-react';
+import {
+  type Column,
+  type ColumnDef,
+  type RowSelectionState,
+  type SortingState,
+  type VisibilityState,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
+import { ArrowUpDown, ChevronLeft, ChevronRight, Pencil, SlidersHorizontal, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState, useTransition } from 'react';
+import { type ReactNode, useMemo, useState, useTransition } from 'react';
 import { Badge, EmptyState, LinkButton, PageHeader, StatCard } from '@/components/ui';
+import { Button } from '@/components/ui/button';
 import { NewFromTemplate } from '@/components/estimate/new-from-template';
+import { Checkbox } from '@/components/shadcn/checkbox';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/shadcn/dropdown-menu';
+import { Input } from '@/components/shadcn/input';
+import { Card } from '@/components/ui/shadcn/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/shadcn/table';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { ESTIMATE_DOC_STATUS_TONE, toneFor } from '@/lib/status';
 import type { EstimateDocListRow } from '@/server/queries/estimate-documents';
 import type { SelectableLayout } from '@/server/queries/estimate-layouts';
-import {
-  type ActionResult,
-  createEstimateFromLayoutAction,
-  deleteEstimateDocumentAction,
-} from './doc-actions';
+import { createEstimateFromLayoutAction, deleteEstimateDocumentAction } from './doc-actions';
 
-const STATUSES = ['draft', 'sent', 'signed', 'declined', 'void'] as const;
+const COLUMN_LABELS: Record<string, string> = {
+  docNumber: 'Number',
+  name: 'Name',
+  customerName: 'Customer',
+  status: 'Status',
+  total: 'Total',
+  updatedAt: 'Updated',
+};
 
 export function EstimatesClient({
   estimates,
@@ -29,49 +63,22 @@ export function EstimatesClient({
   canManage: boolean;
   canAdminLayouts: boolean;
 }) {
+  // TanStack instance methods can't be safely memoized by React Compiler.
+  'use no memo';
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [search, setSearch] = useState('');
-  const [bucket, setBucket] = useState('all');
   const [error, setError] = useState('');
+  const [globalFilter, setGlobalFilter] = useState('');
+  const [sorting, setSorting] = useState<SortingState>([{ id: 'updatedAt', desc: true }]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
-  const preStatus = useMemo(() => {
-    const q = search.toLowerCase();
-    return estimates.filter(
-      (e) =>
-        !q ||
-        e.name.toLowerCase().includes(q) ||
-        (e.customerName ?? '').toLowerCase().includes(q) ||
-        `est-${e.docNumber}`.includes(q),
-    );
-  }, [estimates, search]);
-
-  const counts = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const e of preStatus) m.set(e.status, (m.get(e.status) ?? 0) + 1);
-    return m;
-  }, [preStatus]);
-
-  const rows = useMemo(
-    () => (bucket === 'all' ? preStatus : preStatus.filter((e) => e.status === bucket)),
-    [preStatus, bucket],
-  );
-
-  const pipeline = preStatus
+  const openPipeline = estimates
     .filter((e) => e.status === 'draft' || e.status === 'sent')
     .reduce((s, e) => s + Number(e.total || 0), 0);
-  const signedValue = preStatus
+  const signedValue = estimates
     .filter((e) => e.status === 'signed')
     .reduce((s, e) => s + Number(e.total || 0), 0);
-
-  function run(action: Promise<ActionResult>) {
-    setError('');
-    startTransition(async () => {
-      const res = await action;
-      if (!res.ok) setError(res.error);
-      else router.refresh();
-    });
-  }
 
   function createFromLayout(layoutId: string) {
     setError('');
@@ -82,11 +89,145 @@ export function EstimatesClient({
     });
   }
 
+  const columns = useMemo<ColumnDef<EstimateDocListRow>[]>(
+    () => [
+      {
+        id: 'select',
+        header: ({ table }) => (
+          <Checkbox
+            aria-label="Select all"
+            checked={
+              table.getIsAllPageRowsSelected()
+                ? true
+                : table.getIsSomePageRowsSelected()
+                  ? 'indeterminate'
+                  : false
+            }
+            onCheckedChange={(v) => table.toggleAllPageRowsSelected(v === true)}
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            aria-label="Select row"
+            checked={row.getIsSelected()}
+            onCheckedChange={(v) => row.toggleSelected(v === true)}
+          />
+        ),
+        enableSorting: false,
+        enableHiding: false,
+      },
+      {
+        accessorKey: 'docNumber',
+        header: ({ column }) => <SortHeader column={column}>Number</SortHeader>,
+        cell: ({ row }) => (
+          <Link
+            href={`/dashboard/estimates/${row.original.id}`}
+            className="font-medium text-slate-900 hover:text-teal-600"
+          >
+            EST-{String(row.original.docNumber).padStart(4, '0')}
+          </Link>
+        ),
+      },
+      {
+        accessorKey: 'name',
+        header: ({ column }) => <SortHeader column={column}>Name</SortHeader>,
+        cell: ({ row }) => (
+          <Link
+            href={`/dashboard/estimates/${row.original.id}`}
+            className="text-slate-700 hover:text-teal-600"
+          >
+            {row.original.name}
+          </Link>
+        ),
+      },
+      {
+        accessorKey: 'customerName',
+        header: 'Customer',
+        cell: ({ row }) => <span className="text-slate-600">{row.original.customerName ?? '—'}</span>,
+      },
+      {
+        accessorKey: 'status',
+        header: 'Status',
+        cell: ({ row }) => (
+          <Badge tone={toneFor(ESTIMATE_DOC_STATUS_TONE, row.original.status)}>
+            {row.original.status}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: 'total',
+        header: ({ column }) => (
+          <div className="text-right">
+            <SortHeader column={column}>Total</SortHeader>
+          </div>
+        ),
+        cell: ({ row }) => (
+          <div className="text-right font-medium text-slate-900">
+            {formatCurrency(row.original.total)}
+          </div>
+        ),
+      },
+      {
+        accessorKey: 'updatedAt',
+        header: ({ column }) => <SortHeader column={column}>Updated</SortHeader>,
+        cell: ({ row }) => (
+          <span className="text-xs text-slate-500">{formatDate(row.original.updatedAt)}</span>
+        ),
+      },
+    ],
+    [],
+  );
+
+  const table = useReactTable({
+    data: estimates,
+    columns,
+    state: { sorting, globalFilter, columnVisibility, rowSelection },
+    onSortingChange: setSorting,
+    onGlobalFilterChange: setGlobalFilter,
+    onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
+    getRowId: (r) => r.id,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: 20 } },
+  });
+
+  const filteredRows = table.getFilteredRowModel().rows;
+  const selectedRows = table.getFilteredSelectedRowModel().rows.map((r) => r.original);
+  const selectedCount = selectedRows.length;
+  const selectedDrafts = selectedRows.filter((e) => e.status === 'draft');
+
+  function editSelected() {
+    if (selectedCount === 1) router.push(`/dashboard/estimates/${selectedRows[0].id}`);
+  }
+  function deleteSelected() {
+    setError('');
+    if (selectedDrafts.length === 0) {
+      setError('Only draft estimates can be deleted.');
+      return;
+    }
+    const n = selectedDrafts.length;
+    if (!confirm(`Delete ${n} draft estimate${n === 1 ? '' : 's'}? This cannot be undone.`)) return;
+    startTransition(async () => {
+      for (const e of selectedDrafts) {
+        const res = await deleteEstimateDocumentAction(e.id);
+        if (!res.ok) {
+          setError(res.error);
+          return;
+        }
+      }
+      setRowSelection({});
+      router.refresh();
+    });
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Estimates"
-        description={`${preStatus.length} estimate${preStatus.length === 1 ? '' : 's'}`}
+        description={`${estimates.length} estimate${estimates.length === 1 ? '' : 's'}`}
         action={
           <div className="flex items-center gap-2">
             {canAdminLayouts && (
@@ -109,8 +250,8 @@ export function EstimatesClient({
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Estimates" value={String(preStatus.length)} />
-        <StatCard label="Open pipeline" value={formatCurrency(pipeline)} />
+        <StatCard label="Estimates" value={String(estimates.length)} />
+        <StatCard label="Open pipeline" value={formatCurrency(openPipeline)} />
         <StatCard label="Signed value" value={formatCurrency(signedValue)} />
       </div>
 
@@ -120,44 +261,10 @@ export function EstimatesClient({
         </p>
       )}
 
-      <input
-        type="text"
-        placeholder="Search estimates..."
-        className="w-full max-w-md rounded-lg border border-slate-300 px-4 py-2 text-sm outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
-
-      <div className="flex flex-wrap gap-2">
-        {['all', ...STATUSES].map((b) => {
-          const count = b === 'all' ? preStatus.length : (counts.get(b) ?? 0);
-          const active = bucket === b;
-          return (
-            <button
-              key={b}
-              type="button"
-              onClick={() => setBucket(b)}
-              className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium capitalize transition-colors ${
-                active
-                  ? 'bg-slate-800 text-white'
-                  : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              {b}
-              <span
-                className={`rounded-full px-1.5 text-xs ${active ? 'bg-white/20' : 'bg-slate-100 text-slate-500'}`}
-              >
-                {count}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {rows.length === 0 ? (
+      {estimates.length === 0 ? (
         <EmptyState
           title="No estimates"
-          description="Start an estimate from a layout to build a customer-facing packet."
+          description="Start an estimate from a template to build a customer-facing packet."
           action={
             canManage ? (
               <LinkButton href="/dashboard/estimates/new">New estimate</LinkButton>
@@ -165,67 +272,159 @@ export function EstimatesClient({
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50">
-                <tr>
-                  {['Number', 'Name', 'Customer', 'Status', 'Total', 'Updated', ''].map((h) => (
-                    <th
-                      key={h}
-                      className="px-4 py-3 text-xs font-medium tracking-wider text-slate-500 uppercase"
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((e) => (
-                  <tr
-                    key={e.id}
-                    className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
+        <>
+          {/* Toolbar: search + selection actions + columns */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              placeholder="Filter by name, customer, or number…"
+              value={globalFilter}
+              onChange={(e) => setGlobalFilter(e.target.value)}
+              className="max-w-xs"
+            />
+            {globalFilter && (
+              <Button variant="ghost" size="sm" onClick={() => setGlobalFilter('')}>
+                Clear
+              </Button>
+            )}
+
+            {canManage && selectedCount > 0 && (
+              <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1">
+                <span className="text-sm text-slate-600">{selectedCount} selected</span>
+                {selectedCount === 1 && (
+                  <button
+                    type="button"
+                    onClick={editSelected}
+                    disabled={isPending}
+                    aria-label="Edit selected"
+                    title="Edit"
+                    className="rounded-md p-1 text-slate-500 hover:bg-white hover:text-slate-800 disabled:opacity-50"
                   >
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/dashboard/estimates/${e.id}`}
-                        className="font-medium text-slate-900 hover:text-teal-600"
-                      >
-                        EST-{String(e.docNumber).padStart(4, '0')}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">{e.name}</td>
-                    <td className="px-4 py-3 text-slate-600">{e.customerName ?? '—'}</td>
-                    <td className="px-4 py-3">
-                      <Badge tone={toneFor(ESTIMATE_DOC_STATUS_TONE, e.status)}>{e.status}</Badge>
-                    </td>
-                    <td className="px-4 py-3 font-medium text-slate-900">
-                      {formatCurrency(e.total)}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-slate-500">{formatDate(e.updatedAt)}</td>
-                    <td className="px-4 py-3">
-                      {canManage && e.status === 'draft' && (
-                        <button
-                          type="button"
-                          disabled={isPending}
-                          onClick={() => {
-                            if (confirm('Delete this draft estimate? This cannot be undone.'))
-                              run(deleteEstimateDocumentAction(e.id));
-                          }}
-                          title="Delete"
-                          className="flex justify-end p-1 text-slate-400 hover:text-red-600"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    <Pencil size={15} />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={deleteSelected}
+                  disabled={isPending}
+                  aria-label="Delete selected drafts"
+                  title="Delete selected drafts"
+                  className="rounded-md p-1 text-red-500 hover:bg-white hover:text-red-700 disabled:opacity-50"
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            )}
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="secondary" size="sm" className="ml-auto">
+                  <SlidersHorizontal size={14} /> Columns
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {table
+                  .getAllColumns()
+                  .filter((c) => c.getCanHide())
+                  .map((c) => (
+                    <DropdownMenuCheckboxItem
+                      key={c.id}
+                      checked={c.getIsVisible()}
+                      onCheckedChange={(v) => c.toggleVisibility(!!v)}
+                    >
+                      {COLUMN_LABELS[c.id] ?? c.id}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-        </div>
+
+          <Card className="mt-3 overflow-hidden">
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((hg) => (
+                  <TableRow key={hg.id}>
+                    {hg.headers.map((h) => (
+                      <TableHead key={h.id}>
+                        {h.isPlaceholder
+                          ? null
+                          : flexRender(h.column.columnDef.header, h.getContext())}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows.length ? (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow key={row.id} data-state={row.getIsSelected() ? 'selected' : undefined}>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={table.getVisibleFlatColumns().length}
+                      className="h-20 text-center text-slate-400"
+                    >
+                      No results.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </Card>
+
+          <div className="mt-3 flex items-center justify-between gap-4">
+            <span className="text-sm text-slate-500">
+              {selectedCount} of {filteredRows.length} row(s) selected.
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+                aria-label="Previous page"
+              >
+                <ChevronLeft size={16} />
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+                aria-label="Next page"
+              >
+                <ChevronRight size={16} />
+              </Button>
+            </div>
+          </div>
+        </>
       )}
     </div>
+  );
+}
+
+// Sortable column header — click to toggle asc/desc.
+function SortHeader({
+  column,
+  children,
+}: {
+  column: Column<EstimateDocListRow, unknown>;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      className="inline-flex items-center gap-1 hover:text-slate-700"
+    >
+      {children}
+      <ArrowUpDown size={12} className="opacity-50" />
+    </button>
   );
 }

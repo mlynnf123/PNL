@@ -15,6 +15,7 @@ import { requireSession } from '@/lib/require-session';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { PERMISSIONS, userHasPermission } from '@/lib/permissions';
 import {
+  ESTIMATE_DOC_STATUS_TONE,
   JOB_CLOSE_TONE,
   JOB_COLLECTION_TONE,
   JOB_COMMISSION_TONE,
@@ -25,6 +26,7 @@ import {
 import { postCollection, reverseCollection } from '@/server/commands/collections';
 import { getEntityActivity } from '@/server/queries/activity';
 import { listDocuments } from '@/server/queries/documents';
+import { listEstimateDocuments } from '@/server/queries/estimate-documents';
 import { listUsersWithRoles } from '@/server/queries/settings-directory';
 import { deleteDocument, uploadDocument } from '@/server/commands/documents';
 import { AssigneeSelect } from './assignee-select';
@@ -138,6 +140,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
   );
 
   const jobDocuments = await listDocuments('job', jobId, session.user.organizationId);
+  // Estimates tied to this job — surfaced on the customer's profile below.
+  const linkedEstimates = await listEstimateDocuments(session.user.organizationId, { jobId });
 
   // Revenue add/edit/approve moved to the inline RevenueTable (worksheet-actions).
 
@@ -401,6 +405,26 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
 
           <Card>
             <CardHeader title="Estimates" />
+            {linkedEstimates.length > 0 ? (
+              <ul className="mb-3 divide-y divide-slate-100">
+                {linkedEstimates.map((e) => (
+                  <li key={e.id} className="flex items-center gap-2 py-2">
+                    <Link
+                      href={`/dashboard/estimates/${e.id}`}
+                      className="min-w-0 flex-1 truncate text-sm font-medium text-slate-800 hover:text-teal-600"
+                    >
+                      EST-{String(e.docNumber).padStart(4, '0')} · {e.name}
+                    </Link>
+                    <Badge tone={toneFor(ESTIMATE_DOC_STATUS_TONE, e.status)}>{e.status}</Badge>
+                    <span className="w-20 shrink-0 text-right text-sm text-slate-600">
+                      {formatCurrency(e.total)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mb-3 text-sm text-slate-400">No estimates linked to this job yet.</p>
+            )}
             <LinkButton href={`/dashboard/estimates/new?jobId=${job.id}`} variant="secondary">
               New estimate
             </LinkButton>

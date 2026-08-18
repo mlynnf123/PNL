@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { ConcurrencyConflictError } from '@/lib/concurrency';
 import { AuthorizationError } from '@/lib/permissions';
 import { requireSession } from '@/lib/require-session';
+import { archiveJob } from '@/server/commands/archive-job';
 import { assignJob } from '@/server/commands/assign-job';
 import { createLeadRecord } from '@/server/commands/create-lead-record';
 import {
@@ -68,6 +69,30 @@ export async function setJobAssigneeAction(
   } catch (err) {
     if (err instanceof AuthorizationError) {
       return { ok: false, error: 'You do not have permission to reassign this record.' };
+    }
+    if (err instanceof ConcurrencyConflictError) {
+      return { ok: false, error: err.message };
+    }
+    throw err;
+  }
+}
+
+// Archive (soft-remove) one or more pipeline records. Reversible; audited.
+export async function archiveJobsAction(jobIds: string[]): Promise<ActionResult> {
+  const session = await requireSession();
+  try {
+    for (const jobId of jobIds) {
+      await archiveJob({
+        actorUserId: session.user.id,
+        organizationId: session.user.organizationId,
+        jobId,
+      });
+    }
+    revalidatePath('/dashboard/jobs');
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof AuthorizationError) {
+      return { ok: false, error: 'You do not have permission to archive records.' };
     }
     if (err instanceof ConcurrencyConflictError) {
       return { ok: false, error: err.message };
