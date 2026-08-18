@@ -37,6 +37,7 @@ import { RevenueTable } from './revenue-table';
 import { getJobFinancialSummary } from '@/server/queries/job-financial-summary';
 import { getCommissionSplit } from '@/server/queries/commission-splits';
 import { CommissionRecipients } from './commission-recipients';
+import { DocumentUpload } from './document-upload';
 import {
   ActivityTimeline,
   Badge,
@@ -364,15 +365,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
                 </form>,
               ])}
             />
-            <form action={uploadJobDocument} className="flex flex-wrap items-end gap-3">
-              <input
-                type="file"
-                name="file"
-                required
-                className="text-sm font-normal text-slate-700"
-              />
-              <SubmitButton>Upload</SubmitButton>
-            </form>
+            <DocumentUpload action={uploadJobDocument} />
           </Section>
         </div>
 

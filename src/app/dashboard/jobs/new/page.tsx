@@ -40,7 +40,7 @@ export default async function NewLeadPage({
       .filter(Boolean)
       .join(' ');
     try {
-      const job = await createLeadRecord({
+      await createLeadRecord({
         actorUserId: session.user.id,
         organizationId: session.user.organizationId,
         prospectName,
@@ -58,7 +58,9 @@ export default async function NewLeadPage({
         assignedTo: String(formData.get('assignedTo') || '') || undefined,
         description: String(formData.get('description') || '') || undefined,
       });
-      redirect(`/dashboard/jobs/${job.id}`);
+      // Back to the Leads list so the new lead is visible where it belongs
+      // (a fresh lead has no financials, so it lives on Leads, not the pipeline).
+      redirect('/dashboard/leads');
     } catch (err) {
       if (err instanceof AuthorizationError) {
         redirect('/dashboard/jobs/new?error=not_authorized');
