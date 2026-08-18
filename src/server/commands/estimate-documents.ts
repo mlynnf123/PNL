@@ -12,6 +12,7 @@ import { recordAuditEvent } from '@/lib/audit';
 import { ConcurrencyConflictError } from '@/lib/concurrency';
 import { type QuoteContent, quoteTotal, sanitizeQuote } from '@/lib/estimate-doc-math';
 import { type PageType, defaultContentFor } from '@/lib/estimate-pages';
+import { displayNameFrom } from '@/lib/person-name';
 import { PERMISSIONS, requirePermission } from '@/lib/permissions';
 import { latestPublishedVersionId } from './estimate-layouts';
 
@@ -83,6 +84,9 @@ export interface CreateFromLayoutInput extends Actor {
   leadId?: string | null;
   jobId?: string | null;
   customerName?: string | null;
+  customerFirstName?: string | null;
+  customerLastName?: string | null;
+  customerCompany?: string | null;
   customerAddress?: string | null;
   customerCity?: string | null;
   customerState?: string | null;
@@ -122,7 +126,17 @@ export async function createEstimateFromLayout(
       docKind: layout.docKind,
       name: input.name?.trim() || layout.name,
       docDate: today(),
-      customerName: input.customerName ?? null,
+      customerName:
+        displayNameFrom({
+          firstName: input.customerFirstName,
+          lastName: input.customerLastName,
+          company: input.customerCompany,
+        }) ||
+        input.customerName ||
+        null,
+      customerFirstName: input.customerFirstName ?? null,
+      customerLastName: input.customerLastName ?? null,
+      customerCompany: input.customerCompany ?? null,
       customerAddress: input.customerAddress ?? null,
       customerCity: input.customerCity ?? null,
       customerState: input.customerState ?? null,

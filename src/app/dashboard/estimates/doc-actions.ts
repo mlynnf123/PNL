@@ -55,6 +55,9 @@ export async function createEstimateFromLayoutAction(
     leadId?: string | null;
     jobId?: string | null;
     customerName?: string | null;
+    customerFirstName?: string | null;
+    customerLastName?: string | null;
+    customerCompany?: string | null;
     customerAddress?: string | null;
     customerPhone?: string | null;
     customerEmail?: string | null;

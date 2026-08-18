@@ -34,6 +34,9 @@ export default async function NewEstimatePage({
         leadId?: string;
         jobId?: string;
         customerName?: string;
+        customerFirstName?: string;
+        customerLastName?: string;
+        customerCompany?: string;
         customerAddress?: string;
         customerPhone?: string;
         customerEmail?: string;
@@ -60,6 +63,9 @@ export default async function NewEstimatePage({
       prefill = {
         jobId: j.id,
         customerName: row.customer?.displayName ?? j.prospectName ?? undefined,
+        customerFirstName: row.customer?.firstName ?? j.prospectFirstName ?? undefined,
+        customerLastName: row.customer?.lastName ?? j.prospectLastName ?? undefined,
+        customerCompany: row.customer?.company ?? j.prospectCompany ?? undefined,
         customerAddress: address,
         customerPhone: row.customer?.phone ?? j.prospectPhone ?? undefined,
         customerEmail: row.customer?.email ?? j.prospectEmail ?? undefined,
