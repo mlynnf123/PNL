@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { db as defaultDb } from '@/db/client';
 import type { DbClient } from '@/db/client';
-import { documents } from '@/db/schema';
+import { carrierScopes, documents } from '@/db/schema';
 import { recordAuditEvent } from '@/lib/audit';
 import { type DocumentEntityType, uploadPermissionFor } from '@/lib/document-access';
 import { requirePermission } from '@/lib/permissions';
@@ -112,6 +112,11 @@ export async function deleteDocument(
       input.actorUserId,
       uploadPermissionFor(existing.entityType as DocumentEntityType),
     );
+
+    // A carrier scope stores this PDF as its immutable evidence via document_id
+    // (RESTRICT FK). Removing the PDF removes the scope with it — otherwise the
+    // delete fails on the foreign key. Any AI-parsed data goes with it.
+    await tx.delete(carrierScopes).where(eq(carrierScopes.documentId, input.documentId));
 
     await tx.delete(documents).where(eq(documents.id, input.documentId));
 
