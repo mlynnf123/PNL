@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { Badge, Button, LinkButton } from '@/components/ui';
 import { PageEditor } from '@/components/estimate/page-editor';
 import { formatCurrency } from '@/lib/format';
+import { displayNameFrom } from '@/lib/person-name';
 import { PAGE_TYPES, PAGE_TYPE_LABELS, type PageType } from '@/lib/estimate-pages';
 import { ESTIMATE_DOC_STATUS_TONE, toneFor } from '@/lib/status';
 import type { EstimateDocFull, EstimatePageRow } from '@/server/queries/estimate-documents';
@@ -370,6 +371,9 @@ function DetailsPanel({
     name: doc.name,
     docDate: doc.docDate,
     customerName: doc.customerName ?? '',
+    customerFirstName: doc.customerFirstName ?? '',
+    customerLastName: doc.customerLastName ?? '',
+    customerCompany: doc.customerCompany ?? '',
     customerAddress: doc.customerAddress ?? '',
     customerCity: doc.customerCity ?? '',
     customerState: doc.customerState ?? '',
@@ -393,7 +397,19 @@ function DetailsPanel({
       return;
     }
     if (!editable) return;
-    const t = setTimeout(() => onSaveRef.current(f), 700);
+    const t = setTimeout(
+      () =>
+        onSaveRef.current({
+          ...f,
+          // Display name is derived: company, else "First Last".
+          customerName: displayNameFrom({
+            firstName: f.customerFirstName,
+            lastName: f.customerLastName,
+            company: f.customerCompany,
+          }),
+        }),
+      700,
+    );
     return () => clearTimeout(t);
   }, [f, editable]);
 
@@ -417,12 +433,28 @@ function DetailsPanel({
             onChange={(e) => set('docDate', e.target.value)}
           />
         </Labeled>
-        <Labeled label="Customer name">
+        <Labeled label="First name">
           <input
             disabled={!editable}
             className={ctrl}
-            value={f.customerName}
-            onChange={(e) => set('customerName', e.target.value)}
+            value={f.customerFirstName}
+            onChange={(e) => set('customerFirstName', e.target.value)}
+          />
+        </Labeled>
+        <Labeled label="Last name">
+          <input
+            disabled={!editable}
+            className={ctrl}
+            value={f.customerLastName}
+            onChange={(e) => set('customerLastName', e.target.value)}
+          />
+        </Labeled>
+        <Labeled label="Company (optional)">
+          <input
+            disabled={!editable}
+            className={ctrl}
+            value={f.customerCompany}
+            onChange={(e) => set('customerCompany', e.target.value)}
           />
         </Labeled>
         <Labeled label="Rep name">

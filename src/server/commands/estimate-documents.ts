@@ -198,6 +198,9 @@ export interface UpdateMetaInput extends Actor {
   name?: string;
   docDate?: string;
   customerName?: string | null;
+  customerFirstName?: string | null;
+  customerLastName?: string | null;
+  customerCompany?: string | null;
   customerAddress?: string | null;
   customerCity?: string | null;
   customerState?: string | null;
@@ -221,6 +224,9 @@ export async function updateEstimateMeta(input: UpdateMetaInput, db: DbClient = 
       'name',
       'docDate',
       'customerName',
+      'customerFirstName',
+      'customerLastName',
+      'customerCompany',
       'customerAddress',
       'customerCity',
       'customerState',

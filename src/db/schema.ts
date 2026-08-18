@@ -1644,7 +1644,11 @@ export const estimateDocuments = pgTable(
     docDate: date('doc_date').notNull(),
     status: estimateDocStatusEnum('status').notNull().default('draft'),
     // Customer snapshot (denormalized; may be prefilled from a lead/job).
+    // customerName is the display name (company, else "First Last").
     customerName: text('customer_name'),
+    customerFirstName: text('customer_first_name'),
+    customerLastName: text('customer_last_name'),
+    customerCompany: text('customer_company'),
     customerAddress: text('customer_address'),
     customerCity: text('customer_city'),
     customerState: text('customer_state'),

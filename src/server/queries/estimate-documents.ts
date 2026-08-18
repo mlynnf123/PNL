@@ -70,6 +70,9 @@ export interface EstimateDocFull {
   docDate: string;
   status: string;
   customerName: string | null;
+  customerFirstName: string | null;
+  customerLastName: string | null;
+  customerCompany: string | null;
   customerAddress: string | null;
   customerCity: string | null;
   customerState: string | null;
@@ -119,6 +122,9 @@ export async function getEstimateDocument(
     docDate: doc.docDate,
     status: doc.status,
     customerName: doc.customerName,
+    customerFirstName: doc.customerFirstName,
+    customerLastName: doc.customerLastName,
+    customerCompany: doc.customerCompany,
     customerAddress: doc.customerAddress,
     customerCity: doc.customerCity,
     customerState: doc.customerState,
