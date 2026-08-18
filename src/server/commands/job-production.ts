@@ -176,6 +176,10 @@ async function promoteToSigned(
       .values({
         organizationId: input.organizationId,
         displayName,
+        // Carry the structured name from the lead (person vs company).
+        firstName: existing.prospectFirstName ?? null,
+        lastName: existing.prospectLastName ?? null,
+        company: existing.prospectCompany ?? null,
         phone: c.customerPhone ?? existing.prospectPhone ?? undefined,
         email: c.customerEmail ?? existing.prospectEmail ?? undefined,
       })

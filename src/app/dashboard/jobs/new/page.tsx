@@ -33,17 +33,13 @@ export default async function NewLeadPage({
     'use server';
 
     const estimatedValue = String(formData.get('estimatedValue') || '').trim();
-    const prospectName = [
-      String(formData.get('prospectFirstName') || '').trim(),
-      String(formData.get('prospectLastName') || '').trim(),
-    ]
-      .filter(Boolean)
-      .join(' ');
     try {
       await createLeadRecord({
         actorUserId: session.user.id,
         organizationId: session.user.organizationId,
-        prospectName,
+        prospectFirstName: String(formData.get('prospectFirstName') || '').trim() || undefined,
+        prospectLastName: String(formData.get('prospectLastName') || '').trim() || undefined,
+        prospectCompany: String(formData.get('prospectCompany') || '').trim() || undefined,
         prospectPhone: String(formData.get('prospectPhone') || '') || undefined,
         prospectEmail: String(formData.get('prospectEmail') || '') || undefined,
         prospectAddress: String(formData.get('prospectAddress') || '') || undefined,
@@ -87,9 +83,10 @@ export default async function NewLeadPage({
         className="mx-auto flex w-full max-w-xl flex-col gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
       >
         <div className="grid grid-cols-2 gap-3">
-          <Field label="First name" name="prospectFirstName" required />
-          <Field label="Last name" name="prospectLastName" required />
+          <Field label="First name" name="prospectFirstName" />
+          <Field label="Last name" name="prospectLastName" />
         </div>
+        <Field label="Company (optional)" name="prospectCompany" />
         <div className="grid grid-cols-2 gap-3">
           <Field label="Phone" name="prospectPhone" />
           <Field label="Email" name="prospectEmail" type="email" />

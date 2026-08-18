@@ -174,7 +174,12 @@ export const customers = pgTable('customers', {
   organizationId: uuid('organization_id')
     .notNull()
     .references(() => organizations.id),
+  // displayName is the shown name (company, or "First Last"); the structured
+  // fields capture people vs companies.
   displayName: text('display_name').notNull(),
+  firstName: text('first_name'),
+  lastName: text('last_name'),
+  company: text('company'),
   phone: text('phone'),
   email: text('email'),
   billingAddressLine1: text('billing_address_line1'),
@@ -327,7 +332,12 @@ export const jobs = pgTable(
     actualCompletionDate: date('actual_completion_date'),
     // --- Lead-stage carryover (denormalized front-of-funnel fields, all NULL
     // once the record is a full job). Mirrors the retired `leads` table. ---
+    // prospectName is the display name (company, or "First Last"); the structured
+    // fields below capture people vs companies so either can be shown/searched.
     prospectName: text('prospect_name'),
+    prospectFirstName: text('prospect_first_name'),
+    prospectLastName: text('prospect_last_name'),
+    prospectCompany: text('prospect_company'),
     prospectPhone: text('prospect_phone'),
     prospectEmail: text('prospect_email'),
     prospectAddress: text('prospect_address'),
