@@ -80,7 +80,7 @@ describe('setJobStage', () => {
           actorUserId: actor.id,
           organizationId: org.id,
           jobId: job.id,
-          stage: 'contracting',
+          stage: 'installation',
           expectedRowVersion: 999,
         },
         testDb,
@@ -94,7 +94,7 @@ describe('setJobStage', () => {
 
     await expect(
       setJobStage(
-        { actorUserId: stranger.id, organizationId: org.id, jobId: job.id, stage: 'contracting' },
+        { actorUserId: stranger.id, organizationId: org.id, jobId: job.id, stage: 'installation' },
         testDb,
       ),
     ).rejects.toBeInstanceOf(AuthorizationError);

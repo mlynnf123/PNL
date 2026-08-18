@@ -52,6 +52,15 @@ const ENTITY_LABELS: Record<string, string> = {
 };
 
 function describe(action: string, entityType: string) {
+  // Payment-check toggles are a tracked collection control — read them clearly.
+  if (action === 'job.payment_check_changed') {
+    return {
+      verb: 'updated',
+      icon: Check,
+      tone: 'bg-teal-50 text-teal-600',
+      entity: 'a collected payment',
+    };
+  }
   // Commission changes are a tracked control — always read clearly in the feed.
   if (action.startsWith('commission')) {
     return {

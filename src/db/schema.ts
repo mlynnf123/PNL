@@ -252,6 +252,8 @@ export const productionPhaseEnum = pgEnum('production_phase', [
   'estimate',
   'signed',
   'lost',
+  // Post-install stage: claim supplement filed with the carrier, awaiting approval.
+  'awaiting_supplements',
 ]);
 
 export const collectionStatusEnum = pgEnum('collection_status', [
@@ -350,6 +352,14 @@ export const jobs = pgTable(
     assignedTo: uuid('assigned_to').references(() => users.id),
     lastContactDate: date('last_contact_date'),
     nextFollowUp: date('next_follow_up'),
+    // Payment collection tracker. Insurance jobs are paid across staged carrier
+    // checks (ACV, recoverable depreciation, then any supplement release); these
+    // flags are how a job's collection progress is tracked in the pipeline. Set
+    // via checkboxes on the job; every toggle is audited.
+    check1Collected: boolean('check1_collected').notNull().default(false),
+    check2Collected: boolean('check2_collected').notNull().default(false),
+    check3Collected: boolean('check3_collected').notNull().default(false),
+    supplementCheckCollected: boolean('supplement_check_collected').notNull().default(false),
     // No FK: financial_close_versions.job_id already references jobs.id, and
     // Drizzle/Postgres don't need this pointer to be a hard FK to be useful —
     // it's validated at the application layer, same as audit_events.job_id.

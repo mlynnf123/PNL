@@ -169,6 +169,13 @@
       "when": 1787090860110,
       "tag": "0023_carrier_scope_job_link",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1787096496299,
+      "tag": "0024_familiar_typhoid_mary",
+      "breakpoints": true
     }
   ]
 }

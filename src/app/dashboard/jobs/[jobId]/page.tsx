@@ -37,6 +37,7 @@ import { RevenueTable } from './revenue-table';
 import { getJobFinancialSummary } from '@/server/queries/job-financial-summary';
 import { getCommissionSplit } from '@/server/queries/commission-splits';
 import { CommissionRecipients } from './commission-recipients';
+import { PaymentChecksCard } from './payment-checks-card';
 import { DocumentUpload } from './document-upload';
 import { ScopeUpload } from './scope-upload';
 import {
@@ -344,6 +345,19 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
           </Section>
             </>
           )}
+
+          <Section title="Payments collected">
+            <PaymentChecksCard
+              jobId={job.id}
+              canEdit={canManageProduction}
+              initial={{
+                check1: job.check1Collected,
+                check2: job.check2Collected,
+                check3: job.check3Collected,
+                supplement: job.supplementCheckCollected,
+              }}
+            />
+          </Section>
 
           <Section title="Documents">
             <RowTable
