@@ -44,6 +44,7 @@ export async function listLeads(
       AND j.job_number IS NULL
       AND NOT EXISTS (SELECT 1 FROM revenue_components rc WHERE rc.job_id = j.id)
       AND NOT EXISTS (SELECT 1 FROM cost_transactions ct WHERE ct.job_id = j.id)
+      AND NOT EXISTS (SELECT 1 FROM carrier_scopes cs WHERE cs.job_id = j.id)
     ORDER BY j.created_at DESC
   `);
   return rows.map((r) => ({

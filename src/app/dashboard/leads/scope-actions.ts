@@ -32,7 +32,7 @@ function actor(session: { user: { id: string; organizationId: string } }) {
 // A scanned PDF returns { scanned: true } so the client renders its pages and
 // calls submitScopePagesAction with the images.
 export async function uploadCarrierScopeAction(
-  leadId: string,
+  jobId: string,
   formData: FormData,
 ): Promise<ScopeActionResult> {
   const session = await requireSession();
@@ -44,13 +44,14 @@ export async function uploadCarrierScopeAction(
   try {
     const scope = await createCarrierScope({
       ...actor(session),
-      leadId,
+      jobId,
       fileName: file.name,
       contentType: file.type || 'application/pdf',
       fileBytes: Buffer.from(await file.arrayBuffer()),
     });
     const res = await runScopeExtraction({ ...actor(session), scopeId: scope.id });
-    revalidatePath(`/dashboard/leads/${leadId}/scope`);
+    revalidatePath(`/dashboard/jobs/${jobId}`);
+    revalidatePath('/dashboard/leads');
     return { ok: true, id: scope.id, scanned: res.scanned };
   } catch (err) {
     return handle(err);

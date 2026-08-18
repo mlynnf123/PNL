@@ -1761,10 +1761,11 @@ export const carrierScopes = pgTable(
     organizationId: uuid('organization_id')
       .notNull()
       .references(() => organizations.id),
-    leadId: uuid('lead_id')
-      .notNull()
-      .references(() => leads.id),
-    // The stored insurance PDF (documents row, entity_type 'lead').
+    // A scope attaches to a job (the unified pipeline record). leadId is kept
+    // nullable for the legacy leads-table rows during the transition.
+    leadId: uuid('lead_id').references(() => leads.id),
+    jobId: uuid('job_id').references(() => jobs.id),
+    // The stored insurance PDF (documents row).
     documentId: uuid('document_id').references(() => documents.id),
     status: carrierScopeStatusEnum('status').notNull().default('uploaded'),
 

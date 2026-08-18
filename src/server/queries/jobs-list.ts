@@ -50,7 +50,8 @@ export async function listJobs(
     conditions.push(
       sql`(${jobs.jobNumber} IS NOT NULL
         OR EXISTS (SELECT 1 FROM revenue_components rc WHERE rc.job_id = ${jobs.id})
-        OR EXISTS (SELECT 1 FROM cost_transactions ct WHERE ct.job_id = ${jobs.id}))` as SQL,
+        OR EXISTS (SELECT 1 FROM cost_transactions ct WHERE ct.job_id = ${jobs.id})
+        OR EXISTS (SELECT 1 FROM carrier_scopes cs WHERE cs.job_id = ${jobs.id}))` as SQL,
     );
   if (filters.operationalStatus)
     conditions.push(eq(jobs.operationalStatus, filters.operationalStatus as never));

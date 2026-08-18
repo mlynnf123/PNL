@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { db as defaultDb } from '@/db/client';
 import type { DbClient, DbOrTx } from '@/db/client';
-import { carrierScopes, documents, leads } from '@/db/schema';
+import { carrierScopes, documents, jobs } from '@/db/schema';
 import { recordAuditEvent } from '@/lib/audit';
 import { ConcurrencyConflictError } from '@/lib/concurrency';
 import { PERMISSIONS, requirePermission } from '@/lib/permissions';
@@ -52,15 +52,15 @@ async function loadScope(db: DbOrTx, organizationId: string, scopeId: string) {
 // Step 1 — store the carrier PDF against the lead (immutable evidence) and open
 // a scope record. Parsing is a separate step so the upload returns immediately.
 export async function createCarrierScope(
-  input: Actor & { leadId: string; fileName: string; contentType: string; fileBytes: Buffer },
+  input: Actor & { jobId: string; fileName: string; contentType: string; fileBytes: Buffer },
   db: DbClient = defaultDb,
 ) {
   const doc = await uploadDocument(
     {
       actorUserId: input.actorUserId,
       organizationId: input.organizationId,
-      entityType: 'lead',
-      entityId: input.leadId,
+      entityType: 'job',
+      entityId: input.jobId,
       fileName: input.fileName,
       contentType: input.contentType || 'application/pdf',
       bytes: input.fileBytes,
@@ -71,18 +71,18 @@ export async function createCarrierScope(
   return db.transaction(async (tx) => {
     await requirePermission(tx, input.actorUserId, PERMISSIONS.CRM_MANAGEMENT);
 
-    const [lead] = await tx
-      .select({ id: leads.id })
-      .from(leads)
-      .where(and(eq(leads.id, input.leadId), eq(leads.organizationId, input.organizationId)))
+    const [job] = await tx
+      .select({ id: jobs.id })
+      .from(jobs)
+      .where(and(eq(jobs.id, input.jobId), eq(jobs.organizationId, input.organizationId)))
       .limit(1);
-    if (!lead) throw new ScopeStateError('Lead not found for this scope.');
+    if (!job) throw new ScopeStateError('Job not found for this scope.');
 
     const [scope] = await tx
       .insert(carrierScopes)
       .values({
         organizationId: input.organizationId,
-        leadId: input.leadId,
+        jobId: input.jobId,
         documentId: doc.id,
         status: 'uploaded',
         createdBy: input.actorUserId,
@@ -95,7 +95,8 @@ export async function createCarrierScope(
       action: 'carrier_scope.uploaded',
       entityType: 'carrier_scope',
       entityId: scope.id,
-      newState: { leadId: input.leadId, documentId: doc.id, fileName: input.fileName },
+      jobId: input.jobId,
+      newState: { jobId: input.jobId, documentId: doc.id, fileName: input.fileName },
       source: 'web',
       correlationId: input.correlationId,
     });
@@ -322,13 +323,13 @@ export async function approveCarrierScope(
       })
       .where(eq(carrierScopes.id, scope.id));
 
-    // Set the lead's expected value from the approved carrier figure, if chosen.
+    // Set the job's expected value from the approved carrier figure, if chosen.
     const expectedValue = emptyToNull(input.expectedValue);
-    if (expectedValue) {
+    if (expectedValue && scope.jobId) {
       await tx
-        .update(leads)
+        .update(jobs)
         .set({ estimatedValue: expectedValue, updatedAt: new Date() })
-        .where(and(eq(leads.id, scope.leadId), eq(leads.organizationId, input.organizationId)));
+        .where(and(eq(jobs.id, scope.jobId), eq(jobs.organizationId, input.organizationId)));
     }
 
     await recordAuditEvent(tx, {
@@ -337,8 +338,9 @@ export async function approveCarrierScope(
       action: 'carrier_scope.approved',
       entityType: 'carrier_scope',
       entityId: scope.id,
+      jobId: scope.jobId,
       newState: {
-        leadId: scope.leadId,
+        jobId: scope.jobId,
         expectedValue,
         claimNumber: emptyToNull(id.claimNumber),
       },

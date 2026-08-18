@@ -38,6 +38,7 @@ import { getJobFinancialSummary } from '@/server/queries/job-financial-summary';
 import { getCommissionSplit } from '@/server/queries/commission-splits';
 import { CommissionRecipients } from './commission-recipients';
 import { DocumentUpload } from './document-upload';
+import { ScopeUpload } from './scope-upload';
 import {
   ActivityTimeline,
   Badge,
@@ -365,7 +366,10 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
                 </form>,
               ])}
             />
-            <DocumentUpload action={uploadJobDocument} />
+            <div className="flex flex-wrap items-center gap-3">
+              <DocumentUpload action={uploadJobDocument} />
+              <ScopeUpload jobId={job.id} />
+            </div>
           </Section>
         </div>
 
