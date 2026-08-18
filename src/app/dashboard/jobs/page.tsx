@@ -48,6 +48,8 @@ export default async function JobsPage({
     search: params.search || undefined,
     from,
     to,
+    // Pure leads (pre-signed, no financials) live on the Leads page until promoted.
+    excludeLeads: true,
   });
   const lastEditedMap = await getJobsLastEdited(
     session.user.organizationId,

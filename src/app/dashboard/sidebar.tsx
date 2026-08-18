@@ -3,7 +3,14 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { FileText, LayoutDashboard, PanelLeftClose, PanelLeftOpen, Workflow } from 'lucide-react';
+import {
+  FileText,
+  LayoutDashboard,
+  PanelLeftClose,
+  PanelLeftOpen,
+  UserPlus,
+  Workflow,
+} from 'lucide-react';
 
 // Collapsible left rail, adapted from the JJ Roofing Pros design system "Ops
 // app" shell (dark ink sidebar, neutral-gray items, white-tint active plate) —
@@ -11,6 +18,7 @@ import { FileText, LayoutDashboard, PanelLeftClose, PanelLeftOpen, Workflow } fr
 // the top bar; this rail is just primary navigation.
 const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/dashboard/leads', label: 'Leads', icon: UserPlus },
   { href: '/dashboard/jobs', label: 'Pipeline', icon: Workflow },
   { href: '/dashboard/estimates', label: 'Estimates', icon: FileText },
 ];

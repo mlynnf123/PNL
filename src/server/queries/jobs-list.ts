@@ -34,6 +34,9 @@ export interface JobListFilters {
   to?: string;
   // Include Archived (lost) records — off by default so they stay off the board.
   includeArchived?: boolean;
+  // Exclude pure leads (pre-signed, no financials) — they live on the Leads page
+  // until promoted. A record is "promoted" once it's signed or has financials.
+  excludeLeads?: boolean;
 }
 
 export async function listJobs(
@@ -43,6 +46,12 @@ export async function listJobs(
 ): Promise<JobListRow[]> {
   const conditions: SQL[] = [eq(jobs.organizationId, organizationId)];
   if (!filters.includeArchived) conditions.push(ne(jobs.recordState, 'Archived'));
+  if (filters.excludeLeads)
+    conditions.push(
+      sql`(${jobs.jobNumber} IS NOT NULL
+        OR EXISTS (SELECT 1 FROM revenue_components rc WHERE rc.job_id = ${jobs.id})
+        OR EXISTS (SELECT 1 FROM cost_transactions ct WHERE ct.job_id = ${jobs.id}))` as SQL,
+    );
   if (filters.operationalStatus)
     conditions.push(eq(jobs.operationalStatus, filters.operationalStatus as never));
   if (filters.financialCloseStatus)
