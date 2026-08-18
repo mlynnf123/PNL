@@ -59,6 +59,7 @@ import type { JobHistoryRow, LastEditView } from './jobs-history-types';
 const COLUMN_LABELS: Record<string, string> = {
   jobNumber: 'Job',
   customerName: 'Customer',
+  reps: 'Rep',
   productionPhase: 'Stage',
   contractedAt: 'Contracted',
   originalContractAmount: 'Contract',
@@ -166,6 +167,25 @@ export function JobsQueue({
           ) : (
             <span className="text-slate-400">—</span>
           ),
+      },
+      {
+        id: 'reps',
+        header: 'Rep',
+        enableSorting: false,
+        cell: ({ row }) => {
+          const reps = row.original.reps ?? [];
+          if (reps.length === 0) return <span className="text-slate-400">—</span>;
+          if (reps.length === 1) return <span className="text-slate-700">{reps[0]}</span>;
+          // Multiple reps → count with the names on hover.
+          return (
+            <span
+              title={reps.join(', ')}
+              className="inline-flex cursor-help items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
+            >
+              {reps.length} reps
+            </span>
+          );
+        },
       },
       {
         accessorKey: 'productionPhase',

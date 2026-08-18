@@ -6,6 +6,11 @@ import { AuthorizationError } from '@/lib/permissions';
 import { requireSession } from '@/lib/require-session';
 import { archiveJob } from '@/server/commands/archive-job';
 import { assignJob } from '@/server/commands/assign-job';
+import {
+  DuplicateRecipientError,
+  SplitEditForbiddenError,
+  setCommissionSplit,
+} from '@/server/commands/commission-splits';
 import { createLeadRecord } from '@/server/commands/create-lead-record';
 import {
   ContractDetailsRequiredError,
@@ -97,6 +102,36 @@ export async function archiveJobsAction(jobIds: string[]): Promise<ActionResult>
     if (err instanceof ConcurrencyConflictError) {
       return { ok: false, error: err.message };
     }
+    throw err;
+  }
+}
+
+// Author the per-job commission recipients (typed name + %). Gated to the deal
+// creator/admin inside the command, and audited so every change hits the feeds.
+export async function setCommissionRecipientsAction(
+  jobId: string,
+  lines: { recipientName: string; ratePct: number }[],
+): Promise<ActionResult> {
+  const session = await requireSession();
+  try {
+    await setCommissionSplit({
+      actorUserId: session.user.id,
+      organizationId: session.user.organizationId,
+      jobId,
+      lines,
+    });
+    revalidatePath('/dashboard/jobs');
+    revalidatePath(`/dashboard/jobs/${jobId}`);
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof AuthorizationError) {
+      return { ok: false, error: 'You do not have permission to edit commission.' };
+    }
+    if (err instanceof SplitEditForbiddenError || err instanceof DuplicateRecipientError) {
+      return { ok: false, error: err.message };
+    }
+    if (err instanceof ConcurrencyConflictError) return { ok: false, error: err.message };
+    if (err instanceof Error) return { ok: false, error: err.message };
     throw err;
   }
 }

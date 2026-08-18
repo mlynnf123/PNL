@@ -138,7 +138,11 @@ export async function generateCommissionBatch(
       allocationType: 'owner_override' | 'universal_owner_share';
       sourceSplitId: string | null;
       rate: string;
-    }[] = splitLines.map((l) => ({
+    }[] = splitLines
+      // Typed-name reps (no user link) are recorded on the job but aren't part of
+      // the owner-user payout batch; only user-linked lines are allocated here.
+      .filter((l): l is typeof l & { recipientUserId: string } => Boolean(l.recipientUserId))
+      .map((l) => ({
       recipientUserId: l.recipientUserId,
       allocationType: 'owner_override' as const,
       sourceSplitId: l.id,

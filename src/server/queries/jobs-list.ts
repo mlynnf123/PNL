@@ -20,6 +20,8 @@ export interface JobListRow {
   originalContractAmount: string | null;
   estimatedValue: string | null;
   contractedAt: string | null;
+  // Commission recipients (typed name or linked user), in authored order.
+  reps: string[];
 }
 
 export interface JobListFilters {
@@ -76,6 +78,12 @@ export async function listJobs(
       originalContractAmount: jobs.originalContractAmount,
       estimatedValue: jobs.estimatedValue,
       contractedAt: jobs.contractedAt,
+      reps: sql<string[]>`coalesce((
+        SELECT array_agg(coalesce(cs.recipient_name, u.display_name) ORDER BY cs.created_at)
+        FROM job_commission_splits cs
+        LEFT JOIN users u ON u.id = cs.recipient_user_id
+        WHERE cs.job_id = ${jobs.id}
+      ), '{}')`,
     })
     .from(jobs)
     // Left join so pre-signed records (no customer yet) still appear.

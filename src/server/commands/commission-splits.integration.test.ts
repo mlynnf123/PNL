@@ -10,12 +10,7 @@ import {
   grantPermission,
   resetDatabase,
 } from '@/test-support/fixtures';
-import {
-  CommissionCapExceededError,
-  NonOwnerRecipientError,
-  setCommissionSplit,
-  SplitEditForbiddenError,
-} from './commission-splits';
+import { setCommissionSplit, SplitEditForbiddenError } from './commission-splits';
 
 async function createOwner(organizationId: string, name = 'Owner') {
   const u = await createUser(organizationId);
@@ -67,43 +62,56 @@ describe('commission split editing', () => {
     expect(Number(rows[0].ratePct)).toBeCloseTo(0.5, 4);
   });
 
-  it('SPLIT-EDIT-002: a non-owner recipient is rejected', async () => {
+  it('SPLIT-EDIT-002: a typed rep name (not an app user) is accepted', async () => {
     const org = await createOrganization();
     const actor = await createUser(org.id);
-    const staff = await createUser(org.id); // userType stays 'staff'
     const job = await closedJobOwnedBy(org.id, actor.id);
 
-    await expect(
-      setCommissionSplit(
-        {
-          actorUserId: actor.id,
-          organizationId: org.id,
-          jobId: job.id,
-          lines: [{ recipientUserId: staff.id, ratePct: 0.2 }],
-        },
-        testDb,
-      ),
-    ).rejects.toBeInstanceOf(NonOwnerRecipientError);
+    await setCommissionSplit(
+      {
+        actorUserId: actor.id,
+        organizationId: org.id,
+        jobId: job.id,
+        lines: [{ recipientName: 'Kyle', ratePct: 0.4 }],
+      },
+      testDb,
+    );
+
+    const rows = await testDb
+      .select()
+      .from(jobCommissionSplits)
+      .where(eq(jobCommissionSplits.jobId, job.id));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].recipientName).toBe('Kyle');
+    expect(rows[0].recipientUserId).toBeNull();
+    expect(Number(rows[0].ratePct)).toBeCloseTo(0.4, 4);
   });
 
-  it('SPLIT-EDIT-003: authored shares + Meranda 10% over 70% are rejected', async () => {
+  it('SPLIT-EDIT-003: a multi-rep split (P/L style) is stored without a cap', async () => {
     const org = await createOrganization();
     const actor = await createUser(org.id);
-    const justin = await createOwner(org.id, 'Justin');
     const job = await closedJobOwnedBy(org.id, actor.id);
 
-    // 0.65 authored + 0.10 automatic = 0.75 > 0.70.
-    await expect(
-      setCommissionSplit(
-        {
-          actorUserId: actor.id,
-          organizationId: org.id,
-          jobId: job.id,
-          lines: [{ recipientUserId: justin.id, ratePct: 0.65 }],
-        },
-        testDb,
-      ),
-    ).rejects.toBeInstanceOf(CommissionCapExceededError);
+    // 40% + 30% = 70%, plus no automatic share/cap enforced anymore.
+    await setCommissionSplit(
+      {
+        actorUserId: actor.id,
+        organizationId: org.id,
+        jobId: job.id,
+        lines: [
+          { recipientName: 'Ian', ratePct: 0.4 },
+          { recipientName: 'Justin', ratePct: 0.3 },
+        ],
+      },
+      testDb,
+    );
+
+    const rows = await testDb
+      .select()
+      .from(jobCommissionSplits)
+      .where(eq(jobCommissionSplits.jobId, job.id));
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.recipientName).sort()).toEqual(['Ian', 'Justin']);
   });
 
   it('SPLIT-EDIT-004: a non-creator without owner-admin cannot edit the split', async () => {

@@ -1,7 +1,7 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db as defaultDb } from '@/db/client';
 import type { DbClient } from '@/db/client';
-import { jobCommissionSplits, jobs, users } from '@/db/schema';
+import { jobCommissionSplits, jobs } from '@/db/schema';
 import { recordAuditEvent } from '@/lib/audit';
 import { PERMISSIONS, requirePermission, userHasPermission } from '@/lib/permissions';
 
@@ -11,7 +11,6 @@ import { PERMISSIONS, requirePermission, userHasPermission } from '@/lib/permiss
 export const UNIVERSAL_SHARE_RATE = 0.1;
 export const MAX_TOTAL_COMMISSION_RATE = 0.7;
 export const MAX_AUTHORED_RATE = MAX_TOTAL_COMMISSION_RATE - UNIVERSAL_SHARE_RATE; // 0.60
-const EPSILON = 1e-9;
 
 export class JobNotFoundError extends Error {
   constructor(jobId: string) {
@@ -49,8 +48,18 @@ export class CommissionCapExceededError extends Error {
 }
 
 export interface CommissionSplitLineInput {
-  recipientUserId: string;
+  // A line is either a linked user OR a typed rep name (P/L style).
+  recipientUserId?: string | null;
+  recipientName?: string | null;
   ratePct: number; // fraction, e.g. 0.40 for 40%
+}
+
+// Stable de-dup / display key for a line.
+function lineKey(l: CommissionSplitLineInput): string {
+  return l.recipientUserId ?? `name:${(l.recipientName ?? '').trim().toLowerCase()}`;
+}
+function lineLabel(l: CommissionSplitLineInput): string {
+  return l.recipientUserId ?? (l.recipientName ?? '').trim();
 }
 
 export interface SetCommissionSplitInput {
@@ -84,35 +93,31 @@ export async function setCommissionSplit(input: SetCommissionSplitInput, db: DbC
       throw new SplitEditForbiddenError();
     }
 
-    // Validate lines: positive rates, no duplicate recipients, within the cap.
+    // Validate lines: each has a recipient (user or typed name), a positive
+    // rate, and no duplicate recipient. The owner-only + rate-cap restrictions
+    // were dropped so any named rep can be credited (P/L parity).
     const seen = new Set<string>();
-    let authoredTotal = 0;
     for (const line of input.lines) {
       if (!(line.ratePct > 0)) {
         throw new Error('Each split rate must be greater than 0.');
       }
-      if (seen.has(line.recipientUserId)) {
-        throw new DuplicateRecipientError(line.recipientUserId);
+      if (!line.recipientUserId && !(line.recipientName ?? '').trim()) {
+        throw new Error('Each split line needs a rep name.');
       }
-      seen.add(line.recipientUserId);
-      authoredTotal += line.ratePct;
-    }
-    if (authoredTotal + UNIVERSAL_SHARE_RATE > MAX_TOTAL_COMMISSION_RATE + EPSILON) {
-      throw new CommissionCapExceededError(authoredTotal);
+      const key = lineKey(line);
+      if (seen.has(key)) throw new DuplicateRecipientError(lineLabel(line));
+      seen.add(key);
     }
 
-    // Recipients must be commission-eligible owners in this org.
-    if (input.lines.length > 0) {
-      const ids = input.lines.map((l) => l.recipientUserId);
-      const found = await tx
-        .select({ id: users.id, userType: users.userType })
-        .from(users)
-        .where(and(eq(users.organizationId, input.organizationId), inArray(users.id, ids)));
-      const owners = new Set(found.filter((u) => u.userType === 'owner').map((u) => u.id));
-      for (const id of ids) {
-        if (!owners.has(id)) throw new NonOwnerRecipientError(id);
-      }
-    }
+    // Snapshot the current split for the audit trail (change tracking).
+    const before = await tx
+      .select({
+        recipientUserId: jobCommissionSplits.recipientUserId,
+        recipientName: jobCommissionSplits.recipientName,
+        ratePct: jobCommissionSplits.ratePct,
+      })
+      .from(jobCommissionSplits)
+      .where(eq(jobCommissionSplits.jobId, input.jobId));
 
     // Replace the whole split for this job.
     await tx.delete(jobCommissionSplits).where(eq(jobCommissionSplits.jobId, input.jobId));
@@ -121,7 +126,8 @@ export async function setCommissionSplit(input: SetCommissionSplitInput, db: DbC
         input.lines.map((l) => ({
           organizationId: input.organizationId,
           jobId: input.jobId,
-          recipientUserId: l.recipientUserId,
+          recipientUserId: l.recipientUserId ?? null,
+          recipientName: l.recipientUserId ? null : (l.recipientName ?? '').trim(),
           ratePct: l.ratePct.toFixed(4),
           createdBy: input.actorUserId,
         })),
@@ -135,8 +141,14 @@ export async function setCommissionSplit(input: SetCommissionSplitInput, db: DbC
       entityType: 'job',
       entityId: input.jobId,
       jobId: input.jobId,
+      previousState: {
+        lines: before.map((l) => ({
+          recipient: l.recipientUserId ?? l.recipientName,
+          ratePct: Number(l.ratePct),
+        })),
+      },
       newState: {
-        lines: input.lines.map((l) => ({ recipientUserId: l.recipientUserId, ratePct: l.ratePct })),
+        lines: input.lines.map((l) => ({ recipient: lineLabel(l), ratePct: l.ratePct })),
       },
       source: 'web',
       correlationId: input.correlationId,

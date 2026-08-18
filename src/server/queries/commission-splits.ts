@@ -8,7 +8,7 @@ import {
 } from '@/server/commands/commission-splits';
 
 export interface CommissionSplitLine {
-  recipientUserId: string;
+  recipientUserId: string | null;
   recipientName: string;
   ratePct: number;
 }
@@ -46,17 +46,19 @@ export async function getCommissionSplit(
   const lineRows = await db
     .select({
       recipientUserId: jobCommissionSplits.recipientUserId,
+      recipientName: jobCommissionSplits.recipientName,
+      userName: users.displayName,
       ratePct: jobCommissionSplits.ratePct,
-      recipientName: users.displayName,
+      createdAt: jobCommissionSplits.createdAt,
     })
     .from(jobCommissionSplits)
-    .innerJoin(users, eq(users.id, jobCommissionSplits.recipientUserId))
+    .leftJoin(users, eq(users.id, jobCommissionSplits.recipientUserId))
     .where(eq(jobCommissionSplits.jobId, jobId))
-    .orderBy(asc(users.displayName));
+    .orderBy(asc(jobCommissionSplits.createdAt));
 
   const lines: CommissionSplitLine[] = lineRows.map((r) => ({
     recipientUserId: r.recipientUserId,
-    recipientName: r.recipientName,
+    recipientName: r.recipientName ?? r.userName ?? '—',
     ratePct: Number(r.ratePct),
   }));
   const authoredTotal = lines.reduce((sum, l) => sum + l.ratePct, 0);

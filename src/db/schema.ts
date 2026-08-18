@@ -919,9 +919,10 @@ export const jobCommissionSplits = pgTable(
     jobId: uuid('job_id')
       .notNull()
       .references(() => jobs.id),
-    recipientUserId: uuid('recipient_user_id')
-      .notNull()
-      .references(() => users.id),
+    // Nullable: a split line is either a linked user OR a typed rep name (for
+    // reps who aren't app users, matching the P/L sheet).
+    recipientUserId: uuid('recipient_user_id').references(() => users.id),
+    recipientName: text('recipient_name'),
     ratePct: numeric('rate_pct', { precision: 5, scale: 4 }).notNull(),
     createdBy: uuid('created_by')
       .notNull()

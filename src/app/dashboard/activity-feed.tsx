@@ -6,6 +6,7 @@ import {
   FileUp,
   GitCommitVertical,
   Pencil,
+  Percent,
   Plus,
   Sparkles,
   Trash2,
@@ -51,6 +52,15 @@ const ENTITY_LABELS: Record<string, string> = {
 };
 
 function describe(action: string, entityType: string) {
+  // Commission changes are a tracked control — always read clearly in the feed.
+  if (action.startsWith('commission')) {
+    return {
+      verb: 'updated',
+      icon: Percent,
+      tone: 'bg-amber-50 text-amber-600',
+      entity: 'a commission split',
+    };
+  }
   const verbKey = action.split('.').pop() ?? action;
   const v = VERBS[verbKey] ?? {
     verb: verbKey.replace(/_/g, ' '),

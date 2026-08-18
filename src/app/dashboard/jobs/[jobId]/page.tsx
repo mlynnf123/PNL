@@ -35,6 +35,8 @@ import { FeesTable } from './fees-table';
 import { ProductionPhaseCard } from './production-phase-card';
 import { RevenueTable } from './revenue-table';
 import { getJobFinancialSummary } from '@/server/queries/job-financial-summary';
+import { getCommissionSplit } from '@/server/queries/commission-splits';
+import { CommissionRecipients } from './commission-recipients';
 import {
   ActivityTimeline,
   Badge,
@@ -113,6 +115,15 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
       }));
 
   const summary = await getJobFinancialSummary(jobId);
+  const commissionSplit = await getCommissionSplit(jobId, session.user.organizationId, db);
+  const canEditCommission =
+    job.dealOwnerUserId === session.user.id ||
+    (await userHasPermission(db, session.user.id, PERMISSIONS.SETTINGS_MANAGEMENT));
+  // Commission base = job profit (collected − total cost), matching the P/L.
+  const commissionBase = Math.max(
+    0,
+    Number(summary.collectedRevenue) - Number(summary.totalCost),
+  );
   const activity = await getEntityActivity(jobId, session.user.organizationId);
   const revenue = await db
     .select()
@@ -429,6 +440,23 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
               New estimate
             </LinkButton>
           </Card>
+
+          {isSigned && (
+            <Card>
+              <CardHeader title="Commission" />
+              <CommissionRecipients
+                jobId={job.id}
+                initial={
+                  commissionSplit?.lines.map((l) => ({
+                    recipientName: l.recipientName,
+                    ratePct: l.ratePct,
+                  })) ?? []
+                }
+                profitBase={commissionBase}
+                canEdit={canEditCommission}
+              />
+            </Card>
+          )}
 
           {isSigned && (
             <Card>
