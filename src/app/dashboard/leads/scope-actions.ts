@@ -58,17 +58,18 @@ export async function uploadCarrierScopeAction(
   }
 }
 
-// Scanned path: the client rendered the scan's pages to data-URL images.
+// Scanned path: the client rendered the scan's pages to data-URL images; run the
+// vision model over them. jobId is the record the scope hangs off (for revalidation).
 export async function submitScopePagesAction(
-  leadId: string,
+  jobId: string,
   scopeId: string,
   imageDataUrls: string[],
 ): Promise<ScopeActionResult> {
   const session = await requireSession();
   try {
     await submitScopePages({ ...actor(session), scopeId, imageDataUrls });
-    revalidatePath(`/dashboard/leads/${leadId}/scope`);
-    revalidatePath(`/dashboard/leads/${leadId}/scope/${scopeId}`);
+    revalidatePath(`/dashboard/jobs/${jobId}`);
+    revalidatePath('/dashboard/leads');
     return { ok: true, id: scopeId };
   } catch (err) {
     return handle(err);
