@@ -52,6 +52,7 @@ Rules:
 - Use null for any field not present or unreadable. NEVER guess or invent a number, name, quantity, or date.
 - Money as plain numbers (no $ or commas). A number shown in parentheses is negative.
 - These are the carrier's stated figures only. Do not compute or assume anything the document does not print.
+- You may be shown only SOME pages of a larger document. Do NOT claim a section, total, or figure is "missing", "not present", or "does not exist" just because it is not on the page(s) you can see — another page you were not shown may contain it. Simply leave a field null when you cannot read it. Only raise an issue about a genuine problem you can see (e.g. a total that does not add up), never about something merely being absent from your view.
 
 ROOF SECTION IS THE PRIORITY. These estimates often cover several areas/trades (Roof, Gutters, Siding, Elevations, Interior, Detached structures). Focus on the ROOFING work only.
 - Find the roof section — a group/section/elevation titled "Roof", "Roofing", "Dwelling - Roof", "Main Roof", or the roof slopes/facets — and read its SECTION TOTALS.
@@ -307,15 +308,20 @@ function finish(
   mode: 'native_text' | 'vision',
 ): ScopeExtractionResult {
   const extraction = normalizeExtraction(raw);
-  // When several pages are merged, a cover page's "no figures here / incomplete
-  // document" complaint is stale if a later page actually supplied the money. Drop
-  // those page-local complaints once a core carrier figure is present, and dedupe.
+  // Pages are extracted separately and merged, so one page's "no roof section /
+  // incomplete document / can't isolate the roof RCV" complaint is stale and
+  // misleading once ANOTHER page actually supplied the roof figures. Drop those
+  // absence claims when a core carrier figure is present, and dedupe. Keep genuine
+  // notes (e.g. "estimate also covers a Gutters section").
   const haveCoreMoney = !!(extraction.rcv || extraction.acv || extraction.netClaim);
+  // Asserts a section/figure is absent or the roof total can't be determined —
+  // narrowly, so genuine "doesn't reconcile" flags are not swept up.
+  const ABSENCE_CLAIM =
+    /incomplete document|only the (cover|header)|cover\/terms|no (specific )?['"]?roof|missing roof|without a? ?roof|roof[^.]{0,40}(not|cannot|could not|isn'?t)[^.]{0,25}(present|visible|shown|found|isolat|determin)|(no|missing)[^.]{0,30}section[^.]{0,25}(visible|present|shown|found)|cannot be isolated|roof-specific rcv cannot/i;
   const seen = new Set<string>();
   extraction.issues = extraction.issues.filter((iss) => {
-    const stale =
-      haveCoreMoney && /incomplete|missing|cover|only the|not.*visible|lacks/i.test(iss.detail);
-    if (stale) return false;
+    const text = `${iss.category} ${iss.detail}`;
+    if (haveCoreMoney && ABSENCE_CLAIM.test(text)) return false;
     const key = `${iss.category}|${iss.detail}`;
     if (seen.has(key)) return false;
     seen.add(key);
