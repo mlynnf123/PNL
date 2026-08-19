@@ -66,3 +66,44 @@ export async function listJobScopes(
     };
   });
 }
+
+// The reviewer-approved carrier figures for a job (typed columns, authoritative
+// after approval), used to derive expected collections. Null when no scope on the
+// job has been approved yet. Newest approved scope wins (a supplement supersedes).
+export interface ApprovedScopeFigures {
+  scopeId: string;
+  rcv: string | null;
+  acv: string | null;
+  netClaim: string | null;
+  recoverableDepreciation: string | null;
+  nonRecoverableDepreciation: string | null;
+  deductible: string | null;
+}
+
+export async function getApprovedScopeFigures(
+  organizationId: string,
+  jobId: string,
+  db: DbOrTx = defaultDb,
+): Promise<ApprovedScopeFigures | null> {
+  const [row] = await db
+    .select({
+      scopeId: carrierScopes.id,
+      rcv: carrierScopes.rcv,
+      acv: carrierScopes.acv,
+      netClaim: carrierScopes.netClaim,
+      recoverableDepreciation: carrierScopes.recoverableDepreciation,
+      nonRecoverableDepreciation: carrierScopes.nonRecoverableDepreciation,
+      deductible: carrierScopes.deductible,
+    })
+    .from(carrierScopes)
+    .where(
+      and(
+        eq(carrierScopes.jobId, jobId),
+        eq(carrierScopes.organizationId, organizationId),
+        eq(carrierScopes.status, 'approved_mapped'),
+      ),
+    )
+    .orderBy(desc(carrierScopes.reviewedAt))
+    .limit(1);
+  return row ?? null;
+}
