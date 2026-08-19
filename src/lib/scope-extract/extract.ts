@@ -34,14 +34,17 @@ const MAX_TEXT_CHUNKS = Number(process.env.GROQ_SCOPE_MAX_CHUNKS ?? 4);
 // observed 413). The financial summary is almost always on page 1, and we still
 // sweep the first few pages across separate requests, merging the results.
 const VISION_IMAGES_PER_REQ = Number(process.env.GROQ_SCOPE_VISION_BATCH ?? 1);
-// JSON mode suppresses the reasoning ramble, so the reply is small; keep it tight
-// so image + prompt + reply stays under the TPM ceiling.
-const VISION_REPLY_TOKENS = Number(process.env.GROQ_SCOPE_VISION_MAX_TOKENS ?? 1500);
-// The roof section (and its RCV total) can sit a few pages in, not just the page-1
-// recap, so sweep the first several pages and merge. Each page is one small
-// request; the per-minute rate limiter (429 backoff in callGroq) paces them on
-// the free tier. Raise/lower via env.
-const MAX_VISION_REQUESTS = Number(process.env.GROQ_SCOPE_MAX_VISION_REQ ?? 4);
+// The vision model reasons before it answers, so the reply needs room for both
+// the <think> pass and the JSON — too tight and the JSON truncates mid-object
+// (Groq then rejects it as json_validate_failed). A single ~1.8k-token page image
+// + ~1.4k prompt + 3k reply still lands under the 8k TPM ceiling.
+const VISION_REPLY_TOKENS = Number(process.env.GROQ_SCOPE_VISION_MAX_TOKENS ?? 3000);
+// On the 8k-TPM free tier a page image + prompt + reply is ~6k tokens, so only
+// ~1 page/minute clears the rate limiter — sweeping many pages means minutes of
+// waiting. The roof summary figures are on the first pages (a prior run read
+// everything but RCV from 2 pages), so default to 2 and let the roof-focused
+// prompt find the RCV there. Raise via env if a scope truly needs deeper pages.
+const MAX_VISION_REQUESTS = Number(process.env.GROQ_SCOPE_MAX_VISION_REQ ?? 2);
 
 const PROMPT = `You extract facts from a property-insurance estimate (a carrier "scope") for a ROOFING contractor. Return ONLY a single JSON object, no prose, no markdown fences.
 
@@ -80,7 +83,7 @@ JSON schema:
   "issues": [{"severity": "warning|blocker", "category": string, "detail": string}]
 }
 
-Include at most 25 line items (the most significant). Output valid JSON only.`;
+Include at most 8 line items, the most significant roof lines only. Prioritize the summary money fields over line items. Output valid JSON only.`;
 
 type Content = string | Array<Record<string, unknown>>;
 
@@ -180,6 +183,21 @@ async function callGroq(
       const body = await res.text().catch(() => '');
       lastErr = `Groq ${res.status}: ${body.slice(0, 200)}`;
 
+      // JSON mode can reject a completion as invalid (json_validate_failed) —
+      // usually a slightly-off or truncated object. Groq returns the model's raw
+      // output in error.failed_generation; salvage it so our lenient parser can
+      // still pull the JSON object out of it.
+      try {
+        const parsed = JSON.parse(body) as {
+          error?: { code?: string; failed_generation?: string };
+        };
+        if (parsed.error?.code === 'json_validate_failed' && parsed.error.failed_generation) {
+          return { text: parsed.error.failed_generation, model };
+        }
+      } catch {
+        // body wasn't JSON — fall through to normal handling
+      }
+
       // Too large, or a request/model problem: this model can't serve it — try
       // the next model rather than burning retries.
       if (res.status === 413 || (res.status >= 400 && res.status < 429)) {
@@ -214,11 +232,46 @@ function parseModelJson(text: string): unknown {
     .replace(/```(?:json)?/gi, '') // stray markdown fences
     .trim();
   const start = cleaned.indexOf('{');
-  const end = cleaned.lastIndexOf('}');
-  if (start === -1 || end === -1 || end <= start) {
-    throw new Error('Model did not return a JSON object');
+  if (start === -1) throw new Error('Model did not return a JSON object');
+  const body = cleaned.slice(start);
+
+  // Fast path: first { … last } parses cleanly.
+  const end = body.lastIndexOf('}');
+  if (end > 0) {
+    try {
+      return JSON.parse(body.slice(0, end + 1));
+    } catch {
+      // fall through to repair (truncated object)
+    }
   }
-  return JSON.parse(cleaned.slice(start, end + 1));
+  return repairAndParse(body);
+}
+
+// Best-effort recovery for a truncated JSON object (e.g. the reply was cut off
+// mid-generation): close any open string, drop a dangling key/comma, and append
+// the missing closing brackets/braces so at least the completed fields survive.
+function repairAndParse(body: string): unknown {
+  const stack: string[] = [];
+  let inString = false;
+  let escaped = false;
+  let out = '';
+  for (const ch of body) {
+    out += ch;
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === '{') stack.push('}');
+    else if (ch === '[') stack.push(']');
+    else if (ch === '}' || ch === ']') stack.pop();
+  }
+  if (inString) out += '"';
+  out = out.replace(/,\s*$/, '').replace(/:\s*$/, ': null');
+  while (stack.length) out += stack.pop();
+  return JSON.parse(out);
 }
 
 // Merge several partial extractions (one per chunk/batch): first non-null wins for
