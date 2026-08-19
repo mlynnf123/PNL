@@ -7,6 +7,7 @@ import type { ScopeExtraction } from '@/lib/scope-extract';
 export interface JobScopeRow {
   id: string;
   status: string;
+  rowVersion: number;
   model: string | null;
   mode: string | null;
   parseError: string | null;
@@ -32,6 +33,7 @@ export async function listJobScopes(
     .select({
       id: carrierScopes.id,
       status: carrierScopes.status,
+      rowVersion: carrierScopes.rowVersion,
       model: carrierScopes.extractionModel,
       mode: carrierScopes.extractionMode,
       parseError: carrierScopes.parseError,
@@ -53,6 +55,7 @@ export async function listJobScopes(
     return {
       id: r.id,
       status: r.status,
+      rowVersion: r.rowVersion,
       model: r.model,
       mode: r.mode,
       parseError: r.parseError,

@@ -1,6 +1,7 @@
 import { AlertTriangle, Sparkles } from 'lucide-react';
 import { formatCurrency } from '@/lib/format';
 import type { JobScopeRow } from '@/server/queries/job-scopes';
+import { ScopeReview } from './scope-review';
 
 // A carrier money figure box. Absent values read "—" (never invented / zeroed).
 function MoneyBox({
@@ -55,7 +56,15 @@ function expectedCollections(e: JobScopeRow['extraction']) {
   return { insurer, customer: ded };
 }
 
-function ScopeCard({ scope }: { scope: JobScopeRow }) {
+function ScopeCard({
+  scope,
+  jobId,
+  canApprove,
+}: {
+  scope: JobScopeRow;
+  jobId: string;
+  canApprove: boolean;
+}) {
   const e = scope.extraction;
   const when = new Date(scope.createdAt).toLocaleDateString('en-US', {
     month: 'short',
@@ -170,6 +179,26 @@ function ScopeCard({ scope }: { scope: JobScopeRow }) {
         </ul>
       )}
 
+      {/* Review / approve gate */}
+      {scope.status === 'parsed_needs_review' &&
+        (canApprove ? (
+          <ScopeReview
+            jobId={jobId}
+            scopeId={scope.id}
+            rowVersion={scope.rowVersion}
+            extraction={e}
+          />
+        ) : (
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+            Awaiting review by someone with financial access before these figures map to the job.
+          </p>
+        ))}
+      {scope.status === 'approved_mapped' && (
+        <p className="rounded-lg bg-teal-50 px-3 py-2 text-xs text-teal-700">
+          Approved — these figures are mapped to the job and set its expected value.
+        </p>
+      )}
+
       <p className="text-[11px] text-slate-400">
         Carrier document figures (draft) — extracted by AI, not collected revenue. Parsed {when}
         {scope.mode ? ` · ${scope.mode.replace(/_/g, ' ')}` : ''}
@@ -180,7 +209,15 @@ function ScopeCard({ scope }: { scope: JobScopeRow }) {
 }
 
 // Section body: one card per uploaded carrier scope, newest first.
-export function ScopeFinancials({ scopes }: { scopes: JobScopeRow[] }) {
+export function ScopeFinancials({
+  scopes,
+  jobId,
+  canApprove,
+}: {
+  scopes: JobScopeRow[];
+  jobId: string;
+  canApprove: boolean;
+}) {
   if (!scopes.length) {
     return (
       <p className="text-sm font-normal text-slate-500">
@@ -191,7 +228,7 @@ export function ScopeFinancials({ scopes }: { scopes: JobScopeRow[] }) {
   return (
     <div className="space-y-3">
       {scopes.map((s) => (
-        <ScopeCard key={s.id} scope={s} />
+        <ScopeCard key={s.id} scope={s} jobId={jobId} canApprove={canApprove} />
       ))}
     </div>
   );

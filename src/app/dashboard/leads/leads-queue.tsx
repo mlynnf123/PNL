@@ -183,7 +183,7 @@ export function LeadsQueue({ rows }: { rows: LeadListRow[] }) {
     return (
       <EmptyState
         title="No leads yet"
-        description="New leads show here until they get financials or an insurance scope, then they move to the Pipeline."
+        description="New leads show here until they get financials or an insurance scope, then they move to Jobs."
         action={<LinkButton href="/dashboard/jobs/new">New lead</LinkButton>}
       />
     );

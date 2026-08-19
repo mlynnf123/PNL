@@ -26,9 +26,9 @@ export default async function JobsPage({
   if (!canView) {
     return (
       <div>
-        <PageHeader title="Pipeline" />
+        <PageHeader title="Jobs" />
         <p className="text-sm font-normal text-slate-500">
-          You don&apos;t have access to the pipeline yet. Ask an owner to grant you access.
+          You don&apos;t have access to jobs yet. Ask an owner to grant you access.
         </p>
       </div>
     );
@@ -77,7 +77,7 @@ export default async function JobsPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Pipeline"
+        title="Jobs"
         description={`${rangeLabel} · ${rows.length} record${rows.length === 1 ? '' : 's'}`}
         action={<LinkButton href="/dashboard/jobs/new">New lead</LinkButton>}
       />

@@ -92,6 +92,24 @@ export async function approveCarrierScopeAction(
   }
 }
 
+// Job-scoped approve: reviewer confirms/corrects the extracted carrier facts and
+// maps them onto the job (writes the approved figures + expected value). Used by
+// the Insurance scope card on the job detail page.
+export async function approveJobScopeAction(
+  jobId: string,
+  input: Omit<ApproveCarrierScopeInput, 'actorUserId' | 'organizationId'>,
+): Promise<ScopeActionResult> {
+  const session = await requireSession();
+  try {
+    await approveCarrierScope({ ...actor(session), ...input });
+    revalidatePath(`/dashboard/jobs/${jobId}`);
+    revalidatePath('/dashboard/leads');
+    return { ok: true, id: input.scopeId };
+  } catch (err) {
+    return handle(err);
+  }
+}
+
 export async function rejectCarrierScopeAction(
   leadId: string,
   scopeId: string,

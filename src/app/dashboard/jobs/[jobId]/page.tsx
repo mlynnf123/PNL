@@ -364,7 +364,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
           </Section>
 
           <Section title="Insurance scope">
-            <ScopeFinancials scopes={jobScopes} />
+            <ScopeFinancials scopes={jobScopes} jobId={job.id} canApprove={canFinancial} />
           </Section>
 
           <Section title="Documents">
