@@ -37,17 +37,25 @@ const VISION_IMAGES_PER_REQ = Number(process.env.GROQ_SCOPE_VISION_BATCH ?? 1);
 // JSON mode suppresses the reasoning ramble, so the reply is small; keep it tight
 // so image + prompt + reply stays under the TPM ceiling.
 const VISION_REPLY_TOKENS = Number(process.env.GROQ_SCOPE_VISION_MAX_TOKENS ?? 1500);
-// The carrier financial summary (RCV/ACV/deductible) is almost always on page 1;
-// cap the sweep so several page calls don't stack up against the per-minute token
-// budget on the free tier. Raise via env if later pages carry needed figures.
-const MAX_VISION_REQUESTS = Number(process.env.GROQ_SCOPE_MAX_VISION_REQ ?? 2);
+// The roof section (and its RCV total) can sit a few pages in, not just the page-1
+// recap, so sweep the first several pages and merge. Each page is one small
+// request; the per-minute rate limiter (429 backoff in callGroq) paces them on
+// the free tier. Raise/lower via env.
+const MAX_VISION_REQUESTS = Number(process.env.GROQ_SCOPE_MAX_VISION_REQ ?? 4);
 
-const PROMPT = `You extract facts from a property-insurance estimate (a carrier "scope"). Return ONLY a single JSON object, no prose, no markdown fences.
+const PROMPT = `You extract facts from a property-insurance estimate (a carrier "scope") for a ROOFING contractor. Return ONLY a single JSON object, no prose, no markdown fences.
 
 Rules:
 - Use null for any field not present or unreadable. NEVER guess or invent a number, name, quantity, or date.
 - Money as plain numbers (no $ or commas). A number shown in parentheses is negative.
 - These are the carrier's stated figures only. Do not compute or assume anything the document does not print.
+
+ROOF SECTION IS THE PRIORITY. These estimates often cover several areas/trades (Roof, Gutters, Siding, Elevations, Interior, Detached structures). Focus on the ROOFING work only.
+- Find the roof section — a group/section/elevation titled "Roof", "Roofing", "Dwelling - Roof", "Main Roof", or the roof slopes/facets — and read its SECTION TOTALS.
+- The rcv/acv/recoverable_depreciation/deductible you report should be the ROOF section's figures. The RCV is the roof section's replacement-cost total (often labeled "Total:", "Line Item Total", "Replacement Cost Value", or "RCV" at the end of the roof section) — it is right there in the roof section totals. Do NOT leave rcv null if a roof section total is visible.
+- If the whole estimate is a single roof scope, its overall totals ARE the roof totals — use them.
+- If figures exist both per-section and as a grand total across multiple trades, prefer the ROOF section's figures and add an issue noting the estimate also covers non-roof trades.
+- The deductible and claim identity (claim number, insured, address, date of loss) are usually document-wide — take them from wherever printed.
 
 JSON schema:
 {
