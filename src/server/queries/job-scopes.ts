@@ -77,7 +77,11 @@ export interface ApprovedScopeFigures {
   netClaim: string | null;
   recoverableDepreciation: string | null;
   nonRecoverableDepreciation: string | null;
+  codeUpgrade: string | null;
+  debrisRemoval: string | null;
   deductible: string | null;
+  deductibleCoverageBucket: string | null;
+  deductibleCoverageLimit: string | null;
 }
 
 async function listApprovedScopeFigures(
@@ -94,7 +98,11 @@ async function listApprovedScopeFigures(
       netClaim: carrierScopes.netClaim,
       recoverableDepreciation: carrierScopes.recoverableDepreciation,
       nonRecoverableDepreciation: carrierScopes.nonRecoverableDepreciation,
+      codeUpgrade: carrierScopes.codeUpgrade,
+      debrisRemoval: carrierScopes.debrisRemoval,
       deductible: carrierScopes.deductible,
+      deductibleCoverageBucket: carrierScopes.deductibleCoverageBucket,
+      deductibleCoverageLimit: carrierScopes.deductibleCoverageLimit,
     })
     .from(carrierScopes)
     .where(

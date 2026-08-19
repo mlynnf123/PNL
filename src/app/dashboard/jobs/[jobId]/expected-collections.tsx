@@ -22,7 +22,7 @@ function Line({
         {sub && <span className="ml-1 text-xs font-normal text-slate-400">{sub}</span>}
       </span>
       <span
-        className={`tabular-nums ${strong ? 'text-sm font-semibold text-slate-900' : 'text-sm text-slate-700'}`}
+        className={`text-sm tabular-nums ${strong ? 'font-semibold text-slate-900' : 'text-slate-700'}`}
       >
         {formatCurrency(String(value))}
       </span>
@@ -31,10 +31,13 @@ function Line({
 }
 
 // Expected collections derived from the approved carrier scope vs what's actually
-// been collected. Expected is an estimate from the carrier document (never cash):
-// insurer ≈ net/initial payment + recoverable depreciation (conditional); the
-// customer owes the deductible. Actual is posted collection transactions. Model
-// doc SS3.6 / SS5.2–5.3.
+// been collected. Following the carrier's own structure (model doc / Manus review):
+//   • CURRENT  = the carrier's PRINTED net claim/net estimate (payable now).
+//   • CONDITIONAL = the sum of every labeled hold-back released when incurred —
+//     recoverable depreciation + code upgrade + debris/paid-when-incurred. These
+//     are kept separate (Safeco-style scopes withhold more than depreciation).
+//   • Deductible = a separate policy-level customer line, applied once.
+// Never treated as cash; a printed figure is not a received payment.
 export function ExpectedCollections({
   figures,
   actualCollected,
@@ -42,14 +45,22 @@ export function ExpectedCollections({
   figures: ApprovedScopeFigures;
   actualCollected: number;
 }) {
-  const initial = n(figures.netClaim);
-  const recoverable = n(figures.recoverableDepreciation);
+  const current = n(figures.netClaim); // printed net — authoritative
+  const dep = n(figures.recoverableDepreciation);
+  const code = n(figures.codeUpgrade);
+  const debris = n(figures.debrisRemoval);
+  const conditional = dep + code + debris;
   const deductible = n(figures.deductible);
-  const expectedInsurer = initial + recoverable;
-  const expectedTotal = expectedInsurer + deductible;
 
+  const expectedInsurer = current + conditional;
+  const expectedTotal = expectedInsurer + deductible;
   const remaining = Math.max(0, expectedTotal - actualCollected);
   const pct = expectedTotal > 0 ? Math.min(100, (actualCollected / expectedTotal) * 100) : 0;
+
+  // Observed deductible rate — ANALYTICS only, shown when the coverage limit is
+  // printed. Never used to derive the deductible; the printed amount is authoritative.
+  const limit = n(figures.deductibleCoverageLimit);
+  const observedRate = has(figures.deductible) && limit > 0 ? deductible / limit : null;
 
   return (
     <div className="space-y-3 rounded-xl border border-slate-200 p-4">
@@ -59,11 +70,33 @@ export function ExpectedCollections({
           <div className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
             Expected (from scope)
           </div>
-          {has(figures.netClaim) && <Line label="Insurer — initial / net" value={initial} />}
-          {has(figures.recoverableDepreciation) && (
-            <Line label="Insurer — recoverable dep." value={recoverable} sub="conditional" />
+          {has(figures.netClaim) && <Line label="Insurer — current (net)" value={current} />}
+          {conditional > 0 && (
+            <div className="mt-1 border-l-2 border-slate-100 pl-2">
+              {has(figures.recoverableDepreciation) && (
+                <Line label="Recoverable depreciation" value={dep} sub="conditional" />
+              )}
+              {has(figures.codeUpgrade) && (
+                <Line label="Code upgrade" value={code} sub="conditional" />
+              )}
+              {has(figures.debrisRemoval) && (
+                <Line label="Debris / paid when incurred" value={debris} sub="conditional" />
+              )}
+            </div>
           )}
-          {has(figures.deductible) && <Line label="Customer — deductible" value={deductible} />}
+          {has(figures.deductible) && (
+            <Line
+              label="Customer — deductible"
+              value={deductible}
+              sub={
+                figures.deductibleCoverageBucket
+                  ? `${figures.deductibleCoverageBucket}${observedRate != null ? ` · ${(observedRate * 100).toFixed(2)}% observed` : ''}`
+                  : observedRate != null
+                    ? `${(observedRate * 100).toFixed(2)}% observed`
+                    : undefined
+              }
+            />
+          )}
           <div className="mt-1 border-t border-slate-100 pt-1">
             <Line label="Expected total" value={expectedTotal} strong />
           </div>
@@ -92,7 +125,8 @@ export function ExpectedCollections({
 
       <p className="text-[11px] text-slate-400">
         Expected figures are estimated from the approved carrier scope — not collected revenue.
-        Recoverable depreciation is conditional until the release requirements are met.
+        Conditional amounts release only when their requirements are met. The deductible is a policy
+        term applied once; any observed rate is analytics, not the policy rule.
       </p>
     </div>
   );

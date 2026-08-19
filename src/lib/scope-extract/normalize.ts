@@ -107,8 +107,20 @@ export function normalizeExtraction(raw: unknown): ScopeExtraction {
     acv: money('acv', 'actual_cash_value'),
     recoverableDepreciation: money('recoverable_depreciation', 'recoverableDepreciation'),
     nonRecoverableDepreciation: money('non_recoverable_depreciation', 'nonRecoverableDepreciation'),
+    codeUpgrade: money('code_upgrade', 'codeUpgrade', 'ordinance_and_law', 'ordinance_or_law', 'code_and_ordinance'),
+    debrisRemoval: money('debris_removal', 'debrisRemoval', 'paid_when_incurred', 'haul_off'),
     deductible: money('deductible'),
-    netClaim: money('net_claim', 'net_payment', 'net_claim_payment', 'amount_payable'),
+    deductibleCoverageBucket: str(
+      pick(fin, 'deductible_coverage_bucket', 'deductible_coverage', 'coverage_bucket') ??
+        pick(o, 'deductible_coverage_bucket', 'coverage_bucket'),
+    ),
+    deductibleCoverageLimit: toDecimalString(
+      moneyValue(
+        pick(fin, 'deductible_coverage_limit', 'coverage_limit', 'applicable_coverage_limit') ??
+          pick(o, 'coverage_limit', 'deductible_coverage_limit'),
+      ),
+    ),
+    netClaim: money('net_claim', 'net_payment', 'net_claim_payment', 'amount_payable', 'net_estimate'),
     priorPayments: money('prior_payments', 'prior_payment', 'previous_payments'),
     salesTax: money('sales_tax', 'tax'),
     overheadProfit: money('overhead_and_profit', 'overhead_profit', 'oandp', 'o_and_p'),

@@ -52,8 +52,12 @@ function expectedCollections(e: JobScopeRow['extraction']) {
   if (!e) return null;
   const net = num(e.netClaim);
   const recov = num(e.recoverableDepreciation);
+  const code = num(e.codeUpgrade);
+  const debris = num(e.debrisRemoval);
   const ded = num(e.deductible);
-  const insurer = net != null || recov != null ? (net ?? 0) + (recov ?? 0) : null;
+  // Insurer expected = printed net (current) + all conditional hold-backs.
+  const anyInsurer = [net, recov, code, debris].some((v) => v != null);
+  const insurer = anyInsurer ? (net ?? 0) + (recov ?? 0) + (code ?? 0) + (debris ?? 0) : null;
   return { insurer, customer: ded };
 }
 
@@ -131,11 +135,25 @@ function ScopeCard({
           <MoneyBox label="Net / initial payment" value={e.netClaim} />
           <MoneyBox label="Recoverable dep." value={e.recoverableDepreciation} />
           <MoneyBox label="Non-recoverable dep." value={e.nonRecoverableDepreciation} />
+          <MoneyBox label="Code upgrade" value={e.codeUpgrade} />
+          <MoneyBox label="Debris removal" value={e.debrisRemoval} />
           <MoneyBox label="Deductible" value={e.deductible} accent />
           <MoneyBox label="Prior payments" value={e.priorPayments} />
           <MoneyBox label="Sales tax" value={e.salesTax} />
           <MoneyBox label="Overhead & profit" value={e.overheadProfit} />
         </div>
+        {(e.deductibleCoverageBucket || e.deductibleCoverageLimit) && (
+          <p className="mt-2 text-xs text-slate-500">
+            Deductible applies to{' '}
+            <span className="font-medium text-slate-700">
+              {e.deductibleCoverageBucket ?? 'the claim'}
+            </span>
+            {e.deductibleCoverageLimit && (
+              <> (limit {formatCurrency(e.deductibleCoverageLimit)})</>
+            )}{' '}
+            — once per claim.
+          </p>
+        )}
       </div>
 
       {/* Derived expected collections — estimate only, not cash */}

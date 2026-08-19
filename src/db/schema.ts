@@ -1809,7 +1809,14 @@ export const carrierScopes = pgTable(
       precision: 12,
       scale: 2,
     }),
+    // Conditional hold-backs the carrier releases when incurred, kept separate
+    // from depreciation (some carriers withhold code-upgrade and debris apart).
+    codeUpgrade: numeric('code_upgrade', { precision: 12, scale: 2 }),
+    debrisRemoval: numeric('debris_removal', { precision: 12, scale: 2 }),
     deductible: numeric('deductible', { precision: 12, scale: 2 }),
+    // Deductible policy context (the coverage bucket it applies to + that limit).
+    deductibleCoverageBucket: text('deductible_coverage_bucket'),
+    deductibleCoverageLimit: numeric('deductible_coverage_limit', { precision: 14, scale: 2 }),
     netClaim: numeric('net_claim', { precision: 12, scale: 2 }),
     priorPayments: numeric('prior_payments', { precision: 12, scale: 2 }),
     salesTax: numeric('sales_tax', { precision: 12, scale: 2 }),

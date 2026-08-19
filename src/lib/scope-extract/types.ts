@@ -19,13 +19,19 @@ export interface ScopeIssue {
   detail: string;
 }
 
-// The carrier money fields we retain, each separately (docs/01 SS3/1.1).
+// The carrier money fields we retain, each separately (docs/01 SS3/1.1). Includes
+// the conditional hold-backs a carrier can withhold apart from depreciation (code
+// upgrade, debris/paid-when-incurred) — Safeco-style scopes prove these must not
+// be collapsed into "depreciation".
 export const SCOPE_MONEY_FIELDS = [
   'rcv',
   'acv',
   'recoverableDepreciation',
   'nonRecoverableDepreciation',
+  'codeUpgrade',
+  'debrisRemoval',
   'deductible',
+  'deductibleCoverageLimit',
   'netClaim',
   'priorPayments',
   'salesTax',
@@ -59,7 +65,15 @@ export interface ScopeExtraction {
   acv: string | null;
   recoverableDepreciation: string | null;
   nonRecoverableDepreciation: string | null;
+  // Conditional hold-backs the carrier pays when incurred, SEPARATE from
+  // depreciation (kept distinct so the expected-collection sum is complete).
+  codeUpgrade: string | null; // ordinance & law / code upgrade
+  debrisRemoval: string | null; // debris removal / paid-when-incurred
   deductible: string | null;
+  // Deductible policy context (extracted only when printed). Coverage bucket the
+  // carrier applies it to (Dwelling / Coverage A / Building) + that bucket's limit.
+  deductibleCoverageBucket: string | null;
+  deductibleCoverageLimit: string | null;
   netClaim: string | null;
   priorPayments: string | null;
   salesTax: string | null;

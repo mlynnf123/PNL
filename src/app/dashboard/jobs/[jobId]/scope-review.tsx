@@ -14,7 +14,10 @@ const MONEY: { key: keyof ScopeExtraction; label: string }[] = [
   { key: 'netClaim', label: 'Net / initial payment' },
   { key: 'recoverableDepreciation', label: 'Recoverable dep.' },
   { key: 'nonRecoverableDepreciation', label: 'Non-recoverable dep.' },
+  { key: 'codeUpgrade', label: 'Code upgrade' },
+  { key: 'debrisRemoval', label: 'Debris removal' },
   { key: 'deductible', label: 'Deductible' },
+  { key: 'deductibleCoverageLimit', label: 'Coverage limit' },
   { key: 'priorPayments', label: 'Prior payments' },
   { key: 'salesTax', label: 'Sales tax' },
   { key: 'overheadProfit', label: 'Overhead & profit' },
@@ -27,6 +30,7 @@ const IDENTITY: { key: keyof ScopeExtraction; label: string }[] = [
   { key: 'propertyAddress', label: 'Property' },
   { key: 'estimateNumber', label: 'Estimate #' },
   { key: 'dateOfLoss', label: 'Date of loss' },
+  { key: 'deductibleCoverageBucket', label: 'Deductible coverage' },
 ];
 
 type Values = Record<string, string>;

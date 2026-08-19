@@ -250,6 +250,7 @@ export interface ApproveCarrierScopeInput extends Actor {
       | 'estimateNumber'
       | 'estimateDate'
       | 'dateOfLoss'
+      | 'deductibleCoverageBucket'
     >
   >;
   financial?: Partial<
@@ -259,7 +260,10 @@ export interface ApproveCarrierScopeInput extends Actor {
       | 'acv'
       | 'recoverableDepreciation'
       | 'nonRecoverableDepreciation'
+      | 'codeUpgrade'
+      | 'debrisRemoval'
       | 'deductible'
+      | 'deductibleCoverageLimit'
       | 'netClaim'
       | 'priorPayments'
       | 'salesTax'
@@ -311,7 +315,11 @@ export async function approveCarrierScope(
         acv: emptyToNull(fin.acv),
         recoverableDepreciation: emptyToNull(fin.recoverableDepreciation),
         nonRecoverableDepreciation: emptyToNull(fin.nonRecoverableDepreciation),
+        codeUpgrade: emptyToNull(fin.codeUpgrade),
+        debrisRemoval: emptyToNull(fin.debrisRemoval),
         deductible: emptyToNull(fin.deductible),
+        deductibleCoverageBucket: emptyToNull(id.deductibleCoverageBucket),
+        deductibleCoverageLimit: emptyToNull(fin.deductibleCoverageLimit),
         netClaim: emptyToNull(fin.netClaim),
         priorPayments: emptyToNull(fin.priorPayments),
         salesTax: emptyToNull(fin.salesTax),

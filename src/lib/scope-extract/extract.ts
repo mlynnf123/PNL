@@ -75,7 +75,11 @@ JSON schema:
   "acv": number|null,
   "recoverable_depreciation": number|null,
   "non_recoverable_depreciation": number|null,
+  "code_upgrade": number|null,
+  "debris_removal": number|null,
   "deductible": number|null,
+  "deductible_coverage_bucket": string|null,
+  "deductible_coverage_limit": number|null,
   "net_claim": number|null,
   "prior_payments": number|null,
   "sales_tax": number|null,
@@ -83,6 +87,13 @@ JSON schema:
   "line_items": [{"description": string, "quantity": number|null, "unit": string|null, "unit_price": number|null, "total": number|null, "category": string|null}],
   "issues": [{"severity": "warning|blocker", "category": string, "detail": string}]
 }
+
+MONEY FIELD NOTES:
+- net_claim = the carrier's PRINTED current net payment / net claim / net estimate (the amount payable now). Use the printed figure; do not recompute it.
+- recoverable_depreciation, code_upgrade, and debris_removal are SEPARATE conditional hold-backs the carrier releases when the work is done / incurred. Keep each as its own field — do NOT lump code upgrade (ordinance & law) or debris removal into depreciation. Leave a field null if the scope does not withhold it separately.
+- deductible = the printed policy deductible amount (a policy term). NEVER derive it from roof cost, RCV, or square count. The deductible applies ONCE to the whole claim (usually the Dwelling/Coverage A/Building bucket) — do not report it per section.
+- deductible_coverage_bucket = the coverage the deductible applies to (e.g. "Dwelling", "Coverage A", "Building"), only if printed.
+- deductible_coverage_limit = that coverage's limit amount, only if printed.
 
 Include at most 8 line items, the most significant roof lines only. Prioritize the summary money fields over line items. Output valid JSON only.`;
 
