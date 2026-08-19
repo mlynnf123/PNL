@@ -35,9 +35,11 @@ import { FeesTable } from './fees-table';
 import { ProductionPhaseCard } from './production-phase-card';
 import { RevenueTable } from './revenue-table';
 import { getJobFinancialSummary } from '@/server/queries/job-financial-summary';
+import { listJobScopes } from '@/server/queries/job-scopes';
 import { getCommissionSplit } from '@/server/queries/commission-splits';
 import { CommissionRecipients } from './commission-recipients';
 import { PaymentChecksCard } from './payment-checks-card';
+import { ScopeFinancials } from './scope-financials';
 import { DocumentUpload } from './document-upload';
 import { ScopeUpload } from './scope-upload';
 import {
@@ -154,6 +156,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
   );
 
   const jobDocuments = await listDocuments('job', jobId, session.user.organizationId);
+  // AI-extracted carrier scope facts (RCV/ACV/deductible/…) for the scope card.
+  const jobScopes = await listJobScopes(session.user.organizationId, jobId);
   // Estimates tied to this job — surfaced on the customer's profile below.
   const linkedEstimates = await listEstimateDocuments(session.user.organizationId, { jobId });
 
@@ -357,6 +361,10 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
                 supplement: job.supplementCheckCollected,
               }}
             />
+          </Section>
+
+          <Section title="Insurance scope">
+            <ScopeFinancials scopes={jobScopes} />
           </Section>
 
           <Section title="Documents">
