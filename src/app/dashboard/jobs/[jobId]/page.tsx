@@ -35,7 +35,11 @@ import { FeesTable } from './fees-table';
 import { ProductionPhaseCard } from './production-phase-card';
 import { RevenueTable } from './revenue-table';
 import { getJobFinancialSummary } from '@/server/queries/job-financial-summary';
-import { getApprovedScopeFigures, listJobScopes } from '@/server/queries/job-scopes';
+import {
+  getApprovedScopeFigures,
+  getScopeSupplementDelta,
+  listJobScopes,
+} from '@/server/queries/job-scopes';
 import { getCommissionSplit } from '@/server/queries/commission-splits';
 import { CommissionRecipients } from './commission-recipients';
 import { PaymentChecksCard } from './payment-checks-card';
@@ -164,6 +168,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
   const jobScopes = await listJobScopes(session.user.organizationId, jobId);
   // Approved-scope figures drive the expected-vs-actual collections panel.
   const approvedScope = await getApprovedScopeFigures(session.user.organizationId, jobId);
+  // A second approved scope means a supplement — the delta vs the prior version.
+  const supplement = await getScopeSupplementDelta(session.user.organizationId, jobId);
   // Estimates tied to this job — surfaced on the customer's profile below.
   const linkedEstimates = await listEstimateDocuments(session.user.organizationId, { jobId });
 
@@ -370,9 +376,11 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
                 approvedScope
                   ? {
                       // First carrier check = the initial/ACV payment; second =
-                      // the recoverable depreciation released after the work.
+                      // the recoverable depreciation released after the work; the
+                      // supplement check = the approved supplement (scope delta).
                       check1: toNum(approvedScope.netClaim ?? approvedScope.acv),
                       check2: toNum(approvedScope.recoverableDepreciation),
+                      supplement: toNum(supplement?.deltaRcv),
                     }
                   : undefined
               }
@@ -380,6 +388,23 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
           </Section>
 
           <Section title="Insurance scope">
+            {supplement && supplement.deltaRcv && Number(supplement.deltaRcv) !== 0 && (
+              <div
+                className={`mb-3 rounded-lg border px-3 py-2 text-sm ${
+                  Number(supplement.deltaRcv) > 0
+                    ? 'border-teal-200 bg-teal-50 text-teal-800'
+                    : 'border-amber-200 bg-amber-50 text-amber-800'
+                }`}
+              >
+                <span className="font-semibold">
+                  Supplement {Number(supplement.deltaRcv) > 0 ? '+' : ''}
+                  {formatCurrency(supplement.deltaRcv)}
+                </span>{' '}
+                — revised scope RCV {formatCurrency(supplement.currentRcv)} vs prior{' '}
+                {formatCurrency(supplement.priorRcv)}. Tracked on the Supplement check and the
+                Awaiting Supplements stage.
+              </div>
+            )}
             <ScopeFinancials scopes={jobScopes} jobId={job.id} canApprove={canFinancial} />
           </Section>
 

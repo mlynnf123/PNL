@@ -80,12 +80,13 @@ export interface ApprovedScopeFigures {
   deductible: string | null;
 }
 
-export async function getApprovedScopeFigures(
+async function listApprovedScopeFigures(
   organizationId: string,
   jobId: string,
-  db: DbOrTx = defaultDb,
-): Promise<ApprovedScopeFigures | null> {
-  const [row] = await db
+  db: DbOrTx,
+  limit: number,
+): Promise<ApprovedScopeFigures[]> {
+  return db
     .select({
       scopeId: carrierScopes.id,
       rcv: carrierScopes.rcv,
@@ -104,6 +105,52 @@ export async function getApprovedScopeFigures(
       ),
     )
     .orderBy(desc(carrierScopes.reviewedAt))
-    .limit(1);
+    .limit(limit);
+}
+
+export async function getApprovedScopeFigures(
+  organizationId: string,
+  jobId: string,
+  db: DbOrTx = defaultDb,
+): Promise<ApprovedScopeFigures | null> {
+  const [row] = await listApprovedScopeFigures(organizationId, jobId, db, 1);
   return row ?? null;
+}
+
+export interface ScopeSupplementDelta {
+  // The supplement is the increase of the newest approved scope over the prior
+  // one. All fields are decimal strings (or null when a side is missing).
+  version: number; // how many approved scopes exist (2 = one supplement)
+  deltaRcv: string | null;
+  deltaAcv: string | null;
+  deltaRecoverableDepreciation: string | null;
+  currentRcv: string | null;
+  priorRcv: string | null;
+}
+
+// When a job has a second (revised) approved scope, the supplement is the delta
+// vs the prior version. Returns null when there's only one scope (no supplement).
+export async function getScopeSupplementDelta(
+  organizationId: string,
+  jobId: string,
+  db: DbOrTx = defaultDb,
+): Promise<ScopeSupplementDelta | null> {
+  const rows = await listApprovedScopeFigures(organizationId, jobId, db, 2);
+  if (rows.length < 2) return null;
+  const [current, prior] = rows;
+  const diff = (a: string | null, b: string | null): string | null => {
+    if (a == null || b == null) return null;
+    return (Number(a) - Number(b)).toFixed(2);
+  };
+  return {
+    version: rows.length,
+    deltaRcv: diff(current.rcv, prior.rcv),
+    deltaAcv: diff(current.acv, prior.acv),
+    deltaRecoverableDepreciation: diff(
+      current.recoverableDepreciation,
+      prior.recoverableDepreciation,
+    ),
+    currentRcv: current.rcv,
+    priorRcv: prior.rcv,
+  };
 }
