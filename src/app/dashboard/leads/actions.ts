@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { ConcurrencyConflictError } from '@/lib/concurrency';
 import { AuthorizationError } from '@/lib/permissions';
 import { requireSession } from '@/lib/require-session';
+import { friendlyErrorMessage } from '@/lib/user-error';
 import {
   type LeadFields,
   LeadAlreadyConvertedError,
@@ -29,7 +30,7 @@ function handle(err: unknown): ActionResult {
   if (err instanceof LeadAlreadyConvertedError) {
     return { ok: false, error: 'This lead has already been converted to a job.' };
   }
-  throw err;
+  return { ok: false, error: friendlyErrorMessage(err) };
 }
 
 export async function createLeadAction(fields: LeadFields): Promise<ActionResult> {

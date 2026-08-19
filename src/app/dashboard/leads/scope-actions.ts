@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { ConcurrencyConflictError } from '@/lib/concurrency';
 import { AuthorizationError } from '@/lib/permissions';
 import { requireSession } from '@/lib/require-session';
+import { friendlyErrorMessage } from '@/lib/user-error';
 import {
   approveCarrierScope,
   createCarrierScope,
@@ -19,9 +20,12 @@ export type ScopeActionResult =
 function handle(err: unknown): ScopeActionResult {
   if (err instanceof AuthorizationError)
     return { ok: false, error: 'You do not have permission to do that.' };
-  if (err instanceof ConcurrencyConflictError) return { ok: false, error: err.message };
-  if (err instanceof Error) return { ok: false, error: err.message };
-  throw err;
+  // Known domain errors carry safe messages; provider/DB errors (e.g. Groq rate
+  // limits) collapse to a plain, non-technical message.
+  return {
+    ok: false,
+    error: friendlyErrorMessage(err, 'We couldn’t process the scope. Please try again.'),
+  };
 }
 
 function actor(session: { user: { id: string; organizationId: string } }) {

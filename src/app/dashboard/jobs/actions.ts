@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { ConcurrencyConflictError } from '@/lib/concurrency';
 import { AuthorizationError } from '@/lib/permissions';
 import { requireSession } from '@/lib/require-session';
+import { friendlyErrorMessage } from '@/lib/user-error';
 import { archiveJob } from '@/server/commands/archive-job';
 import { assignJob } from '@/server/commands/assign-job';
 import {
@@ -51,7 +52,7 @@ export async function setJobStageAction(
     if (err instanceof ConcurrencyConflictError) {
       return { ok: false, error: err.message };
     }
-    throw err;
+    return { ok: false, error: friendlyErrorMessage(err) };
   }
 }
 
@@ -78,7 +79,7 @@ export async function setJobAssigneeAction(
     if (err instanceof ConcurrencyConflictError) {
       return { ok: false, error: err.message };
     }
-    throw err;
+    return { ok: false, error: friendlyErrorMessage(err) };
   }
 }
 
@@ -102,7 +103,7 @@ export async function archiveJobsAction(jobIds: string[]): Promise<ActionResult>
     if (err instanceof ConcurrencyConflictError) {
       return { ok: false, error: err.message };
     }
-    throw err;
+    return { ok: false, error: friendlyErrorMessage(err) };
   }
 }
 
@@ -131,8 +132,7 @@ export async function setCommissionRecipientsAction(
       return { ok: false, error: err.message };
     }
     if (err instanceof ConcurrencyConflictError) return { ok: false, error: err.message };
-    if (err instanceof Error) return { ok: false, error: err.message };
-    throw err;
+    return { ok: false, error: friendlyErrorMessage(err) };
   }
 }
 
@@ -164,6 +164,6 @@ export async function createLeadRecordAction(input: {
     if (err instanceof AuthorizationError) {
       return { ok: false, error: 'You do not have permission to create a lead.' };
     }
-    throw err;
+    return { ok: false, error: friendlyErrorMessage(err) };
   }
 }

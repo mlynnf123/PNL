@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { AuthorizationError } from '@/lib/permissions';
 import { requireSession } from '@/lib/require-session';
+import { friendlyErrorMessage } from '@/lib/user-error';
 import { type PaymentCheckKey, setJobPaymentCheck } from '@/server/commands/job-payment-checks';
 
 export type PaymentCheckResult = { ok: true } | { ok: false; error: string };
@@ -27,6 +28,6 @@ export async function setPaymentCheckAction(
   } catch (err) {
     if (err instanceof AuthorizationError)
       return { ok: false, error: 'You do not have permission to update payments.' };
-    return { ok: false, error: err instanceof Error ? err.message : 'Could not update the check.' };
+    return { ok: false, error: friendlyErrorMessage(err, 'Could not update the check.') };
   }
 }

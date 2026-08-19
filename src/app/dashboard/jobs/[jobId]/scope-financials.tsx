@@ -1,5 +1,6 @@
 import { AlertTriangle, Sparkles } from 'lucide-react';
 import { formatCurrency } from '@/lib/format';
+import { friendlyScopeError } from '@/lib/user-error';
 import type { JobScopeRow } from '@/server/queries/job-scopes';
 import { ScopeReview } from './scope-review';
 
@@ -82,7 +83,7 @@ function ScopeCard({
         </div>
         <p className="mt-1 text-sm text-slate-500">
           {scope.status === 'parse_error'
-            ? `Parsing failed: ${scope.parseError ?? 'unknown error'}`
+            ? friendlyScopeError(scope.parseError)
             : scope.status === 'processing'
               ? 'Parsing in progress…'
               : 'Uploaded — not parsed yet.'}

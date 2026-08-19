@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { ConcurrencyConflictError } from '@/lib/concurrency';
 import { AuthorizationError } from '@/lib/permissions';
 import { requireSession } from '@/lib/require-session';
+import { friendlyErrorMessage } from '@/lib/user-error';
 import { uploadDocument } from '@/server/commands/documents';
 import {
   type ContractFields,
@@ -26,7 +27,7 @@ function handle(err: unknown): ActionResult {
   if (err instanceof ConcurrencyConflictError) {
     return { ok: false, error: err.message };
   }
-  throw err;
+  return { ok: false, error: friendlyErrorMessage(err) };
 }
 
 export async function createContractAction(fields: ContractFields): Promise<ActionResult> {

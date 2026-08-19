@@ -8,6 +8,7 @@ import { ConcurrencyConflictError } from '@/lib/concurrency';
 import type { PageType } from '@/lib/estimate-pages';
 import { AuthorizationError } from '@/lib/permissions';
 import { requireSession } from '@/lib/require-session';
+import { friendlyErrorMessage } from '@/lib/user-error';
 import { ContractDetailsRequiredError, setJobStage } from '@/server/commands/job-production';
 import {
   deleteContentTemplate,
@@ -40,7 +41,7 @@ function handle(err: unknown): ActionResult {
   if (err instanceof AuthorizationError)
     return { ok: false, error: 'You do not have permission to do that.' };
   if (err instanceof ConcurrencyConflictError) return { ok: false, error: err.message };
-  if (err instanceof Error) return { ok: false, error: err.message };
+  return { ok: false, error: friendlyErrorMessage(err) };
   throw err;
 }
 

@@ -67,10 +67,10 @@ export function ScopeUpload({ jobId }: { jobId: string }) {
                 setMsg({ tone: 'ok', text: 'Scope parsed by AI (text).' });
               }
               router.refresh();
-            } catch (err) {
+            } catch {
               setMsg({
                 tone: 'err',
-                text: err instanceof Error ? err.message : 'Scope parsing failed.',
+                text: 'We couldn’t upload or read the scope. Please try again.',
               });
             } finally {
               setPhase('idle');

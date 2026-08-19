@@ -5,6 +5,7 @@ import { ConcurrencyConflictError } from '@/lib/concurrency';
 import type { DocKind, PageType } from '@/lib/estimate-pages';
 import { AuthorizationError } from '@/lib/permissions';
 import { requireSession } from '@/lib/require-session';
+import { friendlyErrorMessage } from '@/lib/user-error';
 import {
   addLayoutPage,
   createLayout,
@@ -27,7 +28,7 @@ function handle(err: unknown): ActionResult {
   if (err instanceof AuthorizationError)
     return { ok: false, error: 'You do not have permission to do that.' };
   if (err instanceof ConcurrencyConflictError) return { ok: false, error: err.message };
-  throw err;
+  return { ok: false, error: friendlyErrorMessage(err) };
 }
 
 function actor(session: { user: { id: string; organizationId: string } }) {

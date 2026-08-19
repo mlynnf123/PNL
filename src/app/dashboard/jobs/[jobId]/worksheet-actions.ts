@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { AuthorizationError } from '@/lib/permissions';
 import { requireSession } from '@/lib/require-session';
+import { friendlyErrorMessage } from '@/lib/user-error';
 import { defaultTxnTypeFor, findCostTemplate, parsePastedCosts } from '@/lib/cost-templates';
 import {
   applyCostTemplate,
@@ -36,8 +37,7 @@ function fail(err: unknown): WorksheetResult {
   if (err instanceof AuthorizationError) {
     return { ok: false, error: 'You do not have permission for this change.' };
   }
-  if (err instanceof Error) return { ok: false, error: err.message };
-  throw err;
+  return { ok: false, error: friendlyErrorMessage(err) };
 }
 
 export interface CostFields {
