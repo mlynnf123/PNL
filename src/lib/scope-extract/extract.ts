@@ -37,7 +37,10 @@ const VISION_IMAGES_PER_REQ = Number(process.env.GROQ_SCOPE_VISION_BATCH ?? 1);
 // JSON mode suppresses the reasoning ramble, so the reply is small; keep it tight
 // so image + prompt + reply stays under the TPM ceiling.
 const VISION_REPLY_TOKENS = Number(process.env.GROQ_SCOPE_VISION_MAX_TOKENS ?? 1500);
-const MAX_VISION_REQUESTS = Number(process.env.GROQ_SCOPE_MAX_VISION_REQ ?? 3);
+// The carrier financial summary (RCV/ACV/deductible) is almost always on page 1;
+// cap the sweep so several page calls don't stack up against the per-minute token
+// budget on the free tier. Raise via env if later pages carry needed figures.
+const MAX_VISION_REQUESTS = Number(process.env.GROQ_SCOPE_MAX_VISION_REQ ?? 2);
 
 const PROMPT = `You extract facts from a property-insurance estimate (a carrier "scope"). Return ONLY a single JSON object, no prose, no markdown fences.
 
