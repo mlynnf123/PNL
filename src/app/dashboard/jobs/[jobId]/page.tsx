@@ -71,6 +71,9 @@ const OPERATIONAL_STAGES = [
   'OperationallyComplete',
 ];
 
+// Decimal-string → number for display rollups (null when absent — never zeroed).
+const toNum = (v: string | null | undefined) => (v == null || v === '' ? null : Number(v));
+
 export default async function JobDetailPage({ params }: { params: Promise<{ jobId: string }> }) {
   const session = await requireSession();
   const { jobId } = await params;
@@ -363,6 +366,16 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
                 check3: job.check3Collected,
                 supplement: job.supplementCheckCollected,
               }}
+              expected={
+                approvedScope
+                  ? {
+                      // First carrier check = the initial/ACV payment; second =
+                      // the recoverable depreciation released after the work.
+                      check1: toNum(approvedScope.netClaim ?? approvedScope.acv),
+                      check2: toNum(approvedScope.recoverableDepreciation),
+                    }
+                  : undefined
+              }
             />
           </Section>
 

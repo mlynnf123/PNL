@@ -259,10 +259,14 @@ function SignModal({
           </L>
           <div className="grid grid-cols-2 gap-3">
             <L label="Insurer (optional)">
-              <input name="insurerName" className={inputCls} />
+              <input name="insurerName" defaultValue={row.scopeCarrier ?? ''} className={inputCls} />
             </L>
             <L label="Claim # (optional)">
-              <input name="claimNumber" className={inputCls} />
+              <input
+                name="claimNumber"
+                defaultValue={row.scopeClaimNumber ?? ''}
+                className={inputCls}
+              />
             </L>
           </div>
           <L label="Property address">

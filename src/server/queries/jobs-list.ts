@@ -22,6 +22,10 @@ export interface JobListRow {
   contractedAt: string | null;
   // Commission recipients (typed name or linked user), in authored order.
   reps: string[];
+  // Carrier + claim # from the job's approved scope (null if none) — used to
+  // pre-fill the sign-contract form so scope facts don't get retyped.
+  scopeCarrier: string | null;
+  scopeClaimNumber: string | null;
 }
 
 export interface JobListFilters {
@@ -94,6 +98,16 @@ export async function listJobs(
         LEFT JOIN users u ON u.id = cs.recipient_user_id
         WHERE cs.job_id = ${jobs.id}
       ), '{}')`,
+      scopeCarrier: sql<string | null>`(
+        SELECT sc.carrier FROM carrier_scopes sc
+        WHERE sc.job_id = ${jobs.id} AND sc.status = 'approved_mapped'
+        ORDER BY sc.reviewed_at DESC NULLS LAST LIMIT 1
+      )`,
+      scopeClaimNumber: sql<string | null>`(
+        SELECT sc.claim_number FROM carrier_scopes sc
+        WHERE sc.job_id = ${jobs.id} AND sc.status = 'approved_mapped'
+        ORDER BY sc.reviewed_at DESC NULLS LAST LIMIT 1
+      )`,
     })
     .from(jobs)
     // Left join so pre-signed records (no customer yet) still appear.
