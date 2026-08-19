@@ -34,11 +34,11 @@ const MAX_TEXT_CHUNKS = Number(process.env.GROQ_SCOPE_MAX_CHUNKS ?? 4);
 // observed 413). The financial summary is almost always on page 1, and we still
 // sweep the first few pages across separate requests, merging the results.
 const VISION_IMAGES_PER_REQ = Number(process.env.GROQ_SCOPE_VISION_BATCH ?? 1);
-// The vision model reasons before it answers, so the reply needs room for the
-// <think> pass plus the JSON. If it truncates, the salvage + JSON repair recover
-// the completed fields, so this can stay modest — a smaller reply also means more
-// page requests fit inside the per-minute token budget on the free tier.
-const VISION_REPLY_TOKENS = Number(process.env.GROQ_SCOPE_VISION_MAX_TOKENS ?? 2000);
+// With reasoning disabled the vision model answers JSON directly (~a few hundred
+// tokens), so a modest reply budget is plenty and keeps each page request small
+// enough that several fit the per-minute token budget on the free tier. Salvage +
+// JSON repair still backstop any truncation.
+const VISION_REPLY_TOKENS = Number(process.env.GROQ_SCOPE_VISION_MAX_TOKENS ?? 1200);
 // Pages actually sent to the vision model (one per request), chosen by the
 // both-ends interleave so the sweep reaches the roof/summary figures whether they
 // sit near the front or the back — not just the cover pages. Each page is paced by
@@ -143,7 +143,7 @@ function sleep(ms: number) {
 async function callGroq(
   models: string[],
   content: Content,
-  opts: { maxTokens?: number; jsonMode?: boolean } = {},
+  opts: { maxTokens?: number; jsonMode?: boolean; reasoningEffort?: 'none' | 'default' } = {},
 ): Promise<{ text: string; model: string }> {
   const key = process.env.GROQ_API_KEY;
   if (!key) throw new Error('GROQ_API_KEY is not set');
@@ -166,6 +166,7 @@ async function callGroq(
           model,
           temperature: 0,
           max_tokens: opts.maxTokens ?? REPLY_TOKENS,
+          ...(opts.reasoningEffort ? { reasoning_effort: opts.reasoningEffort } : {}),
           ...(opts.jsonMode ? { response_format: { type: 'json_object' } } : {}),
           messages: [{ role: 'user', content }],
         }),
@@ -401,6 +402,9 @@ export async function extractScopeFromImages(
     const { text: out, model } = await callGroq(order, content, {
       jsonMode: true,
       maxTokens: VISION_REPLY_TOKENS,
+      // Disable the model's internal reasoning — it was consuming the whole token
+      // budget and emitting nothing. With it off, qwen answers the JSON directly.
+      reasoningEffort: 'none',
     });
     if (i === 0) usedModel = model;
     try {
