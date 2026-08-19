@@ -54,7 +54,9 @@ export function ScopeUpload({ jobId }: { jobId: string }) {
                   return;
                 }
                 setPhase('scanning');
-                const images = await renderPdfToImages(file, { maxPages: 5 });
+                // Lower scale keeps each page image's token cost under the free
+                // tier's per-request ceiling; 1.1 is still legible for the summary.
+                const images = await renderPdfToImages(file, { maxPages: 5, scale: 1.1 });
                 const r2 = await submitScopePagesAction(jobId, res.id, images);
                 if (!r2.ok) {
                   setMsg({ tone: 'err', text: r2.error });

@@ -29,10 +29,14 @@ const CHARS_PER_TOKEN = 1.4;
 const SAFETY = 0.85; // headroom under the hard ceiling
 // Cap chunks/batches so a pathological PDF can't fan out into dozens of calls.
 const MAX_TEXT_CHUNKS = Number(process.env.GROQ_SCOPE_MAX_CHUNKS ?? 4);
-const VISION_IMAGES_PER_REQ = Number(process.env.GROQ_SCOPE_VISION_BATCH ?? 2);
-// The vision model (qwen3.6) is a reasoning model: give the reply room for its
-// <think> pass plus the JSON, and force JSON mode so it can't ramble past budget.
-const VISION_REPLY_TOKENS = Number(process.env.GROQ_SCOPE_VISION_MAX_TOKENS ?? 3000);
+// One page image per request by default: a single rendered scan page already
+// runs ~4–5k tokens, so two would exceed the 8k free-tier TPM (that was the
+// observed 413). The financial summary is almost always on page 1, and we still
+// sweep the first few pages across separate requests, merging the results.
+const VISION_IMAGES_PER_REQ = Number(process.env.GROQ_SCOPE_VISION_BATCH ?? 1);
+// JSON mode suppresses the reasoning ramble, so the reply is small; keep it tight
+// so image + prompt + reply stays under the TPM ceiling.
+const VISION_REPLY_TOKENS = Number(process.env.GROQ_SCOPE_VISION_MAX_TOKENS ?? 1500);
 const MAX_VISION_REQUESTS = Number(process.env.GROQ_SCOPE_MAX_VISION_REQ ?? 3);
 
 const PROMPT = `You extract facts from a property-insurance estimate (a carrier "scope"). Return ONLY a single JSON object, no prose, no markdown fences.
