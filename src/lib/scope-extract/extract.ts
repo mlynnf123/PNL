@@ -59,7 +59,7 @@ ROOF SECTION IS THE PRIORITY. These estimates often cover several areas/trades (
 - The rcv/acv/recoverable_depreciation/deductible you report should be the ROOF section's figures. The RCV is the roof section's replacement-cost total (often labeled "Total:", "Line Item Total", "Replacement Cost Value", or "RCV" at the end of the roof section) — it is right there in the roof section totals. Do NOT leave rcv null if a roof section total is visible.
 - If the whole estimate is a single roof scope, its overall totals ARE the roof totals — use them.
 - If figures exist both per-section and as a grand total across multiple trades, prefer the ROOF section's figures and add an issue noting the estimate also covers non-roof trades.
-- The deductible and claim identity (claim number, insured, address, date of loss) are usually document-wide — take them from wherever printed.
+- The DEDUCTIBLE is on the FINAL SUMMARY / RECAP page of the estimate (the last page, often titled "Summary", "Claim Summary", or "Recap"), alongside the claim-level RCV, ACV, net/actual cash value payment, and depreciation. Read the deductible from that summary page. Claim identity (claim number, insured, address, date of loss) is document-wide — take it from wherever printed.
 
 JSON schema:
 {
