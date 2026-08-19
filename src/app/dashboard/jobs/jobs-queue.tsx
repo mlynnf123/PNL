@@ -148,7 +148,9 @@ export function JobsQueue({
             onClick={(e) => e.stopPropagation()}
             className="font-medium text-slate-900 hover:text-teal-600"
           >
-            {row.original.jobNumber ?? <span className="text-slate-400 italic">Lead</span>}
+            {row.original.jobNumber ?? (
+              <StatusPill tone="slate">Lead — pre-contract</StatusPill>
+            )}
           </Link>
         ),
       },

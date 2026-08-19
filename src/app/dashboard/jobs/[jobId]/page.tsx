@@ -250,6 +250,13 @@ export default async function JobDetailPage({ params }: { params: Promise<{ jobI
             .filter(Boolean)
             .join(' · ') || 'Lead — not yet signed'
         }
+        action={
+          isSigned ? (
+            <Badge tone="teal">Job — contract signed</Badge>
+          ) : (
+            <Badge tone="slate">Lead — pre-contract</Badge>
+          )
+        }
       />
 
       <div className="grid gap-6 lg:grid-cols-3">
