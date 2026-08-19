@@ -54,9 +54,11 @@ export function ScopeUpload({ jobId }: { jobId: string }) {
                   return;
                 }
                 setPhase('scanning');
-                // Lower scale keeps each page image's token cost under the free
-                // tier's per-request ceiling; 1.1 is still legible for the summary.
-                const images = await renderPdfToImages(file, { maxPages: 5, scale: 1.1 });
+                // Render more pages than we'll send so the extractor can sample
+                // both ends (cover pages are often 1–2; the roof totals sit deeper
+                // or on a back recap). Lower scale keeps each image's token cost
+                // under the free-tier per-request ceiling; 1.1 stays legible.
+                const images = await renderPdfToImages(file, { maxPages: 12, scale: 1.1 });
                 const r2 = await submitScopePagesAction(jobId, res.id, images);
                 if (!r2.ok) {
                   setMsg({ tone: 'err', text: r2.error });

@@ -34,17 +34,17 @@ const MAX_TEXT_CHUNKS = Number(process.env.GROQ_SCOPE_MAX_CHUNKS ?? 4);
 // observed 413). The financial summary is almost always on page 1, and we still
 // sweep the first few pages across separate requests, merging the results.
 const VISION_IMAGES_PER_REQ = Number(process.env.GROQ_SCOPE_VISION_BATCH ?? 1);
-// The vision model reasons before it answers, so the reply needs room for both
-// the <think> pass and the JSON — too tight and the JSON truncates mid-object
-// (Groq then rejects it as json_validate_failed). A single ~1.8k-token page image
-// + ~1.4k prompt + 3k reply still lands under the 8k TPM ceiling.
-const VISION_REPLY_TOKENS = Number(process.env.GROQ_SCOPE_VISION_MAX_TOKENS ?? 3000);
-// On the 8k-TPM free tier a page image + prompt + reply is ~6k tokens, so only
-// ~1 page/minute clears the rate limiter — sweeping many pages means minutes of
-// waiting. The roof summary figures are on the first pages (a prior run read
-// everything but RCV from 2 pages), so default to 2 and let the roof-focused
-// prompt find the RCV there. Raise via env if a scope truly needs deeper pages.
-const MAX_VISION_REQUESTS = Number(process.env.GROQ_SCOPE_MAX_VISION_REQ ?? 2);
+// The vision model reasons before it answers, so the reply needs room for the
+// <think> pass plus the JSON. If it truncates, the salvage + JSON repair recover
+// the completed fields, so this can stay modest — a smaller reply also means more
+// page requests fit inside the per-minute token budget on the free tier.
+const VISION_REPLY_TOKENS = Number(process.env.GROQ_SCOPE_VISION_MAX_TOKENS ?? 2000);
+// Pages actually sent to the vision model (one per request), chosen by the
+// both-ends interleave so the sweep reaches the roof/summary figures whether they
+// sit near the front or the back — not just the cover pages. Each page is paced by
+// the per-minute rate limiter on the free tier, so this trades a slower parse for
+// finding the figures. Raise/lower via env.
+const MAX_VISION_REQUESTS = Number(process.env.GROQ_SCOPE_MAX_VISION_REQ ?? 5);
 
 const PROMPT = `You extract facts from a property-insurance estimate (a carrier "scope") for a ROOFING contractor. Return ONLY a single JSON object, no prose, no markdown fences.
 
@@ -306,6 +306,20 @@ function finish(
   mode: 'native_text' | 'vision',
 ): ScopeExtractionResult {
   const extraction = normalizeExtraction(raw);
+  // When several pages are merged, a cover page's "no figures here / incomplete
+  // document" complaint is stale if a later page actually supplied the money. Drop
+  // those page-local complaints once a core carrier figure is present, and dedupe.
+  const haveCoreMoney = !!(extraction.rcv || extraction.acv || extraction.netClaim);
+  const seen = new Set<string>();
+  extraction.issues = extraction.issues.filter((iss) => {
+    const stale =
+      haveCoreMoney && /incomplete|missing|cover|only the|not.*visible|lacks/i.test(iss.detail);
+    if (stale) return false;
+    const key = `${iss.category}|${iss.detail}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
   // Merge the model's own issues with deterministic (code) reconciliation.
   extraction.issues = [...extraction.issues, ...reconcileScope(extraction)];
   return { extraction, raw, model, mode };
@@ -343,15 +357,34 @@ export async function extractScopeFromText(text: string): Promise<ScopeExtractio
   return finish(mergeRaw(parts), usedModel, 'native_text');
 }
 
-// Vision path: the caller rendered scanned pages to data-URL images. Send them in
-// small batches (financial summary is usually the first page or two) so no single
-// request exceeds the limit, then merge. Vision models alternate as primary.
+// Order pages so a limited sweep is most likely to hit the figures: the carrier
+// summary/roof totals sit either near the front OR near the back (recap page),
+// while pages 1–2 are often cover/terms. Interleave from both ends —
+// [first, last, second, second-last, …] — so both regions are reached within the
+// first few requests instead of burning them all on the cover.
+function interleaveEnds<T>(arr: T[]): T[] {
+  const out: T[] = [];
+  let i = 0;
+  let j = arr.length - 1;
+  while (i <= j) {
+    out.push(arr[i]);
+    if (i !== j) out.push(arr[j]);
+    i++;
+    j--;
+  }
+  return out;
+}
+
+// Vision path: the caller rendered scanned pages to data-URL images. Send them one
+// per request (free-tier token budget) so no single call exceeds the limit, then
+// merge. Vision models alternate as primary.
 export async function extractScopeFromImages(
   imageDataUrls: string[],
 ): Promise<ScopeExtractionResult> {
+  const ordered = interleaveEnds(imageDataUrls);
   const batches: string[][] = [];
-  for (let i = 0; i < imageDataUrls.length && batches.length < MAX_VISION_REQUESTS; i += VISION_IMAGES_PER_REQ) {
-    batches.push(imageDataUrls.slice(i, i + VISION_IMAGES_PER_REQ));
+  for (let i = 0; i < ordered.length && batches.length < MAX_VISION_REQUESTS; i += VISION_IMAGES_PER_REQ) {
+    batches.push(ordered.slice(i, i + VISION_IMAGES_PER_REQ));
   }
   if (!batches.length) throw new Error('No page images to extract');
 
