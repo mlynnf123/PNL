@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, ChevronUp, Eye, Plus, Trash2 } from 'lucide-react';
+import { Eye, GripVertical, Plus, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
@@ -138,13 +138,19 @@ export function EstimateDocBuilder({
     return res.id ?? null;
   }
 
-  function move(pageId: string, dir: -1 | 1) {
-    const idx = doc.pages.findIndex((p) => p.id === pageId);
-    const swap = idx + dir;
-    if (swap < 0 || swap >= doc.pages.length) return;
-    const order = doc.pages.map((p) => p.id);
-    [order[idx], order[swap]] = [order[swap], order[idx]];
-    run(reorderEstimatePagesAction(doc.id, order));
+  // Drag-to-reorder the section list via a grip handle. dragId is the page being
+  // dragged; dropping on a row inserts it at that row's position.
+  const [dragId, setDragId] = useState<string | null>(null);
+
+  function handleDrop(targetId: string) {
+    if (!dragId || dragId === targetId) return;
+    const ids = doc.pages.map((p) => p.id);
+    const from = ids.indexOf(dragId);
+    const to = ids.indexOf(targetId);
+    if (from < 0 || to < 0) return;
+    ids.splice(to, 0, ids.splice(from, 1)[0]);
+    setDragId(null);
+    run(reorderEstimatePagesAction(doc.id, ids));
   }
 
   const selectedPage = doc.pages.find((p) => p.id === selectedKey);
@@ -224,13 +230,28 @@ export function EstimateDocBuilder({
             >
               Details
             </button>
-            {doc.pages.map((p, i) => (
+            {doc.pages.map((p) => (
               <div
                 key={p.id}
+                onDragOver={(e) => {
+                  if (editable && dragId) e.preventDefault();
+                }}
+                onDrop={() => handleDrop(p.id)}
                 className={`flex items-center gap-1 rounded-lg px-2 py-2 ${
                   p.id === selectedKey ? 'bg-slate-100' : 'hover:bg-slate-50'
-                } ${p.included ? '' : 'opacity-50'}`}
+                } ${p.included ? '' : 'opacity-50'} ${dragId === p.id ? 'opacity-40' : ''}`}
               >
+                {editable && (
+                  <span
+                    draggable
+                    onDragStart={() => setDragId(p.id)}
+                    onDragEnd={() => setDragId(null)}
+                    aria-label="Drag to reorder"
+                    className="flex shrink-0 cursor-grab text-slate-300 hover:text-slate-500 active:cursor-grabbing"
+                  >
+                    <GripVertical size={16} />
+                  </span>
+                )}
                 <button type="button" onClick={() => selectPage(p)} className="flex-1 text-left">
                   <div className="text-sm font-medium text-slate-800">
                     {p.title || PAGE_TYPE_LABELS[p.pageType]}
@@ -242,24 +263,6 @@ export function EstimateDocBuilder({
                 </button>
                 {editable && (
                   <>
-                    <div className="flex flex-col">
-                      <button
-                        type="button"
-                        disabled={i === 0 || isPending}
-                        onClick={() => move(p.id, -1)}
-                        className="text-slate-300 hover:text-slate-600 disabled:opacity-30"
-                      >
-                        <ChevronUp size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        disabled={i === doc.pages.length - 1 || isPending}
-                        onClick={() => move(p.id, 1)}
-                        className="text-slate-300 hover:text-slate-600 disabled:opacity-30"
-                      >
-                        <ChevronDown size={14} />
-                      </button>
-                    </div>
                     <button
                       type="button"
                       disabled={isPending}
